@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import booksTeacup from "@/assets/books-teacup.png.asset.json";
 import { useSignOut } from "@/lib/auth";
 import { useMe, useUnreadCounts } from "@/lib/social";
 
