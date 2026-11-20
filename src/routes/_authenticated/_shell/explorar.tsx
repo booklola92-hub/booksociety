@@ -8,7 +8,7 @@ type BookItem = { id: string; title: string; authors: string[]; cover: string | 
 type GoogleBooksResponse = { items?: Array<{ id: string; volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }> };
 type OpenLibraryResponse = { docs?: Array<{ key?: string; title?: string; author_name?: string[]; cover_i?: number }> };
 
-const plannedSources = ["Goodreads", "Novel Updates", "Internet (somente fontes permitidas)", "NovelList", "KakaoPage", "Visorikigai", "LeituraManga", "EternalMangas", "LunarX", "RisingShadow"];
+const plannedSources = ["Goodreads", "Novel Updates", "NovelList", "KakaoPage", "Visorikigai", "LeituraManga", "EternalMangas", "LunarX", "RisingShadow"];
 
 function ExplorePage() {
   const [query, setQuery] = useState("");
@@ -103,11 +103,13 @@ function ExplorePage() {
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Open Library · conectada</span>
             <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Google Books · conectado</span>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Busca na internet · Google</span>
             {plannedSources.map((source) => <span key={source} title="Integração ainda não disponível" className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-muted-foreground">{source} · em integração</span>)}
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">A busca consulta Open Library e Google Books. As demais fontes aparecem como em integração até existir uma conexão compatível; nenhum resultado ou capa é inventado.</p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">A busca de livros consulta Open Library e Google Books. A pesquisa geral usa o Google Programmable Search; ao abrir um resultado, o Google pode direcionar para o site de origem. As demais fontes aparecem como em integração até existir uma conexão compatível.</p>
         </div>
       </section>
+      <section className="space-y-3 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><div><h2 className="font-display text-xl font-semibold">Pesquisar na internet</h2><p className="mt-1 text-sm text-muted-foreground">Resultados do Google em sites permitidos pelo mecanismo configurado. Os links podem abrir páginas externas.</p></div><script async src="https://cse.google.com/cse.js?cx=35ec7cd2f3337418b" /><div className="gcse-search" /></section>
       {error ? <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div> : null}
       {sourceNotice ? <div role="status" className="rounded-2xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">{sourceNotice}</div> : null}
       {loading ? <div className="flex items-center justify-center gap-3 rounded-2xl border border-border bg-card px-5 py-12 text-sm text-muted-foreground"><span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />Procurando leituras...</div> : null}
