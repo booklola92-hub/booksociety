@@ -107,7 +107,7 @@ function AuthPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="hidden flex-col items-center justify-center bg-secondary/60 p-10 lg:flex">
-        <img src="/book-society-logo.svg" alt="Book Society — Leia, Conecte, Compartilhe" className="w-full max-w-md" />
+        <img src="/book-society-logo.svg" alt="Book Society — Leia, Conecte, Compartilhe" className="mx-auto h-auto w-full max-w-[320px]" />
         <p className="font-display mt-4 max-w-sm text-center text-3xl text-foreground italic">
           Leia mais. Compartilhe mais. Faça parte.
         </p>
@@ -115,7 +115,7 @@ function AuthPage() {
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <Link to="/" className="block">
-            <img src="/book-society-logo.svg" alt="Book Society" className="h-auto w-56" />
+            <img src="/book-society-logo.svg" alt="Book Society" className="h-auto w-28" />
           </Link>
 
           {sent ? (
