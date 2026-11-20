@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { BookHeart, Library, Trophy, Users } from "lucide-react";
 import { useEffect } from "react";
 
-import booksTeacup from "@/assets/books-teacup.png.asset.json";
 import openBook from "@/assets/open-book-hearts.png.asset.json";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,7 +78,7 @@ function Landing() {
               </Button>
             </div>
           </div>
-          <img src={booksTeacup.url} alt="Pilha de livros com uma xícara de chá" className="w-full mix-blend-multiply" />
+          <img src="/book-society-logo.svg" alt="Book Society — Leia, Conecte, Compartilhe" className="mx-auto w-full max-w-md" />
         </section>
 
         <section className="grid gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-4">
