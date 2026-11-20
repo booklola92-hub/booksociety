@@ -51,7 +51,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <Link to="/inicio" className="block text-center" onClick={onNavigate}>
         <img src={booksTeacup.url} alt="" className="mx-auto h-24 w-auto mix-blend-multiply" />
         <span className="font-display block text-3xl leading-none font-semibold text-primary">
-          The Secret
+          Book Society
           <br />
           Bookshelf
         </span>
