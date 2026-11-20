@@ -1,12 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" role="img" aria-labelledby="title desc">
   <title id="title">Book Society</title>
-  <desc id="desc">Símbolo de um livro aberto com uma estrela, ao lado do nome Book Society.</desc>
-  <g fill="none" stroke="#6F4B3E" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M26 48c35-15 68-10 96 12v88c-28-22-61-27-96-12z"/>
-    <path d="M122 60c28-22 61-27 96-12v88c-35-15-68-10-96 12z"/>
-    <path d="M122 60v88"/>
-    <path d="M73 31l7-15 7 15 15 7-15 7-7 15-7-15-15-7z" fill="#C69A61" stroke="#C69A61" stroke-width="2"/>
+  <desc id="desc">Livro aberto com uma xícara de café e o nome Book Society.</desc>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g fill="none" stroke="#4B1932" stroke-width="13">
+      <path d="M235 175c-72-37-139-34-195-6v112c58-27 124-27 195 8z"/>
+      <path d="M235 175c72-37 139-34 195-6v112c-58-27-124-27-195 8z"/>
+      <path d="M235 175v114"/>
+    </g>
+    <g fill="none" stroke="#D8897D" stroke-width="13">
+      <path d="M65 155c54-63 111-82 170-72"/>
+      <path d="M405 155c-54-63-111-82-170-72"/>
+    </g>
+    <path d="M196 65c-21-28 20-37 0-66M240 65c-21-28 20-37 0-66" fill="none" stroke="#D8897D" stroke-width="11"/>
+    <path d="M155 78h125l-9 44c-5 26-25 43-53 43h-1c-28 0-48-17-53-43z" fill="#4B1932"/>
+    <path d="M280 91h17c23 0 26 42 0 42h-14" fill="none" stroke="#4B1932" stroke-width="12"/>
+    <path d="M208 173h62" stroke="#4B1932" stroke-width="10"/>
+    <path d="M115 42l8-18 8 18 18 8-18 8-8 18-8-18-18-8zM345 48l6-14 6 14 14 6-14 6-6 14-6-14-14-6z" fill="#D8897D"/>
   </g>
-  <text x="250" y="91" fill="#49352E" font-family="Georgia, 'Times New Roman', serif" font-size="58" font-weight="600" letter-spacing="-1">Book Society</text>
-  <text x="254" y="128" fill="#987665" font-family="Arial, sans-serif" font-size="17" letter-spacing="4">LEIA · CONECTE · COMPARTILHE</text>
+  <text x="450" y="205" text-anchor="middle" fill="#4B1932" font-family="Georgia, 'Times New Roman', serif" font-size="104" font-weight="600" letter-spacing="-3">Book Society</text>
+  <path d="M205 240c125 44 365 44 490 0" fill="none" stroke="#D8897D" stroke-width="5"/>
+  <text x="450" y="300" text-anchor="middle" fill="#6F4054" font-family="Arial, sans-serif" font-size="28" letter-spacing="9">LEIA · CONECTE · COMPARTILHE</text>
 </svg>
