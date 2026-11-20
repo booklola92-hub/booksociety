@@ -1,23 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-labelledby="title desc">
   <title id="title">Book Society</title>
-  <desc id="desc">Livro aberto com uma xícara de café e o nome Book Society.</desc>
+  <desc id="desc">Uma xícara fumegante sobre um livro aberto, com o nome Book Society.</desc>
   <g stroke-linecap="round" stroke-linejoin="round">
-    <g fill="none" stroke="#4B1932" stroke-width="13">
-      <path d="M235 175c-72-37-139-34-195-6v112c58-27 124-27 195 8z"/>
-      <path d="M235 175c72-37 139-34 195-6v112c-58-27-124-27-195 8z"/>
-      <path d="M235 175v114"/>
-    </g>
-    <g fill="none" stroke="#D8897D" stroke-width="13">
-      <path d="M65 155c54-63 111-82 170-72"/>
-      <path d="M405 155c-54-63-111-82-170-72"/>
-    </g>
-    <path d="M196 65c-21-28 20-37 0-66M240 65c-21-28 20-37 0-66" fill="none" stroke="#D8897D" stroke-width="11"/>
-    <path d="M155 78h125l-9 44c-5 26-25 43-53 43h-1c-28 0-48-17-53-43z" fill="#4B1932"/>
-    <path d="M280 91h17c23 0 26 42 0 42h-14" fill="none" stroke="#4B1932" stroke-width="12"/>
-    <path d="M208 173h62" stroke="#4B1932" stroke-width="10"/>
-    <path d="M115 42l8-18 8 18 18 8-18 8-8 18-8-18-18-8zM345 48l6-14 6 14 14 6-14 6-6 14-6-14-14-6z" fill="#D8897D"/>
+    <!-- Steam -->
+    <path d="M395 105c-24-30 22-43 0-76M455 105c-24-30 22-43 0-76M515 105c-24-30 22-43 0-76"
+      fill="none" stroke="#D8897D" stroke-width="12"/>
+    <!-- Small decorative stars -->
+    <path d="M270 100l10-22 10 22 22 10-22 10-10 22-10-22-22-10zM610 105l8-18 8 18 18 8-18 8-8 18-8-18-18-8z"
+      fill="#D8897D"/>
+    <!-- Cup -->
+    <path d="M350 125h190l-13 78c-7 39-37 63-82 63s-75-24-82-63z" fill="#4B1932"/>
+    <path d="M540 148h26c42 0 45 72 0 72h-35" fill="none" stroke="#4B1932" stroke-width="15"/>
+    <path d="M385 278h120" stroke="#D8897D" stroke-width="10"/>
+    <!-- Open book -->
+    <path d="M450 330c-84-52-171-56-266-16v132c99-40 184-31 266 22z"
+      fill="none" stroke="#4B1932" stroke-width="15"/>
+    <path d="M450 330c84-52 171-56 266-16v132c-99-40-184-31-266 22z"
+      fill="none" stroke="#4B1932" stroke-width="15"/>
+    <path d="M450 330v138" fill="none" stroke="#D8897D" stroke-width="10"/>
+    <path d="M225 295c68-65 142-91 225-88M675 295c-68-65-142-91-225-88"
+      fill="none" stroke="#D8897D" stroke-width="11"/>
   </g>
-  <text x="450" y="205" text-anchor="middle" fill="#4B1932" font-family="Georgia, 'Times New Roman', serif" font-size="104" font-weight="600" letter-spacing="-3">Book Society</text>
-  <path d="M205 240c125 44 365 44 490 0" fill="none" stroke="#D8897D" stroke-width="5"/>
-  <text x="450" y="300" text-anchor="middle" fill="#6F4054" font-family="Arial, sans-serif" font-size="28" letter-spacing="9">LEIA · CONECTE · COMPARTILHE</text>
+  <text x="450" y="535" text-anchor="middle" fill="#4B1932"
+    font-family="Georgia, 'Times New Roman', serif" font-size="91" font-weight="600" letter-spacing="-2">Book Society</text>
+  <text x="450" y="585" text-anchor="middle" fill="#6F4054"
+    font-family="Arial, sans-serif" font-size="25" letter-spacing="7">LEIA · CONECTE · COMPARTILHE</text>
 </svg>
