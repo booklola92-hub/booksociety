@@ -1,28 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-labelledby="title desc">
-  <title id="title">Book Society</title>
-  <desc id="desc">Uma xícara fumegante sobre um livro aberto, com o nome Book Society.</desc>
-  <g stroke-linecap="round" stroke-linejoin="round">
-    <!-- Steam -->
-    <path d="M395 105c-24-30 22-43 0-76M455 105c-24-30 22-43 0-76M515 105c-24-30 22-43 0-76"
-      fill="none" stroke="#D8897D" stroke-width="12"/>
-    <!-- Small decorative stars -->
-    <path d="M270 100l10-22 10 22 22 10-22 10-10 22-10-22-22-10zM610 105l8-18 8 18 18 8-18 8-8 18-8-18-18-8z"
-      fill="#D8897D"/>
-    <!-- Cup -->
-    <path d="M350 125h190l-13 78c-7 39-37 63-82 63s-75-24-82-63z" fill="#4B1932"/>
-    <path d="M540 148h26c42 0 45 72 0 72h-35" fill="none" stroke="#4B1932" stroke-width="15"/>
-    <path d="M385 278h120" stroke="#D8897D" stroke-width="10"/>
-    <!-- Open book -->
-    <path d="M450 330c-84-52-171-56-266-16v132c99-40 184-31 266 22z"
-      fill="none" stroke="#4B1932" stroke-width="15"/>
-    <path d="M450 330c84-52 171-56 266-16v132c-99-40-184-31-266 22z"
-      fill="none" stroke="#4B1932" stroke-width="15"/>
-    <path d="M450 330v138" fill="none" stroke="#D8897D" stroke-width="10"/>
-    <path d="M225 295c68-65 142-91 225-88M675 295c-68-65-142-91-225-88"
-      fill="none" stroke="#D8897D" stroke-width="11"/>
-  </g>
-  <text x="450" y="535" text-anchor="middle" fill="#4B1932"
-    font-family="Georgia, 'Times New Roman', serif" font-size="91" font-weight="600" letter-spacing="-2">Book Society</text>
-  <text x="450" y="585" text-anchor="middle" fill="#6F4054"
-    font-family="Arial, sans-serif" font-size="25" letter-spacing="7">LEIA · CONECTE · COMPARTILHE</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+<title id="title">Book Society</title>
+<desc id="desc">Emblema circular vermelho escuro com livros, xícara de café e o nome Book Society.</desc>
+<defs>
+ <linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8F1018"/><stop offset="1" stop-color="#650912"/></linearGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#E6C38B"/><stop offset="1" stop-color="#B9874D"/></linearGradient>
+</defs>
+<circle cx="400" cy="400" r="374" fill="#FBF2E8" stroke="#850F17" stroke-width="12"/>
+<circle cx="400" cy="400" r="357" fill="none" stroke="#A52A2D" stroke-width="3"/>
+<!-- steam -->
+<g fill="none" stroke="#A51D24" stroke-width="10" stroke-linecap="round">
+ <path d="M354 169c-35-38 27-48 0-91M405 161c-35-38 27-48 0-91M456 169c-35-38 27-48 0-91"/>
+</g>
+<!-- stars and hearts -->
+<g fill="#B52A2D"><path d="M222 192l9-22 9 22 22 9-22 9-9 22-9-22-22-9zM568 197l8-19 8 19 19 8-19 8-8 19-8-19-19-8z"/><path d="M286 175c-21-25-52 6 0 42 52-36 21-67 0-42zM516 176c-21-25-52 6 0 42 52-36 21-67 0-42z"/></g>
+<!-- foliage -->
+<g fill="none" stroke="#76523A" stroke-width="6" stroke-linecap="round">
+ <path d="M180 395q-37-83-4-145M188 364q-45-12-57-49M181 331q37-10 46-45M622 395q37-83 4-145M614 364q45-12 57-49M621 331q-37-10-46-45"/>
+</g>
+<g fill="#9A7653">
+ <path d="M178 330q-44-4-52-37 39-7 52 37M190 296q-4-42 28-57 13 38-28 57M620 330q44-4 52-37-39-7-52 37M608 296q4-42-28-57-13 38 28 57"/>
+</g>
+<g fill="#A51D24"><circle cx="133" cy="365" r="9"/><circle cx="151" cy="390" r="8"/><circle cx="667" cy="365" r="9"/><circle cx="649" cy="390" r="8"/></g>
+<!-- cup -->
+<ellipse cx="400" cy="309" rx="120" ry="23" fill="url(#gold)" stroke="#6F0D15" stroke-width="7"/>
+<path d="M300 244h200l-13 83c-6 39-38 61-87 61s-81-22-87-61z" fill="url(#red)" stroke="#650912" stroke-width="9"/>
+<ellipse cx="400" cy="246" rx="101" ry="20" fill="#FBF2E8" stroke="#650912" stroke-width="9"/>
+<ellipse cx="400" cy="247" rx="79" ry="11" fill="#4A1C18"/>
+<path d="M500 265h27c49 0 48 77-3 77h-29" fill="none" stroke="#650912" stroke-width="17"/>
+<path d="M321 374h158" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
+<!-- books -->
+<path d="M208 405q192-28 384 0l-16 65q-176-22-352 0z" fill="url(#red)" stroke="#5E1015" stroke-width="8"/>
+<path d="M223 418q177-21 352 0M222 454q177-21 352 0" fill="none" stroke="#E4C18C" stroke-width="5"/>
+<path d="M228 414v42M572 414v42" stroke="#D6AE72" stroke-width="9"/>
+<path d="M183 481q217-27 434 0l-15 74q-202-24-404 0z" fill="#7B1018" stroke="#5E1015" stroke-width="8"/>
+<path d="M199 497q201-22 402 0M197 539q203-22 406 0" fill="none" stroke="#E4C18C" stroke-width="5"/>
+<path d="M220 488v62M580 488v62" stroke="#D6AE72" stroke-width="9"/>
+<g fill="#E4C18C"><path d="M400 426l9 10-9 10-9-10zM400 506l9 10-9 10-9-10z"/></g>
+<!-- wordmark -->
+<text x="400" y="642" text-anchor="middle" fill="#780D16" font-family="Georgia, 'Times New Roman', serif" font-size="76" font-weight="bold" letter-spacing="-2">Book Society</text>
+<path d="M205 669h138m114 0h138" stroke="#A51D24" stroke-width="4" stroke-linecap="round"/>
+<path d="M400 657c-16-20-40 3 0 30 40-27 16-50 0-30z" fill="#A51D24"/>
+<text x="400" y="713" text-anchor="middle" fill="#7B2227" font-family="Arial, sans-serif" font-size="19" letter-spacing="4.2">LEIA · CONECTE · COMPARTILHE</text>
 </svg>
