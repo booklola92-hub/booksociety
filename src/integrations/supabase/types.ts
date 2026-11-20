@@ -677,6 +677,14 @@ export type Database = {
           slug: string
         }[]
       }
+      follow_stats: {
+        Args: { _user_id: string }
+        Returns: {
+          followers: number
+          following: number
+          i_follow: boolean
+        }[]
+      }
       get_community: {
         Args: { _slug: string }
         Returns: {

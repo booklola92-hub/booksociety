@@ -260,16 +260,13 @@ export function useFollowStats(userId: string | undefined) {
     queryKey: ["follow-stats", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const me = await getMyId();
-      const [followers, following, mine] = await Promise.all([
-        supabase.from("follows").select("*", { count: "exact", head: true }).eq("following_id", userId!),
-        supabase.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", userId!),
-        supabase.from("follows").select("follower_id").eq("follower_id", me).eq("following_id", userId!),
-      ]);
+      const { data, error } = await supabase.rpc("follow_stats", { _user_id: userId! });
+      if (error) throw error;
+      const row = data?.[0];
       return {
-        followers: followers.count ?? 0,
-        following: following.count ?? 0,
-        iFollow: (mine.data ?? []).length > 0,
+        followers: Number(row?.followers ?? 0),
+        following: Number(row?.following ?? 0),
+        iFollow: row?.i_follow ?? false,
       };
     },
   });
