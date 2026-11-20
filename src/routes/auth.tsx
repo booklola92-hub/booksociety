@@ -18,10 +18,10 @@ export const Route = createFileRoute("/auth")({
     s["modo"] === "cadastro" || s["modo"] === "esqueci" || s["modo"] === "entrar" ? { modo: s["modo"] } : {},
   head: () => ({
     meta: [
-      { title: "Entrar ou criar conta — The Secret Bookshelf" },
-      { name: "description", content: "Crie sua conta gratuita ou entre na The Secret Bookshelf." },
-      { property: "og:title", content: "Entrar ou criar conta — The Secret Bookshelf" },
-      { property: "og:description", content: "Crie sua conta gratuita ou entre na The Secret Bookshelf." },
+      { title: "Entrar ou criar conta — Book Society" },
+      { name: "description", content: "Crie sua conta gratuita ou entre na Book Society." },
+      { property: "og:title", content: "Entrar ou criar conta — Book Society" },
+      { property: "og:description", content: "Crie sua conta gratuita ou entre na Book Society." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -116,7 +116,7 @@ function AuthPage() {
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <Link to="/" className="font-display text-3xl font-semibold text-primary">
-            The Secret Bookshelf
+            Book Society
           </Link>
 
           {sent ? (
