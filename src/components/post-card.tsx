@@ -256,7 +256,7 @@ function EditPostDialog({
               setBusy(true);
               const { error } = await supabase.from("posts").update({ content: content.trim() }).eq("id", post.id);
               setBusy(false);
-              if (error) return toast.error(error.message);
+              if (error) { toast.error(error.message); return; }
               await invalidate("posts");
               onOpenChange(false);
             }}
@@ -296,7 +296,7 @@ function Comments({ postId }: { postId: string }) {
                 className="mt-1 text-xs text-muted-foreground hover:text-destructive"
                 onClick={async () => {
                   const { error } = await supabase.from("comments").delete().eq("id", c.id);
-                  if (error) return toast.error(error.message);
+                  if (error) { toast.error(error.message); return; }
                   await invalidate("comments", "posts");
                 }}
               >

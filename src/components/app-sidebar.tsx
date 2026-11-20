@@ -25,7 +25,7 @@ const linkClass =
   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.95rem] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent";
 const activeClass = "bg-primary text-primary-foreground shadow-soft hover:bg-primary";
 
-function NavItem({ icon: Icon, label, badge, children }: { icon: LucideIcon; label: string; badge?: number; children?: ReactNode }) {
+function NavItem({ icon: Icon, label, badge, children }: { icon: LucideIcon; label: string; badge?: number | undefined; children?: ReactNode }) {
   return (
     <>
       <Icon className="h-5 w-5 shrink-0" />
