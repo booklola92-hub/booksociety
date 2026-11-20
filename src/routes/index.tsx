@@ -44,7 +44,7 @@ function Landing() {
   return (
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <img src="/book-society-logo.svg" alt="Book Society" className="h-auto w-[170px] max-w-[220px] object-contain" />
+        <img src="/book-society-logo.svg" alt="Book Society" className="h-auto w-[76px] object-contain" />
         <div className="flex gap-2">
           <Button variant="ghost" asChild>
             <Link to="/auth">Entrar</Link>
