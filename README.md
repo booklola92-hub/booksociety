@@ -1,4 +1,4 @@
-# Booksociety
+# Book Society
 
 quero criar uma rede social  para leitores de livros
 
