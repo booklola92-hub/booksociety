@@ -4,10 +4,11 @@ import { BookOpen, Search, Sparkles } from "lucide-react";
 import { PageTitle } from "@/components/empty-state";
 
 type SearchField = "all" | "title" | "author";
-type BookItem = { id: string; title: string; authors: string[]; cover: string | null };
+type BookItem = { id: string; title: string; authors: string[]; cover: string | null; source: "Google Books" | "Open Library" };
 type GoogleBooksResponse = { items?: Array<{ id: string; volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }> };
+type OpenLibraryResponse = { docs?: Array<{ key?: string; title?: string; author_name?: string[]; cover_i?: number }> };
 
-const plannedSources = ["Goodreads", "Novel Updates", "NovelList", "KakaoPage", "Visorikigai", "LeituraManga", "EternalMangas", "LunarX", "RisingShadow", "Internet (somente fontes permitidas)"];
+const plannedSources = ["Goodreads", "Novel Updates", "Internet (somente fontes permitidas)", "NovelList", "KakaoPage", "Visorikigai", "LeituraManga", "EternalMangas", "LunarX", "RisingShadow"];
 
 function ExplorePage() {
   const [query, setQuery] = useState("");
@@ -16,6 +17,7 @@ function ExplorePage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
+  const [sourceNotice, setSourceNotice] = useState("");
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,25 +25,58 @@ function ExplorePage() {
     if (!term || loading) return;
     setLoading(true);
     setError("");
+    setSourceNotice("");
     setSearched(true);
     setResults([]);
-    const searchTerm = field === "title" ? `intitle:${term}` : field === "author" ? `inauthor:${term}` : term;
-    try {
-      const params = new URLSearchParams({ q: searchTerm, maxResults: "24", printType: "books", orderBy: "relevance" });
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?${params.toString()}`);
-      if (!response.ok) throw new Error("Não foi possível consultar o Google Books agora.");
-      const data = (await response.json()) as GoogleBooksResponse;
-      setResults((data.items ?? []).flatMap((item) => {
+
+    const googleQuery = field === "title" ? `intitle:${term}` : field === "author" ? `inauthor:${term}` : term;
+    const openParams = new URLSearchParams({ limit: "24", fields: "key,title,author_name,cover_i" });
+    openParams.set(field === "title" ? "title" : field === "author" ? "author" : "q", term);
+    const googleParams = new URLSearchParams({ q: googleQuery, maxResults: "24", printType: "books", orderBy: "relevance" });
+
+    const [googleResult, openResult] = await Promise.allSettled([
+      fetch(`https://www.googleapis.com/books/v1/volumes?${googleParams.toString()}`).then(async (response) => {
+        if (!response.ok) throw new Error(response.status === 429 ? "limite de consultas atingido" : "indisponível");
+        return (await response.json()) as GoogleBooksResponse;
+      }),
+      fetch(`https://openlibrary.org/search.json?${openParams.toString()}`).then(async (response) => {
+        if (!response.ok) throw new Error(response.status === 429 ? "limite de consultas atingido" : "indisponível");
+        return (await response.json()) as OpenLibraryResponse;
+      }),
+    ]);
+
+    const books: BookItem[] = [];
+    if (googleResult.status === "fulfilled") {
+      for (const item of googleResult.value.items ?? []) {
         const info = item.volumeInfo;
-        if (!info?.title) return [];
+        if (!info?.title) continue;
         const rawCover = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null;
-        return [{ id: item.id, title: info.title, authors: info.authors ?? [], cover: rawCover ? rawCover.replace(/^http:\/\//, "https://").replace("&edge=curl", "") : null }];
-      }));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Ocorreu um erro inesperado na busca.");
-    } finally {
-      setLoading(false);
+        books.push({ id: `google-${item.id}`, title: info.title, authors: info.authors ?? [], cover: rawCover ? rawCover.replace(/^http:\/\//, "https://").replace("&edge=curl", "") : null, source: "Google Books" });
+      }
     }
+    if (openResult.status === "fulfilled") {
+      for (const item of openResult.value.docs ?? []) {
+        if (!item.title) continue;
+        books.push({ id: `openlibrary-${item.key ?? item.title}`, title: item.title, authors: item.author_name ?? [], cover: item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` : null, source: "Open Library" });
+      }
+    }
+
+    const seen = new Set<string>();
+    const uniqueBooks = books.filter((book) => {
+      const key = `${book.title.toLocaleLowerCase()}|${book.authors.join(",").toLocaleLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    setResults(uniqueBooks);
+
+    const failedSources = [
+      ...(googleResult.status === "rejected" ? [`Google Books: ${googleResult.reason instanceof Error ? googleResult.reason.message : "erro na consulta"}`] : []),
+      ...(openResult.status === "rejected" ? [`Open Library: ${openResult.reason instanceof Error ? openResult.reason.message : "erro na consulta"}`] : []),
+    ];
+    if (failedSources.length === 2) setError("Não foi possível consultar Google Books nem Open Library agora. Tente novamente mais tarde.");
+    else if (failedSources.length) setSourceNotice(`Uma fonte não respondeu; exibindo os resultados disponíveis. ${failedSources.join(" · ")}.`);
+    setLoading(false);
   }
 
   return (
@@ -66,24 +101,26 @@ function ExplorePage() {
         <div className="mt-5 border-t border-border pt-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fontes da busca</p>
           <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Open Library · conectada</span>
             <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Google Books · conectado</span>
             {plannedSources.map((source) => <span key={source} title="Integração ainda não disponível" className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-muted-foreground">{source} · em integração</span>)}
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">No momento, os resultados reais vêm do Google Books. As demais fontes aparecem como em integração até existir uma conexão compatível; nenhum resultado ou capa é inventado.</p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">A busca consulta Open Library e Google Books. As demais fontes aparecem como em integração até existir uma conexão compatível; nenhum resultado ou capa é inventado.</p>
         </div>
       </section>
       {error ? <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div> : null}
+      {sourceNotice ? <div role="status" className="rounded-2xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">{sourceNotice}</div> : null}
       {loading ? <div className="flex items-center justify-center gap-3 rounded-2xl border border-border bg-card px-5 py-12 text-sm text-muted-foreground"><span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />Procurando leituras...</div> : null}
       {!loading && searched && !error && results.length === 0 ? <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center"><BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-display text-xl font-semibold text-foreground">Nenhum resultado encontrado</p><p className="mt-2 text-sm text-muted-foreground">Tente outro termo ou faça uma busca mais ampla.</p></div> : null}
       {!loading && results.length > 0 ? (
         <section aria-live="polite">
-          <div className="mb-4 flex items-end justify-between gap-3"><div><h2 className="font-display text-2xl font-semibold text-primary">Resultados</h2><p className="text-sm text-muted-foreground">{results.length} {results.length === 1 ? "obra encontrada" : "obras encontradas"}</p></div><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Google Books</span></div>
+          <div className="mb-4 flex items-end justify-between gap-3"><div><h2 className="font-display text-2xl font-semibold text-primary">Resultados</h2><p className="text-sm text-muted-foreground">{results.length} {results.length === 1 ? "obra encontrada" : "obras encontradas"}</p></div><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Open Library + Google Books</span></div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {results.map((book) => <article key={book.id} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="flex aspect-[2/3] items-center justify-center overflow-hidden bg-muted">
                 {book.cover ? <img src={book.cover} alt={`Capa de ${book.title}`} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" /> : <div className="flex flex-col items-center gap-2 px-3 text-center text-muted-foreground"><BookOpen className="h-9 w-9" /><span className="text-xs">Capa indisponível</span></div>}
               </div>
-              <div className="space-y-2 p-3"><h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={book.title}>{book.title}</h3><p className="line-clamp-2 min-h-8 text-xs text-muted-foreground">{book.authors.length ? book.authors.join(", ") : "Autor não informado"}</p><span className="inline-flex rounded-full bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">Google Books</span></div>
+              <div className="space-y-2 p-3"><h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={book.title}>{book.title}</h3><p className="line-clamp-2 min-h-8 text-xs text-muted-foreground">{book.authors.length ? book.authors.join(", ") : "Autor não informado"}</p><span className="inline-flex rounded-full bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">{book.source}</span></div>
             </article>)}
           </div>
         </section>
