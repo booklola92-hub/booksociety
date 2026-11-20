@@ -1,0 +1,21 @@
+# Roadmap — The Secret Bookshelf
+
+- [ ] Conta obrigatória para entrar no site (email/senha, Google, Lovable) + perfis
+- [ ] Feed: caixa "O que você está lendo ou pensando?" com Adicionar foto e Publicar; curtir, comentar, salvar
+- [ ] Enquetes nas publicações
+- [ ] Seguir leitores + sugestões
+- [ ] Biblioteca pessoal (lendo, lidos, quero ler)
+- [ ] Metas pessoais de leitura com progresso + resumo dos livros concluídos
+- [ ] Marcos visuais nas metas (25%, 50%, 75%, concluída)
+- [ ] Editar prazo e quantidade de livros da meta sem perder o progresso
+- [ ] Prévia das mudanças e do progresso preservado antes de confirmar o ajuste da meta
+- [ ] Notificações ao alcançar 25%, 50%, 75% e conclusão da meta
+- [ ] Ligar/desligar notificação de cada marco da meta
+- [ ] Notificações (curtidas, comentários, seguidores)
+- [ ] Mensagens privadas
+- [ ] Comunidades públicas: qualquer leitor cria, entra e publica
+- [ ] Explorar, Leitores, Perfil, Configurações
+- [ ] Livros em alta (lateral)
+- [ ] Menu: Início, Explorar, Biblioteca, Comunidade, Galeria, Desafios (metas), Resenhas, Notificações, Mensagens, Perfil
+- [ ] Galeria: fotos publicadas pelos leitores
+- [ ] Resenhas: resenhas e notas dos leitores

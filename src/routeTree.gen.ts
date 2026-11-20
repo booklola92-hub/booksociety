@@ -10,33 +10,259 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedShellRouteImport } from './routes/_authenticated/_shell'
+import { Route as AuthenticatedShellBibliotecaRouteImport } from './routes/_authenticated/_shell/biblioteca'
+import { Route as AuthenticatedShellComunidadeRouteImport } from './routes/_authenticated/_shell/comunidade'
+import { Route as AuthenticatedShellConfiguracoesRouteImport } from './routes/_authenticated/_shell/configuracoes'
+import { Route as AuthenticatedShellDesafiosRouteImport } from './routes/_authenticated/_shell/desafios'
+import { Route as AuthenticatedShellExplorarRouteImport } from './routes/_authenticated/_shell/explorar'
+import { Route as AuthenticatedShellGaleriaRouteImport } from './routes/_authenticated/_shell/galeria'
+import { Route as AuthenticatedShellInicioRouteImport } from './routes/_authenticated/_shell/inicio'
+import { Route as AuthenticatedShellMensagensRouteImport } from './routes/_authenticated/_shell/mensagens'
+import { Route as AuthenticatedShellNotificacoesRouteImport } from './routes/_authenticated/_shell/notificacoes'
+import { Route as AuthenticatedShellResenhasRouteImport } from './routes/_authenticated/_shell/resenhas'
+import { Route as AuthenticatedShellSalvosRouteImport } from './routes/_authenticated/_shell/salvos'
+import { Route as AuthenticatedShellCSlugRouteImport } from './routes/_authenticated/_shell/c.$slug'
+import { Route as AuthenticatedShellPerfilUsernameRouteImport } from './routes/_authenticated/_shell/perfil.$username'
+import { Route as AuthenticatedShellPublicacaoPostIdRouteImport } from './routes/_authenticated/_shell/publicacao.$postId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedShellRoute = AuthenticatedShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedShellBibliotecaRoute =
+  AuthenticatedShellBibliotecaRouteImport.update({
+    id: '/biblioteca',
+    path: '/biblioteca',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellComunidadeRoute =
+  AuthenticatedShellComunidadeRouteImport.update({
+    id: '/comunidade',
+    path: '/comunidade',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellConfiguracoesRoute =
+  AuthenticatedShellConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellDesafiosRoute =
+  AuthenticatedShellDesafiosRouteImport.update({
+    id: '/desafios',
+    path: '/desafios',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellExplorarRoute =
+  AuthenticatedShellExplorarRouteImport.update({
+    id: '/explorar',
+    path: '/explorar',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellGaleriaRoute =
+  AuthenticatedShellGaleriaRouteImport.update({
+    id: '/galeria',
+    path: '/galeria',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellInicioRoute =
+  AuthenticatedShellInicioRouteImport.update({
+    id: '/inicio',
+    path: '/inicio',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellMensagensRoute =
+  AuthenticatedShellMensagensRouteImport.update({
+    id: '/mensagens',
+    path: '/mensagens',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellNotificacoesRoute =
+  AuthenticatedShellNotificacoesRouteImport.update({
+    id: '/notificacoes',
+    path: '/notificacoes',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellResenhasRoute =
+  AuthenticatedShellResenhasRouteImport.update({
+    id: '/resenhas',
+    path: '/resenhas',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellSalvosRoute =
+  AuthenticatedShellSalvosRouteImport.update({
+    id: '/salvos',
+    path: '/salvos',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellCSlugRoute = AuthenticatedShellCSlugRouteImport.update({
+  id: '/c/$slug',
+  path: '/c/$slug',
+  getParentRoute: () => AuthenticatedShellRoute,
+} as any)
+const AuthenticatedShellPerfilUsernameRoute =
+  AuthenticatedShellPerfilUsernameRouteImport.update({
+    id: '/perfil/$username',
+    path: '/perfil/$username',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellPublicacaoPostIdRoute =
+  AuthenticatedShellPublicacaoPostIdRouteImport.update({
+    id: '/publicacao/$postId',
+    path: '/publicacao/$postId',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/biblioteca': typeof AuthenticatedShellBibliotecaRoute
+  '/comunidade': typeof AuthenticatedShellComunidadeRoute
+  '/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
+  '/desafios': typeof AuthenticatedShellDesafiosRoute
+  '/explorar': typeof AuthenticatedShellExplorarRoute
+  '/galeria': typeof AuthenticatedShellGaleriaRoute
+  '/inicio': typeof AuthenticatedShellInicioRoute
+  '/mensagens': typeof AuthenticatedShellMensagensRoute
+  '/notificacoes': typeof AuthenticatedShellNotificacoesRoute
+  '/resenhas': typeof AuthenticatedShellResenhasRoute
+  '/salvos': typeof AuthenticatedShellSalvosRoute
+  '/c/$slug': typeof AuthenticatedShellCSlugRoute
+  '/perfil/$username': typeof AuthenticatedShellPerfilUsernameRoute
+  '/publicacao/$postId': typeof AuthenticatedShellPublicacaoPostIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/biblioteca': typeof AuthenticatedShellBibliotecaRoute
+  '/comunidade': typeof AuthenticatedShellComunidadeRoute
+  '/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
+  '/desafios': typeof AuthenticatedShellDesafiosRoute
+  '/explorar': typeof AuthenticatedShellExplorarRoute
+  '/galeria': typeof AuthenticatedShellGaleriaRoute
+  '/inicio': typeof AuthenticatedShellInicioRoute
+  '/mensagens': typeof AuthenticatedShellMensagensRoute
+  '/notificacoes': typeof AuthenticatedShellNotificacoesRoute
+  '/resenhas': typeof AuthenticatedShellResenhasRoute
+  '/salvos': typeof AuthenticatedShellSalvosRoute
+  '/c/$slug': typeof AuthenticatedShellCSlugRoute
+  '/perfil/$username': typeof AuthenticatedShellPerfilUsernameRoute
+  '/publicacao/$postId': typeof AuthenticatedShellPublicacaoPostIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/_shell': typeof AuthenticatedShellRouteWithChildren
+  '/_authenticated/_shell/biblioteca': typeof AuthenticatedShellBibliotecaRoute
+  '/_authenticated/_shell/comunidade': typeof AuthenticatedShellComunidadeRoute
+  '/_authenticated/_shell/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
+  '/_authenticated/_shell/desafios': typeof AuthenticatedShellDesafiosRoute
+  '/_authenticated/_shell/explorar': typeof AuthenticatedShellExplorarRoute
+  '/_authenticated/_shell/galeria': typeof AuthenticatedShellGaleriaRoute
+  '/_authenticated/_shell/inicio': typeof AuthenticatedShellInicioRoute
+  '/_authenticated/_shell/mensagens': typeof AuthenticatedShellMensagensRoute
+  '/_authenticated/_shell/notificacoes': typeof AuthenticatedShellNotificacoesRoute
+  '/_authenticated/_shell/resenhas': typeof AuthenticatedShellResenhasRoute
+  '/_authenticated/_shell/salvos': typeof AuthenticatedShellSalvosRoute
+  '/_authenticated/_shell/c/$slug': typeof AuthenticatedShellCSlugRoute
+  '/_authenticated/_shell/perfil/$username': typeof AuthenticatedShellPerfilUsernameRoute
+  '/_authenticated/_shell/publicacao/$postId': typeof AuthenticatedShellPublicacaoPostIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/biblioteca'
+    | '/comunidade'
+    | '/configuracoes'
+    | '/desafios'
+    | '/explorar'
+    | '/galeria'
+    | '/inicio'
+    | '/mensagens'
+    | '/notificacoes'
+    | '/resenhas'
+    | '/salvos'
+    | '/c/$slug'
+    | '/perfil/$username'
+    | '/publicacao/$postId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/biblioteca'
+    | '/comunidade'
+    | '/configuracoes'
+    | '/desafios'
+    | '/explorar'
+    | '/galeria'
+    | '/inicio'
+    | '/mensagens'
+    | '/notificacoes'
+    | '/resenhas'
+    | '/salvos'
+    | '/c/$slug'
+    | '/perfil/$username'
+    | '/publicacao/$postId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/reset-password'
+    | '/_authenticated/_shell'
+    | '/_authenticated/_shell/biblioteca'
+    | '/_authenticated/_shell/comunidade'
+    | '/_authenticated/_shell/configuracoes'
+    | '/_authenticated/_shell/desafios'
+    | '/_authenticated/_shell/explorar'
+    | '/_authenticated/_shell/galeria'
+    | '/_authenticated/_shell/inicio'
+    | '/_authenticated/_shell/mensagens'
+    | '/_authenticated/_shell/notificacoes'
+    | '/_authenticated/_shell/resenhas'
+    | '/_authenticated/_shell/salvos'
+    | '/_authenticated/_shell/c/$slug'
+    | '/_authenticated/_shell/perfil/$username'
+    | '/_authenticated/_shell/publicacao/$postId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +274,189 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/_shell': {
+      id: '/_authenticated/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedShellRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/_shell/biblioteca': {
+      id: '/_authenticated/_shell/biblioteca'
+      path: '/biblioteca'
+      fullPath: '/biblioteca'
+      preLoaderRoute: typeof AuthenticatedShellBibliotecaRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/comunidade': {
+      id: '/_authenticated/_shell/comunidade'
+      path: '/comunidade'
+      fullPath: '/comunidade'
+      preLoaderRoute: typeof AuthenticatedShellComunidadeRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/configuracoes': {
+      id: '/_authenticated/_shell/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedShellConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/desafios': {
+      id: '/_authenticated/_shell/desafios'
+      path: '/desafios'
+      fullPath: '/desafios'
+      preLoaderRoute: typeof AuthenticatedShellDesafiosRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/explorar': {
+      id: '/_authenticated/_shell/explorar'
+      path: '/explorar'
+      fullPath: '/explorar'
+      preLoaderRoute: typeof AuthenticatedShellExplorarRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/galeria': {
+      id: '/_authenticated/_shell/galeria'
+      path: '/galeria'
+      fullPath: '/galeria'
+      preLoaderRoute: typeof AuthenticatedShellGaleriaRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/inicio': {
+      id: '/_authenticated/_shell/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof AuthenticatedShellInicioRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/mensagens': {
+      id: '/_authenticated/_shell/mensagens'
+      path: '/mensagens'
+      fullPath: '/mensagens'
+      preLoaderRoute: typeof AuthenticatedShellMensagensRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/notificacoes': {
+      id: '/_authenticated/_shell/notificacoes'
+      path: '/notificacoes'
+      fullPath: '/notificacoes'
+      preLoaderRoute: typeof AuthenticatedShellNotificacoesRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/resenhas': {
+      id: '/_authenticated/_shell/resenhas'
+      path: '/resenhas'
+      fullPath: '/resenhas'
+      preLoaderRoute: typeof AuthenticatedShellResenhasRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/salvos': {
+      id: '/_authenticated/_shell/salvos'
+      path: '/salvos'
+      fullPath: '/salvos'
+      preLoaderRoute: typeof AuthenticatedShellSalvosRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/c/$slug': {
+      id: '/_authenticated/_shell/c/$slug'
+      path: '/c/$slug'
+      fullPath: '/c/$slug'
+      preLoaderRoute: typeof AuthenticatedShellCSlugRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/perfil/$username': {
+      id: '/_authenticated/_shell/perfil/$username'
+      path: '/perfil/$username'
+      fullPath: '/perfil/$username'
+      preLoaderRoute: typeof AuthenticatedShellPerfilUsernameRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/publicacao/$postId': {
+      id: '/_authenticated/_shell/publicacao/$postId'
+      path: '/publicacao/$postId'
+      fullPath: '/publicacao/$postId'
+      preLoaderRoute: typeof AuthenticatedShellPublicacaoPostIdRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
   }
 }
 
+interface AuthenticatedShellRouteChildren {
+  AuthenticatedShellBibliotecaRoute: typeof AuthenticatedShellBibliotecaRoute
+  AuthenticatedShellComunidadeRoute: typeof AuthenticatedShellComunidadeRoute
+  AuthenticatedShellConfiguracoesRoute: typeof AuthenticatedShellConfiguracoesRoute
+  AuthenticatedShellDesafiosRoute: typeof AuthenticatedShellDesafiosRoute
+  AuthenticatedShellExplorarRoute: typeof AuthenticatedShellExplorarRoute
+  AuthenticatedShellGaleriaRoute: typeof AuthenticatedShellGaleriaRoute
+  AuthenticatedShellInicioRoute: typeof AuthenticatedShellInicioRoute
+  AuthenticatedShellMensagensRoute: typeof AuthenticatedShellMensagensRoute
+  AuthenticatedShellNotificacoesRoute: typeof AuthenticatedShellNotificacoesRoute
+  AuthenticatedShellResenhasRoute: typeof AuthenticatedShellResenhasRoute
+  AuthenticatedShellSalvosRoute: typeof AuthenticatedShellSalvosRoute
+  AuthenticatedShellCSlugRoute: typeof AuthenticatedShellCSlugRoute
+  AuthenticatedShellPerfilUsernameRoute: typeof AuthenticatedShellPerfilUsernameRoute
+  AuthenticatedShellPublicacaoPostIdRoute: typeof AuthenticatedShellPublicacaoPostIdRoute
+}
+
+const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
+  AuthenticatedShellBibliotecaRoute: AuthenticatedShellBibliotecaRoute,
+  AuthenticatedShellComunidadeRoute: AuthenticatedShellComunidadeRoute,
+  AuthenticatedShellConfiguracoesRoute: AuthenticatedShellConfiguracoesRoute,
+  AuthenticatedShellDesafiosRoute: AuthenticatedShellDesafiosRoute,
+  AuthenticatedShellExplorarRoute: AuthenticatedShellExplorarRoute,
+  AuthenticatedShellGaleriaRoute: AuthenticatedShellGaleriaRoute,
+  AuthenticatedShellInicioRoute: AuthenticatedShellInicioRoute,
+  AuthenticatedShellMensagensRoute: AuthenticatedShellMensagensRoute,
+  AuthenticatedShellNotificacoesRoute: AuthenticatedShellNotificacoesRoute,
+  AuthenticatedShellResenhasRoute: AuthenticatedShellResenhasRoute,
+  AuthenticatedShellSalvosRoute: AuthenticatedShellSalvosRoute,
+  AuthenticatedShellCSlugRoute: AuthenticatedShellCSlugRoute,
+  AuthenticatedShellPerfilUsernameRoute: AuthenticatedShellPerfilUsernameRoute,
+  AuthenticatedShellPublicacaoPostIdRoute:
+    AuthenticatedShellPublicacaoPostIdRoute,
+}
+
+const AuthenticatedShellRouteWithChildren =
+  AuthenticatedShellRoute._addFileChildren(AuthenticatedShellRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedShellRoute: typeof AuthenticatedShellRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedShellRoute: AuthenticatedShellRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

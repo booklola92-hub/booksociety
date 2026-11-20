@@ -1,0 +1,39 @@
+import { useState } from "react";
+
+import { useMediaUrl } from "@/lib/media";
+import { cn } from "@/lib/utils";
+
+export function BookCover({
+  book,
+  className,
+}: {
+  book: { title: string; cover_url: string | null };
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const url = useMediaUrl(book.cover_url);
+  if (!url || failed) {
+    return (
+      <div
+        className={cn(
+          "flex aspect-[2/3] shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/20 bg-primary p-1.5 text-center shadow-sm",
+          className,
+        )}
+        aria-label={`Capa de ${book.title}`}
+      >
+        <span className="font-display text-xs leading-tight font-semibold text-primary-foreground">
+          {book.title}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={`Capa de ${book.title}`}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className={cn("aspect-[2/3] shrink-0 rounded-md object-cover shadow-sm", className)}
+    />
+  );
+}

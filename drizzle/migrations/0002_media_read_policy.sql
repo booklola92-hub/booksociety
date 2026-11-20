@@ -1,0 +1,1 @@
+CREATE POLICY "Signed-in readers view media" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'media');

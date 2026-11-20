@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795174910307,
+      "tag": "0000_social_network_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795174954012,
+      "tag": "0001_goal_milestones",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795174977348,
+      "tag": "0002_media_read_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795175169711,
+      "tag": "0003_public_communities",
+      "breakpoints": true
+    }
+  ]
+}
