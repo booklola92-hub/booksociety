@@ -10,12 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "The Secret Bookshelf — a rede social de quem ama livros" },
+      { title: "Book Society — a rede social de quem ama livros" },
       {
         name: "description",
         content: "Compartilhe leituras, monte sua biblioteca, crie metas e entre em comunidades de leitores.",
       },
-      { property: "og:title", content: "The Secret Bookshelf — a rede social de quem ama livros" },
+      { property: "og:title", content: "Book Society — a rede social de quem ama livros" },
       {
         property: "og:description",
         content: "Compartilhe leituras, monte sua biblioteca, crie metas e entre em comunidades de leitores.",
@@ -45,7 +45,7 @@ function Landing() {
   return (
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <span className="font-display text-2xl font-semibold text-primary">The Secret Bookshelf</span>
+        <span className="font-display text-2xl font-semibold text-primary">Book Society</span>
         <div className="flex gap-2">
           <Button variant="ghost" asChild>
             <Link to="/auth">Entrar</Link>
