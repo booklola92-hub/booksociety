@@ -19,3 +19,5 @@
 - [ ] Menu: Início, Explorar, Biblioteca, Comunidade, Galeria, Desafios (metas), Resenhas, Notificações, Mensagens, Perfil
 - [ ] Galeria: fotos publicadas pelos leitores
 - [ ] Resenhas: resenhas e notas dos leitores
+- [x] Buscar obras: busca federada só nas fontes permitidas (Google Books, Goodreads, Novel Updates, internet restrita, NovelList, KakaoPage, Visorikigai, LeituraManga, EternalMangas, LunarX, RisingShadow)
+- [ ] Buscar obras: ativar busca na internet (conexão Firecrawl) e, opcionalmente, chaves Google Books / Kakao — aguardando o usuário

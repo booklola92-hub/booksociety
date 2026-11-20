@@ -9,6 +9,7 @@ import {
   LogOut,
   Mail,
   NotebookPen,
+  ScanSearch,
   Settings,
   Trophy,
   User,
@@ -61,6 +62,9 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
         <Link to="/explorar" {...props}>
           <NavItem icon={Compass} label="Explorar" />
+        </Link>
+        <Link to="/buscar-obras" {...props}>
+          <NavItem icon={ScanSearch} label="Buscar obras" />
         </Link>
         <Link to="/biblioteca" {...props}>
           <NavItem icon={Library} label="Biblioteca" />

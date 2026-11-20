@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- Federated work search: the source allowlist lives only in `src/lib/work-sources.ts`; every link shown must pass `isAllowedUrl`, and server calls go through the authenticated `searchWorkSource` server function. Why: keeps every source (including the general web search) restricted to the approved sites and stops anonymous use of paid search credits.
+- Sites without a public API are searched only through a restricted web search (Firecrawl, optional `FIRECRAWL_API_KEY`) — never by fetching or scraping their pages; Kakao uses `KAKAO_REST_API_KEY` and Google Books an optional `GOOGLE_BOOKS_API_KEY`. Why: respects robots.txt, terms and copyright; a missing key shows the source as unavailable instead of failing.

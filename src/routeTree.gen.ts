@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedShellRouteImport } from './routes/_authenticated/_shell'
 import { Route as AuthenticatedShellBibliotecaRouteImport } from './routes/_authenticated/_shell/biblioteca'
+import { Route as AuthenticatedShellBuscarObrasRouteImport } from './routes/_authenticated/_shell/buscar-obras'
 import { Route as AuthenticatedShellComunidadeRouteImport } from './routes/_authenticated/_shell/comunidade'
 import { Route as AuthenticatedShellConfiguracoesRouteImport } from './routes/_authenticated/_shell/configuracoes'
 import { Route as AuthenticatedShellDesafiosRouteImport } from './routes/_authenticated/_shell/desafios'
@@ -56,6 +57,12 @@ const AuthenticatedShellBibliotecaRoute =
   AuthenticatedShellBibliotecaRouteImport.update({
     id: '/biblioteca',
     path: '/biblioteca',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellBuscarObrasRoute =
+  AuthenticatedShellBuscarObrasRouteImport.update({
+    id: '/buscar-obras',
+    path: '/buscar-obras',
     getParentRoute: () => AuthenticatedShellRoute,
   } as any)
 const AuthenticatedShellComunidadeRoute =
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/biblioteca': typeof AuthenticatedShellBibliotecaRoute
+  '/buscar-obras': typeof AuthenticatedShellBuscarObrasRoute
   '/comunidade': typeof AuthenticatedShellComunidadeRoute
   '/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
   '/desafios': typeof AuthenticatedShellDesafiosRoute
@@ -160,6 +168,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/biblioteca': typeof AuthenticatedShellBibliotecaRoute
+  '/buscar-obras': typeof AuthenticatedShellBuscarObrasRoute
   '/comunidade': typeof AuthenticatedShellComunidadeRoute
   '/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
   '/desafios': typeof AuthenticatedShellDesafiosRoute
@@ -182,6 +191,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteWithChildren
   '/_authenticated/_shell/biblioteca': typeof AuthenticatedShellBibliotecaRoute
+  '/_authenticated/_shell/buscar-obras': typeof AuthenticatedShellBuscarObrasRoute
   '/_authenticated/_shell/comunidade': typeof AuthenticatedShellComunidadeRoute
   '/_authenticated/_shell/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
   '/_authenticated/_shell/desafios': typeof AuthenticatedShellDesafiosRoute
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/biblioteca'
+    | '/buscar-obras'
     | '/comunidade'
     | '/configuracoes'
     | '/desafios'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/biblioteca'
+    | '/buscar-obras'
     | '/comunidade'
     | '/configuracoes'
     | '/desafios'
@@ -243,6 +255,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/_shell'
     | '/_authenticated/_shell/biblioteca'
+    | '/_authenticated/_shell/buscar-obras'
     | '/_authenticated/_shell/comunidade'
     | '/_authenticated/_shell/configuracoes'
     | '/_authenticated/_shell/desafios'
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/biblioteca'
       fullPath: '/biblioteca'
       preLoaderRoute: typeof AuthenticatedShellBibliotecaRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/buscar-obras': {
+      id: '/_authenticated/_shell/buscar-obras'
+      path: '/buscar-obras'
+      fullPath: '/buscar-obras'
+      preLoaderRoute: typeof AuthenticatedShellBuscarObrasRouteImport
       parentRoute: typeof AuthenticatedShellRoute
     }
     '/_authenticated/_shell/comunidade': {
@@ -405,6 +425,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedShellRouteChildren {
   AuthenticatedShellBibliotecaRoute: typeof AuthenticatedShellBibliotecaRoute
+  AuthenticatedShellBuscarObrasRoute: typeof AuthenticatedShellBuscarObrasRoute
   AuthenticatedShellComunidadeRoute: typeof AuthenticatedShellComunidadeRoute
   AuthenticatedShellConfiguracoesRoute: typeof AuthenticatedShellConfiguracoesRoute
   AuthenticatedShellDesafiosRoute: typeof AuthenticatedShellDesafiosRoute
@@ -422,6 +443,7 @@ interface AuthenticatedShellRouteChildren {
 
 const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
   AuthenticatedShellBibliotecaRoute: AuthenticatedShellBibliotecaRoute,
+  AuthenticatedShellBuscarObrasRoute: AuthenticatedShellBuscarObrasRoute,
   AuthenticatedShellComunidadeRoute: AuthenticatedShellComunidadeRoute,
   AuthenticatedShellConfiguracoesRoute: AuthenticatedShellConfiguracoesRoute,
   AuthenticatedShellDesafiosRoute: AuthenticatedShellDesafiosRoute,
