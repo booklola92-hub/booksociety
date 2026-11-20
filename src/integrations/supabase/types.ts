@@ -665,6 +665,30 @@ export type Database = {
     }
     Functions: {
       check_goal_milestones: { Args: { _goal_id: string }; Returns: undefined }
+      discover_communities: {
+        Args: { _limit?: number; _search?: string }
+        Returns: {
+          cover_url: string
+          description: string
+          id: string
+          is_member: boolean
+          member_count: number
+          name: string
+          slug: string
+        }[]
+      }
+      get_community: {
+        Args: { _slug: string }
+        Returns: {
+          cover_url: string
+          description: string
+          id: string
+          is_member: boolean
+          member_count: number
+          name: string
+          slug: string
+        }[]
+      }
       my_conversations: {
         Args: never
         Returns: {

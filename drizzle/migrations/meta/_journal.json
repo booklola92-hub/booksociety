@@ -29,6 +29,13 @@
       "when": 1795175169711,
       "tag": "0003_public_communities",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795179837624,
+      "tag": "0004_restrict_community_reads",
+      "breakpoints": true
     }
   ]
 }

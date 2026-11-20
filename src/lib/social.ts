@@ -371,3 +371,29 @@ export function useUnreadCounts() {
     },
   });
 }
+
+/* ---------------- Communities ---------------- */
+// Full community rows are visible only to creators and members; everyone else
+// discovers communities through these listing functions, which omit the creator.
+
+export function useDiscoverCommunities(search: string, limit = 50) {
+  return useQuery({
+    queryKey: ["communities", "discover", search, limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("discover_communities", { _search: search, _limit: limit });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useCommunity(slug: string) {
+  return useQuery({
+    queryKey: ["communities", "detail", slug],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_community", { _slug: slug });
+      if (error) throw error;
+      return data?.[0] ?? null;
+    },
+  });
+}
