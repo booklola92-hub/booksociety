@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { BookOpen, Search, Sparkles } from "lucide-react";
 import { PageTitle } from "@/components/empty-state";
 
@@ -11,6 +11,16 @@ type OpenLibraryResponse = { docs?: Array<{ key?: string; title?: string; author
 const plannedSources = ["Goodreads", "Novel Updates", "NovelList", "KakaoPage", "Visorikigai", "LeituraManga", "EternalMangas", "LunarX", "RisingShadow"];
 
 function ExplorePage() {
+  useEffect(() => {
+    const scriptId = "book-society-google-cse";
+    if (document.getElementById(scriptId)) return;
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.async = true;
+    script.src = "https://cse.google.com/cse.js?cx=35ec7cd2f3337418b";
+    document.body.appendChild(script);
+  }, []);
+
   const [query, setQuery] = useState("");
   const [field, setField] = useState<SearchField>("all");
   const [results, setResults] = useState<BookItem[]>([]);
@@ -109,7 +119,7 @@ function ExplorePage() {
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">A busca de livros consulta Open Library e Google Books. A pesquisa geral usa o Google Programmable Search; ao abrir um resultado, o Google pode direcionar para o site de origem. As demais fontes aparecem como em integração até existir uma conexão compatível.</p>
         </div>
       </section>
-      <section className="space-y-3 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><div><h2 className="font-display text-xl font-semibold">Pesquisar na internet</h2><p className="mt-1 text-sm text-muted-foreground">Resultados do Google em sites permitidos pelo mecanismo configurado. Os links podem abrir páginas externas.</p></div><script async src="https://cse.google.com/cse.js?cx=35ec7cd2f3337418b" /><div className="gcse-search" /></section>
+      <section className="space-y-3 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><div><h2 className="font-display text-xl font-semibold">Pesquisar na internet</h2><p className="mt-1 text-sm text-muted-foreground">Resultados do Google em sites permitidos pelo mecanismo configurado. Os links podem abrir páginas externas.</p></div><div className="gcse-search" /></section>
       {error ? <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div> : null}
       {sourceNotice ? <div role="status" className="rounded-2xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">{sourceNotice}</div> : null}
       {loading ? <div className="flex items-center justify-center gap-3 rounded-2xl border border-border bg-card px-5 py-12 text-sm text-muted-foreground"><span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />Procurando leituras...</div> : null}
