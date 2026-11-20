@@ -84,9 +84,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "The Secret Bookshelf" },
+      { title: "Book Society" },
       { name: "description", content: "Rede social para leitores: compartilhe leituras, metas e resenhas." },
-      { property: "og:title", content: "The Secret Bookshelf" },
+      { property: "og:title", content: "Book Society" },
       { property: "og:description", content: "Rede social para leitores: compartilhe leituras, metas e resenhas." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
