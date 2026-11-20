@@ -51,7 +51,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <img
           src="/book-society-logo.svg"
           alt="Book Society — Leia, Conecte, Compartilhe"
-          className="mx-auto h-auto w-full max-w-[210px]"
+          className="mx-auto h-auto w-[150px] max-w-full"
         />
       </Link>
 
