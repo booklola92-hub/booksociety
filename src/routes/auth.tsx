@@ -4,7 +4,6 @@ import { MailCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import booksTeacup from "@/assets/books-teacup.png.asset.json";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,15 +107,15 @@ function AuthPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="hidden flex-col items-center justify-center bg-secondary/60 p-10 lg:flex">
-        <img src={booksTeacup.url} alt="" className="w-full max-w-md mix-blend-multiply" />
+        <img src="/book-society-logo.svg" alt="Book Society — Leia, Conecte, Compartilhe" className="w-full max-w-md" />
         <p className="font-display mt-4 max-w-sm text-center text-3xl text-foreground italic">
           Leia mais. Compartilhe mais. Faça parte.
         </p>
       </div>
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          <Link to="/" className="font-display text-3xl font-semibold text-primary">
-            Book Society
+          <Link to="/" className="block">
+            <img src="/book-society-logo.svg" alt="Book Society" className="h-auto w-56" />
           </Link>
 
           {sent ? (
