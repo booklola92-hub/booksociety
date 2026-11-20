@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
+  <title id="title">Book Society</title>
+  <desc id="desc">Símbolo de um livro aberto com uma estrela, ao lado do nome Book Society.</desc>
+  <g fill="none" stroke="#6F4B3E" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26 48c35-15 68-10 96 12v88c-28-22-61-27-96-12z"/>
+    <path d="M122 60c28-22 61-27 96-12v88c-35-15-68-10-96 12z"/>
+    <path d="M122 60v88"/>
+    <path d="M73 31l7-15 7 15 15 7-15 7-7 15-7-15-15-7z" fill="#C69A61" stroke="#C69A61" stroke-width="2"/>
+  </g>
+  <text x="250" y="91" fill="#49352E" font-family="Georgia, 'Times New Roman', serif" font-size="58" font-weight="600" letter-spacing="-1">Book Society</text>
+  <text x="254" y="128" fill="#987665" font-family="Arial, sans-serif" font-size="17" letter-spacing="4">LEIA · CONECTE · COMPARTILHE</text>
+</svg>
