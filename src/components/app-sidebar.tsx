@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import booksTeacup from "@/assets/books-teacup.png.asset.json";
 import { useSignOut } from "@/lib/auth";
 import { useMe, useUnreadCounts } from "@/lib/social";
 
@@ -49,13 +48,11 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col overflow-y-auto px-4 py-5">
       <Link to="/inicio" className="block text-center" onClick={onNavigate}>
-        <img src={booksTeacup.url} alt="" className="mx-auto h-24 w-auto mix-blend-multiply" />
-        <span className="font-display block text-3xl leading-none font-semibold text-primary">
-          Book Society
-          <br />
-          Bookshelf
-        </span>
-        <span className="mt-2 block text-xs tracking-wide text-muted-foreground">Leia • Conecte • Compartilhe</span>
+        <img
+          src="/book-society-logo.svg"
+          alt="Book Society — Leia, Conecte, Compartilhe"
+          className="mx-auto h-auto w-full max-w-[210px]"
+        />
       </Link>
 
       <nav className="mt-6 space-y-1" aria-label="Menu principal">
