@@ -185,7 +185,7 @@ CREATE INDEX follows_following_idx ON public.follows (following_id);
 GRANT SELECT, INSERT, DELETE ON public.follows TO authenticated;
 GRANT ALL ON public.follows TO service_role;
 ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users see own follow links during setup" ON public.follows FOR SELECT TO authenticated USING (auth.uid() = follower_id OR auth.uid() = following_id);
+CREATE POLICY "Users see own follow links during setup" ON public.follows FOR SELECT TO authenticated USING (auth.uid() = follower_id);
 CREATE POLICY "Users follow as themselves" ON public.follows FOR INSERT TO authenticated WITH CHECK (auth.uid() = follower_id);
 CREATE POLICY "Users unfollow own" ON public.follows FOR DELETE TO authenticated USING (auth.uid() = follower_id);
 
