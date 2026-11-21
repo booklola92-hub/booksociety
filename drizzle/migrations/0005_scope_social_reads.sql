@@ -28,14 +28,7 @@ USING (
     WHERE (m.sender_id = auth.uid() AND m.recipient_id = profiles.id)
        OR (m.recipient_id = auth.uid() AND m.sender_id = profiles.id)
   )
-  OR EXISTS (
-    SELECT 1 FROM public.posts p
-    WHERE p.user_id = profiles.id
-  )
-  OR EXISTS (
-    SELECT 1 FROM public.comments c
-    WHERE c.user_id = profiles.id
-  )
+
 );
 
 -- Books: the curated catalog, your own additions, books on your shelf,
