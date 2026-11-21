@@ -1,7 +1,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, CheckCircle2, ExternalLink, ImageOff, Info, Loader2, Search } from "lucide-react";
+import { AlertCircle, CheckCircle2, ImageOff, Info, Loader2, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { EmptyState, PageTitle } from "@/components/empty-state";
@@ -438,20 +438,10 @@ function WorkCard({ work }: { work: MergedWork }) {
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Gêneros</h3>
           <p className="text-xs text-muted-foreground">{work.genres.length ? work.genres.join(", ") : "Não informado"}</p>
         </section>
-        <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
-          {work.links.map((l) => (
-            <a
-              key={l.url}
-              href={l.url}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-              title={`Abrir em ${getSource(l.platform).label}`}
-            >
-              {getSource(l.platform).label}
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          ))}
+        <div className="mt-auto border-t border-border pt-3">
+          <p className="text-xs text-muted-foreground">
+            No catálogo do Book Society
+          </p>
         </div>
       </div>
     </article>
