@@ -5,6 +5,9 @@
 
 export type SourceId =
   | "google_books"
+  | "openlibrary"
+  | "anilist"
+  | "mangaupdates"
   | "goodreads"
   | "novel_updates"
   | "web"
@@ -16,9 +19,24 @@ export type SourceId =
   | "lunarx"
   | "risingshadow";
 
-export type SearchField = "titulo" | "autor" | "palavra";
+export type SearchField = "titulo" | "autor" | "alternativo" | "palavra";
 
-export type SourceMethod = "google_books_api" | "kakao_api_or_web" | "web_search";
+export const SEARCH_FIELDS: SearchField[] = ["titulo", "autor", "alternativo", "palavra"];
+
+export type WorkKind = "livro" | "novel" | "webnovel" | "manhwa" | "manga" | "manhua" | "outro";
+
+export type WorkStatus = "em_andamento" | "completo" | "hiato" | "cancelado" | "nao_lancado";
+
+/** Provider = the service actually called (several sources share the web search). */
+export type ProviderId = "google_books" | "openlibrary" | "anilist" | "mangaupdates" | "kakao" | "web";
+
+export type SourceMethod =
+  | "google_books_api"
+  | "openlibrary_api"
+  | "anilist_api"
+  | "mangaupdates_api"
+  | "kakao_api_or_web"
+  | "web_search";
 
 export interface WorkSource {
   id: SourceId;
@@ -34,6 +52,8 @@ export interface WorkSource {
   searchUrl?: (q: string) => string;
   /** Words that identify the site's name in page titles, used to clean titles. */
   nameTokens: string[];
+  /** Secret the source needs before it can work at all. */
+  requiresSecret?: string;
 }
 
 const enc = encodeURIComponent;
@@ -44,9 +64,34 @@ export const WORK_SOURCES: WorkSource[] = [
     label: "Google Books",
     domains: ["books.google.com"],
     method: "google_books_api",
-    note: "API oficial do Google Books.",
+    note: "API oficial do Google Books (precisa de chave própria).",
     searchUrl: (q) => `https://www.google.com/search?tbm=bks&q=${enc(q)}`,
     nameTokens: ["google books"],
+    requiresSecret: "GOOGLE_BOOKS_API_KEY",
+  },
+  {
+    id: "openlibrary",
+    label: "Open Library",
+    domains: ["openlibrary.org"],
+    method: "openlibrary_api",
+    note: "API pública e gratuita da Open Library (livros).",
+    nameTokens: ["open library"],
+  },
+  {
+    id: "anilist",
+    label: "AniList",
+    domains: ["anilist.co"],
+    method: "anilist_api",
+    note: "API pública e gratuita do AniList (mangás, manhwas, manhuas, light novels e webnovels).",
+    nameTokens: ["anilist"],
+  },
+  {
+    id: "mangaupdates",
+    label: "MangaUpdates",
+    domains: ["mangaupdates.com"],
+    method: "mangaupdates_api",
+    note: "API pública e gratuita do MangaUpdates (mangás, manhwas, manhuas e novels).",
+    nameTokens: ["mangaupdates", "baka updates"],
   },
   {
     id: "goodreads",
@@ -149,6 +194,98 @@ export function isSourceId(v: string): v is SourceId {
   return (SOURCE_IDS as string[]).includes(v);
 }
 
+export function providerOf(id: SourceId): ProviderId {
+  const m = getSource(id).method;
+  if (m === "google_books_api") return "google_books";
+  if (m === "openlibrary_api") return "openlibrary";
+  if (m === "anilist_api") return "anilist";
+  if (m === "mangaupdates_api") return "mangaupdates";
+  if (m === "kakao_api_or_web") return "kakao";
+  return "web";
+}
+
+export const KIND_LABELS: Record<WorkKind, string> = {
+  livro: "Livro",
+  novel: "Novel",
+  webnovel: "Webnovel",
+  manhwa: "Manhwa",
+  manga: "Mangá",
+  manhua: "Manhua",
+  outro: "Tipo não informado",
+};
+
+export const STATUS_LABELS: Record<WorkStatus, string> = {
+  em_andamento: "Em andamento",
+  completo: "Completo",
+  hiato: "Em hiato",
+  cancelado: "Cancelado",
+  nao_lancado: "Ainda não lançado",
+};
+
+/** Reader-facing type filters ("bl" is a flag, not a kind). */
+export type KindFilter = "livro" | "novel" | "webnovel" | "bl" | "manhwa" | "manga";
+export const KIND_FILTERS: { value: KindFilter; label: string }[] = [
+  { value: "livro", label: "Livros" },
+  { value: "novel", label: "Novels" },
+  { value: "webnovel", label: "Webnovels" },
+  { value: "bl", label: "BL" },
+  { value: "manhwa", label: "Manhwa" },
+  { value: "manga", label: "Mangá" },
+];
+
+export function matchesKindFilters(work: { kind: string; is_bl: boolean }, filters: KindFilter[]): boolean {
+  if (filters.length === 0) return true;
+  return filters.some((f) => (f === "bl" ? work.is_bl : f === "manga" ? work.kind === "manga" || work.kind === "manhua" : work.kind === f));
+}
+
+/* ---------------- Source-specific mapping ---------------- */
+
+/** AniList format + country of origin → our kind. */
+export function anilistKind(format: string | null | undefined, country: string | null | undefined): WorkKind {
+  const c = (country ?? "").toUpperCase();
+  if (format === "NOVEL") return c === "JP" ? "novel" : c ? "webnovel" : "novel";
+  if (format === "MANGA" || format === "ONE_SHOT") {
+    if (c === "KR") return "manhwa";
+    if (c === "CN" || c === "TW" || c === "HK") return "manhua";
+    return "manga";
+  }
+  return "outro";
+}
+
+export function anilistStatus(status: string | null | undefined): WorkStatus | null {
+  switch (status) {
+    case "RELEASING":
+      return "em_andamento";
+    case "FINISHED":
+      return "completo";
+    case "HIATUS":
+      return "hiato";
+    case "CANCELLED":
+      return "cancelado";
+    case "NOT_YET_RELEASED":
+      return "nao_lancado";
+    default:
+      return null;
+  }
+}
+
+/** MangaUpdates series type → our kind. */
+export function mangaUpdatesKind(type: string | null | undefined): WorkKind {
+  const t = (type ?? "").toLowerCase();
+  if (t === "manhwa") return "manhwa";
+  if (t === "manhua") return "manhua";
+  if (t === "manga" || t === "doujinshi") return "manga";
+  if (t === "novel") return "novel";
+  return "outro";
+}
+
+const BL_MARKERS = ["boys love", "boys' love", "shounen ai", "shonen ai", "yaoi", "bl"];
+
+/** True when a genre/tag list explicitly marks the work as Boys' Love. */
+export function isBoysLove(labels: string[]): boolean {
+  return labels.some((l) => BL_MARKERS.includes(l.trim().toLowerCase().replace(/’/g, "'")));
+}
+
 /* ---------------- Results ---------------- */
 
 export interface WorkResult {
@@ -156,9 +293,41 @@ export interface WorkResult {
   authors: string[];
   coverUrl: string | null;
   url: string;
-  /** The platform the link belongs to (detected from the URL). */
+  /** The platform the record belongs to (detected from the URL for web results). */
   platform: SourceId;
   snippet: string | null;
+  /** Stable id of the record on its platform (falls back to the URL). */
+  externalId?: string;
+  originalTitle?: string | null;
+  altTitles?: string[];
+  synopsis?: string | null;
+  genres?: string[];
+  tags?: string[];
+  kind?: WorkKind;
+  isBl?: boolean;
+  status?: WorkStatus | null;
+  year?: number | null;
+  chapters?: number | null;
+  volumes?: number | null;
+  /** True when the source only gave a title and a short snippet. */
+  limited?: boolean;
+}
+
+/** A work as stored in the site's own library (what cards and detail pages show). */
+export interface LibraryWork {
+  id: string;
+  title: string;
+  original_title: string | null;
+  alt_titles: string[];
+  authors: string[];
+  synopsis: string | null;
+  kind: WorkKind;
+  is_bl: boolean;
+  status: WorkStatus | null;
+  year: number | null;
+  cover_url: string | null;
+  limited: boolean;
+  sources: string[];
 }
 
 export type SourceStatus = "ok" | "unavailable" | "not_configured";
@@ -167,8 +336,18 @@ export interface SourceResponse {
   source: SourceId;
   status: SourceStatus;
   message: string | null;
-  results: WorkResult[];
+  /** Works saved in the library for this page of results. */
+  works: LibraryWork[];
   hasMore: boolean;
+}
+
+export type HealthState = "ok" | "needs_key" | "failed";
+
+export interface SourceHealth {
+  source: SourceId;
+  state: HealthState;
+  message: string | null;
+  checkedAt: string | null;
 }
 
 export interface MergedWork {
@@ -254,7 +433,7 @@ export function stripHtml(s: string): string {
     .trim();
 }
 
-function norm(s: string): string {
+export function norm(s: string): string {
   return s
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -296,6 +475,17 @@ export function titleKey(title: string): string {
   return norm(title);
 }
 
+/** Normalized keys for every name a work is known by (used to merge duplicates). */
+export function titleKeysOf(r: { title: string; originalTitle?: string | null; altTitles?: string[] }): string[] {
+  const all = [r.title, r.originalTitle ?? "", ...(r.altTitles ?? [])].map(norm).filter((k) => k.length > 0);
+  return [...new Set(all)];
+}
+
+/** Normalizes what the reader typed the same way stored titles are normalized. */
+export function normalizeQuery(q: string): string {
+  return norm(sanitizeQuery(q)).slice(0, 120);
+}
+
 function authorKeys(authors: string[]): string[] {
   return authors.map(norm).filter(Boolean);
 }
@@ -306,15 +496,16 @@ function authorKeys(authors: string[]): string[] {
  * Keeps every platform link, and the first available cover, author list and snippet.
  */
 export function dedupeWorks(results: WorkResult[]): MergedWork[] {
-  const merged: (MergedWork & { tKey: string; aKeys: string[] })[] = [];
+  const merged: (MergedWork & { tKey: string; aKeys: string[]; altKeys: string[] })[] = [];
   for (const r of results) {
     if (!isAllowedUrl(r.url)) continue;
     const tKey = titleKey(r.title);
     if (!tKey) continue;
+    const keys = titleKeysOf(r);
     const aKeys = authorKeys(r.authors);
     const match = merged.find(
       (m) =>
-        m.tKey === tKey &&
+        (m.tKey === tKey || m.altKeys.some((k) => keys.includes(k))) &&
         (m.aKeys.length === 0 || aKeys.length === 0 || aKeys.some((a) => m.aKeys.includes(a))),
     );
     if (!match) {
@@ -322,6 +513,7 @@ export function dedupeWorks(results: WorkResult[]): MergedWork[] {
         key: `${tKey}|${aKeys[0] ?? ""}|${merged.length}`,
         tKey,
         aKeys,
+        altKeys: keys,
         title: r.title,
         authors: r.authors,
         coverUrl: r.coverUrl,
@@ -337,6 +529,7 @@ export function dedupeWorks(results: WorkResult[]): MergedWork[] {
     }
     if (!match.snippet && r.snippet) match.snippet = r.snippet;
     if (!match.links.some((l) => l.url === r.url)) match.links.push({ platform: r.platform, url: r.url });
+    match.altKeys = [...new Set([...match.altKeys, ...keys])];
   }
-  return merged.map(({ tKey: _t, aKeys: _a, ...rest }) => rest);
+  return merged.map(({ tKey: _t, aKeys: _a, altKeys: _k, ...rest }) => rest);
 }

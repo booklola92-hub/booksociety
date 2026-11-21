@@ -662,6 +662,155 @@ export type Database = {
           },
         ]
       }
+      work_search_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at: string
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
+      work_search_rate: {
+        Row: {
+          bucket: string
+          hits: number
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          hits?: number
+          window_start: string
+        }
+        Update: {
+          bucket?: string
+          hits?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
+      work_sources: {
+        Row: {
+          external_id: string
+          fetched_at: string
+          id: string
+          source: string
+          source_url: string | null
+          work_id: string
+        }
+        Insert: {
+          external_id: string
+          fetched_at?: string
+          id?: string
+          source: string
+          source_url?: string | null
+          work_id: string
+        }
+        Update: {
+          external_id?: string
+          fetched_at?: string
+          id?: string
+          source?: string
+          source_url?: string | null
+          work_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_sources_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      works: {
+        Row: {
+          alt_titles: string[]
+          authors: string[]
+          chapters: number | null
+          cover_url: string | null
+          created_at: string
+          enriched_at: string | null
+          genres: string[]
+          id: string
+          is_bl: boolean
+          kind: string
+          limited: boolean
+          original_title: string | null
+          search_authors: string
+          search_titles: string
+          status: string | null
+          synopsis: string | null
+          tags: string[]
+          title: string
+          title_keys: string[]
+          updated_at: string
+          volumes: number | null
+          year: number | null
+        }
+        Insert: {
+          alt_titles?: string[]
+          authors?: string[]
+          chapters?: number | null
+          cover_url?: string | null
+          created_at?: string
+          enriched_at?: string | null
+          genres?: string[]
+          id?: string
+          is_bl?: boolean
+          kind?: string
+          limited?: boolean
+          original_title?: string | null
+          search_authors?: string
+          search_titles?: string
+          status?: string | null
+          synopsis?: string | null
+          tags?: string[]
+          title: string
+          title_keys?: string[]
+          updated_at?: string
+          volumes?: number | null
+          year?: number | null
+        }
+        Update: {
+          alt_titles?: string[]
+          authors?: string[]
+          chapters?: number | null
+          cover_url?: string | null
+          created_at?: string
+          enriched_at?: string | null
+          genres?: string[]
+          id?: string
+          is_bl?: boolean
+          kind?: string
+          limited?: boolean
+          original_title?: string | null
+          search_authors?: string
+          search_titles?: string
+          status?: string | null
+          synopsis?: string | null
+          tags?: string[]
+          title?: string
+          title_keys?: string[]
+          updated_at?: string
+          volumes?: number | null
+          year?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -700,6 +849,34 @@ export type Database = {
           slug: string
         }[]
       }
+      get_work: {
+        Args: { _id: string }
+        Returns: {
+          alt_titles: string[]
+          authors: string[]
+          chapters: number
+          cover_url: string
+          created_at: string
+          genres: string[]
+          id: string
+          is_bl: boolean
+          kind: string
+          limited: boolean
+          original_title: string
+          sources: string[]
+          status: string
+          synopsis: string
+          tags: string[]
+          title: string
+          updated_at: string
+          volumes: number
+          year: number
+        }[]
+      }
+      hit_rate_limit: {
+        Args: { _bucket: string; _limit: number; _window_seconds: number }
+        Returns: boolean
+      }
       my_conversations: {
         Args: never
         Returns: {
@@ -708,6 +885,24 @@ export type Database = {
           last_from_me: boolean
           other_id: string
           unread: number
+        }[]
+      }
+      search_works: {
+        Args: { _field?: string; _limit?: number; _offset?: number; _q: string }
+        Returns: {
+          alt_titles: string[]
+          authors: string[]
+          cover_url: string
+          id: string
+          is_bl: boolean
+          kind: string
+          limited: boolean
+          original_title: string
+          sources: string[]
+          status: string
+          synopsis: string
+          title: string
+          year: number
         }[]
       }
       suggested_readers: {
