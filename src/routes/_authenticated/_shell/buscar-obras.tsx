@@ -417,12 +417,27 @@ function WorkCard({ work }: { work: MergedWork }) {
           <span className="text-[11px] leading-tight text-muted-foreground">Capa indisponível</span>
         </div>
       )}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <h2 className="font-display line-clamp-2 text-lg leading-snug font-semibold text-foreground">{work.title}</h2>
-        <p className={cn("mt-0.5 line-clamp-1 text-sm", work.authors.length ? "text-foreground/80" : "text-muted-foreground italic")}>
-          {work.authors.length ? work.authors.join(", ") : "Autor(a) não informado(a)"}
-        </p>
-        {work.snippet ? <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{work.snippet}</p> : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <section>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Título traduzido</h2>
+          <p className="font-display line-clamp-2 text-lg leading-snug font-semibold text-foreground">{work.translatedTitle || work.title || "Título não informado"}</p>
+        </section>
+        <section>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Título original</h3>
+          <p className="line-clamp-2 text-sm text-foreground/80">{work.originalTitle || "Não informado"}</p>
+        </section>
+        <section>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Autor</h3>
+          <p className="line-clamp-2 text-sm text-foreground/80">{work.authors.length ? work.authors.join(", ") : "Não informado"}</p>
+        </section>
+        <section>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Sinopse</h3>
+          <p className="line-clamp-3 text-xs text-muted-foreground">{work.synopsis || work.snippet || "Sinopse não disponível"}</p>
+        </section>
+        <section>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Gêneros</h3>
+          <p className="text-xs text-muted-foreground">{work.genres.length ? work.genres.join(", ") : "Não informado"}</p>
+        </section>
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
           {work.links.map((l) => (
             <a
