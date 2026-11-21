@@ -195,7 +195,7 @@ function webSearchConfigured(): boolean {
 
 async function firecrawlSearch(query: string, limit: number): Promise<WebHit[]> {
   const key = process.env["FIRECRAWL_API_KEY"];
-  if (!key) throw new Unavailable("A busca na internet ainda não foi configurada.", "not_configured");
+  if (!key) throw new Unavailable("Busca web desativada: adicione FIRECRAWL_API_KEY em Secrets no Lovable para habilitar Goodreads, Novel Updates e os demais catálogos sem API pública.", "not_configured");
   const body = JSON.stringify({ query, limit });
   let url = "https://api.firecrawl.dev/v2/search";
   const headers: Record<string, string> = { "Content-Type": "application/json" };
