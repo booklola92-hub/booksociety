@@ -910,7 +910,6 @@ export type Database = {
         Returns: {
           avatar_url: string
           display_name: string
-          followers: number
           id: string
           username: string
         }[]
