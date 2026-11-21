@@ -108,6 +108,30 @@ async function searchGoogleBooks(q: string, field: SearchField, page: number): P
   return { results, hasMore: items.length > 0 && page * PAGE_SIZE + items.length < total };
 }
 
+/* ---------------- Open Library (public API) ---------------- */
+
+async function searchOpenLibrary(q: string, field: SearchField, page: number): Promise<Ok> {
+  const clean = sanitizeQuery(q);
+  const params = new URLSearchParams({
+    q: field === "autor" ? `author:${clean}` : field === "titulo" ? `title:${clean}` : clean,
+    page: String(page + 1),
+    limit: String(PAGE_SIZE),
+    fields: "key,title,author_name,first_publish_year,cover_i",
+  });
+  const data = (await fetchJson(`https://openlibrary.org/search.json?${params}`)) as {
+    docs?: { key?: string; title?: string; author_name?: string[]; first_publish_year?: number; cover_i?: number }[];
+    numFound?: number;
+  };
+  const items = data.docs ?? [];
+  const results: WorkResult[] = items.filter((v) => v.key && v.title).map((v) => ({
+    title: v.title!, authors: v.author_name ?? [],
+    coverUrl: v.cover_i ? `https://covers.openlibrary.org/b/id/${v.cover_i}-M.jpg` : null,
+    url: `https://openlibrary.org${v.key}`, platform: "openlibrary",
+    snippet: v.first_publish_year ? `Publicado em ${v.first_publish_year}` : null,
+  }));
+  return { results, hasMore: (page + 1) * PAGE_SIZE < (data.numFound ?? 0) };
+}
+
 /* ---------------- Restricted web search (Firecrawl) ---------------- */
 
 interface WebHit {
@@ -219,9 +243,11 @@ export const searchWorkSource = createServerFn({ method: "POST" })
       const r =
         method === "google_books_api"
           ? await searchGoogleBooks(data.q, field, data.page)
-          : method === "kakao_api_or_web"
-            ? await searchKakao(data.q, field, data.page)
-            : await searchWeb(source, data.q, field, data.page);
+          : method === "openlibrary_api"
+            ? await searchOpenLibrary(data.q, field, data.page)
+            : method === "kakao_api_or_web"
+              ? await searchKakao(data.q, field, data.page)
+              : await searchWeb(source, data.q, field, data.page);
       return { source, status: "ok", message: r.message ?? null, results: r.results, hasMore: r.hasMore };
     } catch (err) {
       if (err instanceof Unavailable) {
