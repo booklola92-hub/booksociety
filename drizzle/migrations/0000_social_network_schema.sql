@@ -345,7 +345,7 @@ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
   FROM public.profiles p
   WHERE p.id <> auth.uid()
     AND NOT EXISTS (SELECT 1 FROM public.follows f WHERE f.follower_id = auth.uid() AND f.following_id = p.id)
-  ORDER BY followers DESC, p.created_at DESC
+  ORDER BY p.created_at DESC
   LIMIT _limit;
 $$;
 
