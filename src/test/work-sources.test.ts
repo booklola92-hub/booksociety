@@ -40,6 +40,8 @@ describe("work search sources", () => {
       "risingshadow",
     ]);
     expect(WORK_SOURCES.filter((s) => s.domains.includes("lunarx.to") && s.id !== "web")).toHaveLength(1);
+    expect(getSource("anilist").method).toBe("anilist_api");
+    expect(getSource("kakaopage").method).toBe("kakao_api_or_web");
   });
 
   it("only allows links on allowlisted sites and their subdomains", () => {
