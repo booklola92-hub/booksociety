@@ -54,7 +54,7 @@ export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
       { property: "og:title", content: "Buscar obras — Book Society" },
       {
         property: "og:description",
-        content: "Busca de obras em várias plataformas de leitura, com link para a página original.",
+        content: "Catálogo de obras de várias plataformas de leitura, com informações reunidas em um só lugar.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -95,7 +95,7 @@ function BuscarObras() {
     <div>
       <PageTitle
         title="Buscar obras"
-        subtitle="Pesquise em plataformas de leitura selecionadas e abra a página original de cada obra."
+        subtitle="Pesquise obras em plataformas selecionadas e veja as informações reunidas no catálogo do Book Society."
       />
 
       <form
@@ -216,7 +216,7 @@ function SourceNotes() {
         ))}
         <li className="pt-2">
           Não guardamos nem exibimos o conteúdo das obras: mostramos só título, autor, capa e resumo quando a fonte
-          os fornece, com link para a página original.
+          os fornecem.
         </li>
       </ul>
     </details>
