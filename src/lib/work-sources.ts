@@ -341,8 +341,9 @@ export interface SourceResponse {
   source: SourceId;
   status: SourceStatus;
   message: string | null;
-  /** Works saved in the library for this page of results. */
-  works: LibraryWork[];
+  results: WorkResult[];
+  /** Works saved in the library for this page of results (filled once the library is wired in). */
+  works?: LibraryWork[];
   hasMore: boolean;
 }
 

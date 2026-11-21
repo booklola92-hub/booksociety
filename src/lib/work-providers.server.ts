@@ -292,14 +292,14 @@ export async function searchAniList(q: string, field: SearchField, page: number)
 /* ---------------- MangaUpdates ---------------- */
 
 interface MURecord {
-  series_id?: number;
-  title?: string;
-  url?: string;
-  description?: string;
-  type?: string;
-  year?: string;
-  image?: { url?: { original?: string; thumb?: string } };
-  genres?: { genre?: string }[];
+  series_id?: number | undefined;
+  title?: string | undefined;
+  url?: string | undefined;
+  description?: string | undefined;
+  type?: string | undefined;
+  year?: string | undefined;
+  image?: { url?: { original?: string; thumb?: string } } | undefined;
+  genres?: { genre?: string }[] | undefined;
 }
 
 function mapMangaUpdates(rec: MURecord, hitTitle: string | undefined): WorkResult | null {

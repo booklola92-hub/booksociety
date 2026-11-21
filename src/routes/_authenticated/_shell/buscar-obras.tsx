@@ -32,6 +32,7 @@ interface SearchParams {
 const FIELDS: { value: SearchField; label: string }[] = [
   { value: "titulo", label: "Título" },
   { value: "autor", label: "Autor(a)" },
+  { value: "alternativo", label: "Nome alternativo" },
   { value: "palavra", label: "Palavra-chave" },
 ];
 
@@ -39,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
   validateSearch: (s: Record<string, unknown>): SearchParams => {
     const out: SearchParams = {};
     if (typeof s["q"] === "string" && s["q"].trim()) out.q = s["q"].slice(0, 200);
-    if (s["campo"] === "titulo" || s["campo"] === "autor" || s["campo"] === "palavra") out.campo = s["campo"];
+    if (s["campo"] === "titulo" || s["campo"] === "autor" || s["campo"] === "alternativo" || s["campo"] === "palavra") out.campo = s["campo"];
     if (typeof s["fontes"] === "string") out.fontes = s["fontes"];
     return out;
   },
