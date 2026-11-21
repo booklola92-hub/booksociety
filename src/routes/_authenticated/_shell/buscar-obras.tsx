@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { PageTitle } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ function BuscarObras() {
     }
   }, []);
 
-  const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const clean = query.trim();
     if (!clean) return;
