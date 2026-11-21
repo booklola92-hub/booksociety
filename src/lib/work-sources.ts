@@ -352,10 +352,15 @@ export interface SourceHealth {
 
 export interface MergedWork {
   key: string;
+  /** Display/translated title, retained as title for existing consumers. */
   title: string;
+  translatedTitle: string | null;
+  originalTitle: string | null;
   authors: string[];
   coverUrl: string | null;
   snippet: string | null;
+  synopsis: string | null;
+  genres: string[];
   links: { platform: SourceId; url: string }[];
 }
 
@@ -497,6 +502,9 @@ function authorKeys(authors: string[]): string[] {
  */
 export function dedupeWorks(results: WorkResult[]): MergedWork[] {
   const merged: (MergedWork & { tKey: string; aKeys: string[]; altKeys: string[] })[] = [];
+  const unique = (values: (string | null | undefined)[]) =>
+    [...new Set(values.map((v) => (v ?? "").trim()).filter(Boolean))];
+
   for (const r of results) {
     if (!isAllowedUrl(r.url)) continue;
     const tKey = titleKey(r.title);
@@ -515,19 +523,26 @@ export function dedupeWorks(results: WorkResult[]): MergedWork[] {
         aKeys,
         altKeys: keys,
         title: r.title,
-        authors: r.authors,
+        translatedTitle: r.title || null,
+        originalTitle: r.originalTitle ?? r.altTitles?.[0] ?? null,
+        authors: unique(r.authors),
         coverUrl: r.coverUrl,
         snippet: r.snippet,
+        synopsis: r.synopsis ?? r.snippet,
+        genres: unique([...(r.genres ?? []), ...(r.tags ?? [])]),
         links: [{ platform: r.platform, url: r.url }],
       });
       continue;
     }
     if (!match.coverUrl && r.coverUrl) match.coverUrl = r.coverUrl;
-    if (match.authors.length === 0 && r.authors.length > 0) {
-      match.authors = r.authors;
-      match.aKeys = aKeys;
-    }
+    if (!match.originalTitle && r.originalTitle) match.originalTitle = r.originalTitle;
+    if (!match.translatedTitle && r.title) match.translatedTitle = r.title;
+    if (!match.title && r.title) match.title = r.title;
+    match.authors = unique([...match.authors, ...r.authors]);
+    match.aKeys = authorKeys(match.authors);
     if (!match.snippet && r.snippet) match.snippet = r.snippet;
+    if (!match.synopsis && (r.synopsis || r.snippet)) match.synopsis = r.synopsis ?? r.snippet;
+    match.genres = unique([...match.genres, ...(r.genres ?? []), ...(r.tags ?? [])]);
     if (!match.links.some((l) => l.url === r.url)) match.links.push({ platform: r.platform, url: r.url });
     match.altKeys = [...new Set([...match.altKeys, ...keys])];
   }
