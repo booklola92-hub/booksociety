@@ -97,11 +97,22 @@ async function searchGoogleBooks(q: string, field: SearchField, page: number): P
     // requests without a project key. Keep the user's search useful by
     // falling back to Open Library instead of reporting a dead-end.
     if (error instanceof Unavailable && /limite|recusou o acesso/i.test(error.message)) {
-      const fallback = await searchOpenLibrary(q, field, page);
-      return {
-        ...fallback,
-        message: `A cota do Google Books está temporariamente indisponível. Exibindo resultados da Open Library como alternativa.`,
-      };
+      try {
+        const fallback = await searchOpenLibrary(q, field, page);
+        return {
+          ...fallback,
+          message: fallback.results.length
+            ? "A cota do Google Books está temporariamente indisponível. Exibindo resultados da Open Library como alternativa."
+            : "O Google Books está temporariamente indisponível e a Open Library não encontrou resultados para esta busca.",
+        };
+      } catch (fallbackError) {
+        console.error("Google Books and Open Library fallback failed:", fallbackError);
+        return {
+          results: [],
+          hasMore: false,
+          message: "Google Books e Open Library estão temporariamente indisponíveis. Tente novamente mais tarde.",
+        };
+      }
     }
     throw error;
   }
