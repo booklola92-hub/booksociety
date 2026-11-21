@@ -64,10 +64,9 @@ export const WORK_SOURCES: WorkSource[] = [
     label: "Google Books",
     domains: ["books.google.com"],
     method: "google_books_api",
-    note: "API oficial do Google Books (precisa de chave própria).",
+    note: "API pública do Google Books; funciona sem conta ou chave, sujeita a limites de uso.",
     searchUrl: (q) => `https://www.google.com/search?tbm=bks&q=${enc(q)}`,
     nameTokens: ["google books"],
-    requiresSecret: "GOOGLE_BOOKS_API_KEY",
   },
   {
     id: "openlibrary",
