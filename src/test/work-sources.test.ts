@@ -22,13 +22,14 @@ const r = (over: Partial<WorkResult>): WorkResult => ({
 });
 
 describe("work search sources", () => {
-  it("searches exactly the 10 requested sources, with LunarX as a single entry", () => {
+  it("searches all 11 requested sources, with LunarX as a single entry", () => {
     expect(SOURCE_IDS).toEqual([
       "google_books",
       "goodreads",
       "novel_updates",
       "web",
       "novellist",
+      "kakaopage",
       "visorikigai",
       "leituramanga",
       "eternalmangas",
