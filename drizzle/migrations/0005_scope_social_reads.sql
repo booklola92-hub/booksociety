@@ -12,6 +12,8 @@ USING (auth.uid() = user_id);
 
 -- Profiles: only yourself and readers you have a real connection with.
 DROP POLICY IF EXISTS "Profiles visible to signed-in readers" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles visible to connected readers" ON public.profiles;
+
 CREATE POLICY "Profiles visible to connected readers" ON public.profiles
 FOR SELECT TO authenticated
 USING (
@@ -27,11 +29,13 @@ USING (
        OR (m.recipient_id = auth.uid() AND m.sender_id = profiles.id)
   )
   OR EXISTS (
-    SELECT 1 FROM public.notifications n
-    WHERE n.user_id = auth.uid() AND n.actor_id = profiles.id
+    SELECT 1 FROM public.posts p
+    WHERE p.user_id = profiles.id
   )
-  OR EXISTS (SELECT 1 FROM public.posts p WHERE p.user_id = profiles.id)
-  OR EXISTS (SELECT 1 FROM public.comments c WHERE c.user_id = profiles.id)
+  OR EXISTS (
+    SELECT 1 FROM public.comments c
+    WHERE c.user_id = profiles.id
+  )
 );
 
 -- Books: the curated catalog, your own additions, books on your shelf,
@@ -59,7 +63,7 @@ RETURNS TABLE(followers bigint, following bigint, i_follow boolean)
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT
     (SELECT count(*) FROM public.follows f WHERE f.following_id = _user_id),
@@ -77,7 +81,7 @@ RETURNS TABLE(id uuid, username text, display_name text, avatar_url text, follow
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
   SELECT p.id, p.username, p.display_name, p.avatar_url,
          (SELECT count(*) FROM public.follows f WHERE f.following_id = p.id) AS followers
@@ -86,7 +90,7 @@ AS $$
     AND p.id <> auth.uid()
     AND NOT EXISTS (SELECT 1 FROM public.follows f WHERE f.follower_id = auth.uid() AND f.following_id = p.id)
   ORDER BY followers DESC, p.created_at DESC
-  LIMIT least(greatest(coalesce(_limit, 5), 1), 20);
+  LIMIT LEAST(GREATEST(COALESCE(_limit, 5), 1), 20);
 $$;
 
 REVOKE ALL ON FUNCTION public.suggested_readers(integer) FROM PUBLIC, anon;
