@@ -78,6 +78,39 @@ describe("work search sources", () => {
     expect(works[0]!.coverUrl).toBe("https://img.example/c.jpg");
   });
 
+  it("preserves and combines original/translated titles, synopsis, genres and authors", () => {
+    const works = dedupeWorks([
+      r({
+        title: "Solo Leveling",
+        originalTitle: "나 혼자만 레벨업",
+        authors: ["Chugong"],
+        synopsis: null,
+        genres: ["Action"],
+        url: "https://books.google.com/books?id=1",
+        platform: "google_books",
+      }),
+      r({
+        title: "Solo Leveling",
+        originalTitle: null,
+        authors: ["Chugong", "DUBU"],
+        synopsis: "A hunter grows stronger.",
+        genres: ["Fantasy"],
+        tags: ["Adventure"],
+        url: "https://www.novelupdates.com/series/solo-leveling/",
+        platform: "novel_updates",
+      }),
+    ]);
+    expect(works).toHaveLength(1);
+    expect(works[0]).toMatchObject({
+      title: "Solo Leveling",
+      translatedTitle: "Solo Leveling",
+      originalTitle: "나 혼자만 레벨업",
+      authors: ["Chugong", "DUBU"],
+      synopsis: "A hunter grows stronger.",
+      genres: ["Action", "Fantasy", "Adventure"],
+    });
+  });
+
   it("keeps works apart when the authors differ, and drops links outside the allowlist", () => {
     const works = dedupeWorks([
       r({ title: "Duna", authors: ["Frank Herbert"], url: "https://books.google.com/books?id=a", platform: "google_books" }),
