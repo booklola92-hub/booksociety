@@ -6,7 +6,6 @@ import { BookCover } from "@/components/book-cover";
 import { FollowButton } from "@/components/follow-button";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
-import { compactNumber } from "@/lib/format";
 import { useSuggestedReaders, useTrendingBooks } from "@/lib/social";
 
 export function RightRail() {
@@ -48,9 +47,6 @@ function SuggestedReaders() {
                 >
                   {r.display_name || r.username}
                 </Link>
-                <p className="text-xs text-muted-foreground">
-                  {compactNumber(Number(r.followers))} seguidor{Number(r.followers) === 1 ? "" : "es"}
-                </p>
               </div>
               <FollowButton userId={r.id} following={false} />
             </li>
