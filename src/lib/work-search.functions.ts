@@ -86,10 +86,25 @@ async function searchGoogleBooks(q: string, field: SearchField, page: number): P
   });
   const key = process.env["GOOGLE_BOOKS_API_KEY"];
   if (key) params.set("key", key);
-  const data = (await fetchJson(`https://www.googleapis.com/books/v1/volumes?${params}`)) as {
-    totalItems?: number;
-    items?: GBVolume[];
-  };
+  let data: { totalItems?: number; items?: GBVolume[] };
+  try {
+    data = (await fetchJson(`https://www.googleapis.com/books/v1/volumes?${params}`)) as {
+      totalItems?: number;
+      items?: GBVolume[];
+    };
+  } catch (error) {
+    // Google Books can return 429 (or quota-related 403) for cloud-hosted
+    // requests without a project key. Keep the user's search useful by
+    // falling back to Open Library instead of reporting a dead-end.
+    if (error instanceof Unavailable && /limite|recusou o acesso/i.test(error.message)) {
+      const fallback = await searchOpenLibrary(q, field, page);
+      return {
+        ...fallback,
+        message: `A cota do Google Books está temporariamente indisponível. Exibindo resultados da Open Library como alternativa.`,
+      };
+    }
+    throw error;
+  }
   const items = data.items ?? [];
   const results: WorkResult[] = items
     .filter((v) => v.id && v.volumeInfo?.title)
@@ -149,7 +164,10 @@ async function searchAniList(q: string, field: SearchField, page: number): Promi
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ query, variables: { search: sanitizeQuery(q), page: page + 1, perPage: PAGE_SIZE } }),
-  })) as { data?: { Page?: { pageInfo?: { hasNextPage?: boolean }; media?: { id: number; title?: { romaji?: string; english?: string; native?: string }; description?: string; coverImage?: { large?: string }; siteUrl?: string; startDate?: { year?: number }; format?: string; status?: string; chapters?: number; volumes?: number; staff?: { edges?: { role?: string; node?: { name?: { full?: string } } }[] } }[] } };
+  })) as { errors?: { message?: string }[]; data?: { Page?: { pageInfo?: { hasNextPage?: boolean }; media?: { id: number; title?: { romaji?: string; english?: string; native?: string }; description?: string; coverImage?: { large?: string }; siteUrl?: string; startDate?: { year?: number }; format?: string; status?: string; chapters?: number; volumes?: number; staff?: { edges?: { role?: string; node?: { name?: { full?: string } } }[] } }[] } };
+  if (data.errors?.length) {
+    throw new Unavailable(data.errors[0]?.message || "A API do AniList não conseguiu concluir a busca.");
+  }
   const items = data.data?.Page?.media ?? [];
   const results: WorkResult[] = items.filter((m) => m.siteUrl && (m.title?.english || m.title?.romaji || m.title?.native)).map((m) => ({
     title: m.title?.english || m.title?.romaji || m.title?.native || "Sem título",
