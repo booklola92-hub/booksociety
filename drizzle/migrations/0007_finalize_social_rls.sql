@@ -6,7 +6,7 @@ drop policy if exists "Follows visible" on public.follows;
 drop policy if exists "Users see own follow links" on public.follows;
 create policy "Users see own follow links" on public.follows
 for select to authenticated
-using (auth.uid() = follower_id or auth.uid() = following_id);
+using (auth.uid() = follower_id);
 
 drop policy if exists "Users see own memberships" on public.community_members;
 drop policy if exists "Members see own rows and public memberships" on public.community_members;
