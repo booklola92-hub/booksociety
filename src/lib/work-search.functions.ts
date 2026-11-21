@@ -225,7 +225,48 @@ async function searchWeb(sourceId: SourceId, q: string, field: SearchField, page
   return { results, hasMore: hits.length >= limit && limit < WEB_MAX };
 }
 
-/* ---------------- KakaoPage (Kakao Search API, key required) ---------------- */
+/* ---------------- Direct public catalog pages (no API key) ---------------- */
+
+async function searchPublicCatalog(sourceId: SourceId, q: string, field: SearchField, page: number): Promise<Ok> {
+  const source = getSource(sourceId);
+  if (!source.searchUrl) throw new Unavailable("Este catálogo não disponibiliza uma URL pública de busca.");
+  const query = field === "autor" ? `${sanitizeQuery(q)} ${"author"}` : sanitizeQuery(q);
+  const url = source.searchUrl(query);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BooksocietyCatalog/1.0)", Accept: "text/html,application/xhtml+xml" },
+      signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "follow",
+    });
+  } catch { throw new Unavailable("O catálogo não respondeu ou bloqueou a consulta automática."); }
+  if (response.status === 401 || response.status === 403 || response.status === 429) {
+    throw new Unavailable("O site bloqueou a consulta automática. Você ainda pode abrir o catálogo pelo link de busca.");
+  }
+  if (!response.ok) throw new Unavailable(`O catálogo respondeu com erro (${response.status}).`);
+  const html = await response.text();
+  const anchorPattern = /<a\\b[^>]*href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>/gi;
+  const results: WorkResult[] = [];
+  const seen = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = anchorPattern.exec(html)) !== null) {
+    const href = (match[1] ?? "").replace(/&amp;/g, "&");
+    const title = stripHtml(match[2] ?? "").replace(/\\s+/g, " ").trim();
+    if (!title || title.length < 2) continue;
+    let resultUrl: string;
+    try { resultUrl = new URL(href, response.url || url).toString(); } catch { continue; }
+    if (!hostMatches(resultUrl, source.domains) || seen.has(resultUrl)) continue;
+    const parsedUrl = new URL(resultUrl);
+    if (parsedUrl.pathname === "/" || /search|login|register|signup|javascript:/i.test(parsedUrl.pathname)) continue;
+    if (/^(home|search|next|previous|read more|view all|login|sign up)$/i.test(title)) continue;
+    seen.add(resultUrl);
+    const parsed = parseResultTitle(title, sourceId);
+    results.push({ title: parsed.title, authors: parsed.authors, coverUrl: null, url: resultUrl, platform: sourceId, snippet: null, limited: true });
+  }
+  const start = page * PAGE_SIZE;
+  return { results: results.slice(start, start + PAGE_SIZE), hasMore: results.length > start + PAGE_SIZE, message: results.length ? "Resultados obtidos das páginas públicas do catálogo; alguns sites podem limitar a consulta." : "A página pública não apresentou resultados legíveis ou bloqueou a consulta automática." };
+}
+
+/* ---------------- KakaoPage (legacy API fallback) ---------------- */
 
 async function searchKakao(q: string, field: SearchField, page: number): Promise<Ok> {
   const key = process.env["KAKAO_REST_API_KEY"];
