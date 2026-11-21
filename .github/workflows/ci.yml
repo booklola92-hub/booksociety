@@ -23,6 +23,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Update npm to avoid Arborist edgesOut bug
+        run: npm install --global npm@11.21.2
+
       - name: Install dependencies
         run: npm install
 
