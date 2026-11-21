@@ -75,7 +75,7 @@ AS $$
   WHERE auth.uid() IS NOT NULL
     AND p.id <> auth.uid()
     AND NOT EXISTS (SELECT 1 FROM public.follows f WHERE f.follower_id = auth.uid() AND f.following_id = p.id)
-  ORDER BY followers DESC, p.created_at DESC
+  ORDER BY p.created_at DESC
   LIMIT LEAST(GREATEST(COALESCE(_limit, 5), 1), 20);
 $$;
 
