@@ -11,7 +11,7 @@ CREATE TABLE public.communities (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.communities TO authenticated;
 GRANT ALL ON public.communities TO service_role;
 ALTER TABLE public.communities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Communities visible to signed-in readers" ON public.communities FOR SELECT TO authenticated USING (true);
+-- Community reads are intentionally added by 0004_restrict_community_reads.sql.
 CREATE POLICY "Readers create communities" ON public.communities FOR INSERT TO authenticated WITH CHECK (auth.uid() = created_by);
 CREATE POLICY "Creators update communities" ON public.communities FOR UPDATE TO authenticated USING (auth.uid() = created_by) WITH CHECK (auth.uid() = created_by);
 CREATE POLICY "Creators delete communities" ON public.communities FOR DELETE TO authenticated USING (auth.uid() = created_by);
