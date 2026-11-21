@@ -130,16 +130,6 @@ export const WORK_SOURCES: WorkSource[] = [
     nameTokens: ["novellist", "novel list"],
   },
   {
-    id: "kakaopage",
-    label: "KakaoPage",
-    domains: ["page.kakao.com"],
-    pathHint: "/content",
-    method: "kakao_api_or_web",
-    note: "Usa a API de busca da Kakao quando a chave está configurada; senão, a busca pública na internet restrita a page.kakao.com.",
-    searchUrl: (q) => `https://page.kakao.com/search/result?keyword=${enc(q)}`,
-    nameTokens: ["kakaopage", "kakao page", "카카오페이지"],
-  },
-  {
     id: "visorikigai",
     label: "Visorikigai",
     domains: ["visorikigai.net", "ikigaimangas.com"],
