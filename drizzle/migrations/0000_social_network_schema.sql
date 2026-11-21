@@ -12,7 +12,7 @@ CREATE TABLE public.profiles (
 GRANT SELECT, UPDATE ON public.profiles TO authenticated;
 GRANT ALL ON public.profiles TO service_role;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Profiles visible to signed-in readers" ON public.profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users see own profile during setup" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -93,7 +93,7 @@ CREATE INDEX posts_user_idx ON public.posts (user_id, created_at DESC);
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.posts TO authenticated;
 GRANT ALL ON public.posts TO service_role;
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Posts visible to signed-in readers" ON public.posts FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users see own posts during setup" ON public.posts FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users create own posts" ON public.posts FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own posts" ON public.posts FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users delete own posts" ON public.posts FOR DELETE TO authenticated USING (auth.uid() = user_id);
@@ -110,7 +110,7 @@ CREATE INDEX poll_options_post_idx ON public.poll_options (post_id);
 GRANT SELECT, INSERT ON public.poll_options TO authenticated;
 GRANT ALL ON public.poll_options TO service_role;
 ALTER TABLE public.poll_options ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Poll options visible" ON public.poll_options FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Poll options visible to post owners during setup" ON public.poll_options FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.posts p WHERE p.id = post_id AND p.user_id = auth.uid()));
 CREATE POLICY "Post owner adds options" ON public.poll_options FOR INSERT TO authenticated
   WITH CHECK (EXISTS (SELECT 1 FROM public.posts p WHERE p.id = post_id AND p.user_id = auth.uid()));
 
@@ -124,7 +124,7 @@ CREATE TABLE public.poll_votes (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.poll_votes TO authenticated;
 GRANT ALL ON public.poll_votes TO service_role;
 ALTER TABLE public.poll_votes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Votes visible" ON public.poll_votes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users see own votes during setup" ON public.poll_votes FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users vote as themselves" ON public.poll_votes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users change own vote" ON public.poll_votes FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users remove own vote" ON public.poll_votes FOR DELETE TO authenticated USING (auth.uid() = user_id);
@@ -139,7 +139,7 @@ CREATE TABLE public.likes (
 GRANT SELECT, INSERT, DELETE ON public.likes TO authenticated;
 GRANT ALL ON public.likes TO service_role;
 ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Likes visible" ON public.likes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users see own likes during setup" ON public.likes FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users like as themselves" ON public.likes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users unlike own" ON public.likes FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
@@ -169,7 +169,7 @@ CREATE INDEX comments_post_idx ON public.comments (post_id, created_at);
 GRANT SELECT, INSERT, DELETE ON public.comments TO authenticated;
 GRANT ALL ON public.comments TO service_role;
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Comments visible" ON public.comments FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users see own comments during setup" ON public.comments FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users comment as themselves" ON public.comments FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users delete own comments" ON public.comments FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
@@ -185,7 +185,7 @@ CREATE INDEX follows_following_idx ON public.follows (following_id);
 GRANT SELECT, INSERT, DELETE ON public.follows TO authenticated;
 GRANT ALL ON public.follows TO service_role;
 ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Follows visible" ON public.follows FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users see own follow links during setup" ON public.follows FOR SELECT TO authenticated USING (auth.uid() = follower_id OR auth.uid() = following_id);
 CREATE POLICY "Users follow as themselves" ON public.follows FOR INSERT TO authenticated WITH CHECK (auth.uid() = follower_id);
 CREATE POLICY "Users unfollow own" ON public.follows FOR DELETE TO authenticated USING (auth.uid() = follower_id);
 
@@ -208,7 +208,7 @@ CREATE INDEX shelf_user_idx ON public.shelf_items (user_id, status);
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.shelf_items TO authenticated;
 GRANT ALL ON public.shelf_items TO service_role;
 ALTER TABLE public.shelf_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Shelves visible" ON public.shelf_items FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Users see own shelf during setup" ON public.shelf_items FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users add to own shelf" ON public.shelf_items FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own shelf" ON public.shelf_items FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users remove from own shelf" ON public.shelf_items FOR DELETE TO authenticated USING (auth.uid() = user_id);
