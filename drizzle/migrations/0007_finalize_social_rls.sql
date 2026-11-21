@@ -8,17 +8,11 @@ create policy "Users see own follow links" on public.follows
 for select to authenticated
 using (auth.uid() = follower_id or auth.uid() = following_id);
 
-drop policy if exists "Members visible" on public.community_members;
 drop policy if exists "Users see own memberships" on public.community_members;
-create policy "Members see own rows and public memberships" on public.community_members
+drop policy if exists "Members see own rows and public memberships" on public.community_members;
+create policy "Users see own memberships" on public.community_members
 for select to authenticated
-using (
-  auth.uid() = user_id
-  or exists (
-    select 1 from public.communities c
-    where c.id = community_members.community_id and c.is_private = false
-  )
-);
+using (auth.uid() = user_id);
 
 drop policy if exists "Creators and members view communities" on public.communities;
 drop policy if exists "Communities visible to signed-in readers" on public.communities;
