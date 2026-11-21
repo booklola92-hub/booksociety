@@ -132,6 +132,37 @@ async function searchOpenLibrary(q: string, field: SearchField, page: number): P
   return { results, hasMore: (page + 1) * PAGE_SIZE < (data.numFound ?? 0) };
 }
 
+/* ---------------- AniList (public GraphQL API) ---------------- */
+
+async function searchAniList(q: string, field: SearchField, page: number): Promise<Ok> {
+  const query = `query ($search: String, $page: Int, $perPage: Int) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo { hasNextPage }
+      media(search: $search, type: MANGA, sort: SEARCH_MATCH) {
+        id title { romaji english native } description coverImage { large }
+        siteUrl startDate { year } format status chapters volumes
+        staff { edges { role node { name { full } } } }
+      }
+    }
+  }`;
+  const data = (await fetchJson("https://graphql.anilist.co", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query, variables: { search: sanitizeQuery(q), page: page + 1, perPage: PAGE_SIZE } }),
+  })) as { data?: { Page?: { pageInfo?: { hasNextPage?: boolean }; media?: { id: number; title?: { romaji?: string; english?: string; native?: string }; description?: string; coverImage?: { large?: string }; siteUrl?: string; startDate?: { year?: number }; format?: string; status?: string; chapters?: number; volumes?: number; staff?: { edges?: { role?: string; node?: { name?: { full?: string } } }[] } }[] } };
+  const items = data.data?.Page?.media ?? [];
+  const results: WorkResult[] = items.filter((m) => m.siteUrl && (m.title?.english || m.title?.romaji || m.title?.native)).map((m) => ({
+    title: m.title?.english || m.title?.romaji || m.title?.native || "Sem título",
+    originalTitle: m.title?.native ?? null,
+    altTitles: [m.title?.romaji, m.title?.english].filter((v): v is string => !!v),
+    authors: (m.staff?.edges ?? []).filter((e) => /story|原作|art|作画/i.test(e.role ?? "")).map((e) => e.node?.name?.full ?? "").filter(Boolean).slice(0, 4),
+    coverUrl: safeImageUrl(m.coverImage?.large), url: m.siteUrl!, platform: "anilist",
+    snippet: m.description ? stripHtml(m.description).slice(0, 220) : null,
+    year: m.startDate?.year ?? null, chapters: m.chapters ?? null, volumes: m.volumes ?? null,
+  }));
+  return { results, hasMore: !!data.data?.Page?.pageInfo?.hasNextPage };
+}
+
 /* ---------------- Restricted web search (Firecrawl) ---------------- */
 
 interface WebHit {
@@ -245,9 +276,11 @@ export const searchWorkSource = createServerFn({ method: "POST" })
           ? await searchGoogleBooks(data.q, field, data.page)
           : method === "openlibrary_api"
             ? await searchOpenLibrary(data.q, field, data.page)
-            : method === "kakao_api_or_web"
-              ? await searchKakao(data.q, field, data.page)
-              : await searchWeb(source, data.q, field, data.page);
+            : method === "anilist_api"
+              ? await searchAniList(data.q, field, data.page)
+              : method === "kakao_api_or_web"
+                ? await searchKakao(data.q, field, data.page)
+                : await searchWeb(source, data.q, field, data.page);
       return { source, status: "ok", message: r.message ?? null, results: r.results, hasMore: r.hasMore };
     } catch (err) {
       if (err instanceof Unavailable) {
