@@ -130,6 +130,14 @@ export const WORK_SOURCES: WorkSource[] = [
     nameTokens: ["novellist", "novel list"],
   },
   {
+    id: "kakaopage",
+    label: "KakaoPage",
+    domains: ["page.kakao.com"],
+    method: "kakao_api_or_web",
+    note: "Busca pública na internet restrita ao KakaoPage.",
+    nameTokens: ["kakaopage", "kakao page"],
+  },
+  {
     id: "visorikigai",
     label: "Visorikigai",
     domains: ["visorikigai.net", "ikigaimangas.com"],
