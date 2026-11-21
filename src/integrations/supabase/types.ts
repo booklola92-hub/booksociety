@@ -93,6 +93,7 @@ export type Database = {
           created_by: string
           description: string
           id: string
+          is_private: boolean
           name: string
           slug: string
         }
@@ -102,6 +103,7 @@ export type Database = {
           created_by: string
           description?: string
           id?: string
+          is_private?: boolean
           name: string
           slug: string
         }
@@ -111,6 +113,7 @@ export type Database = {
           created_by?: string
           description?: string
           id?: string
+          is_private?: boolean
           name?: string
           slug?: string
         }
