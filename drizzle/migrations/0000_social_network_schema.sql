@@ -339,10 +339,9 @@ REVOKE EXECUTE ON FUNCTION public.notify_on_message() FROM PUBLIC, anon, authent
 
 -- HELPER QUERIES
 CREATE OR REPLACE FUNCTION public.suggested_readers(_limit int DEFAULT 5)
-RETURNS TABLE (id uuid, username text, display_name text, avatar_url text, followers bigint)
+RETURNS TABLE (id uuid, username text, display_name text, avatar_url text)
 LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
-  SELECT p.id, p.username, p.display_name, p.avatar_url,
-         (SELECT count(*) FROM public.follows f WHERE f.following_id = p.id) AS followers
+  SELECT p.id, p.username, p.display_name, p.avatar_url
   FROM public.profiles p
   WHERE p.id <> auth.uid()
     AND NOT EXISTS (SELECT 1 FROM public.follows f WHERE f.follower_id = auth.uid() AND f.following_id = p.id)
