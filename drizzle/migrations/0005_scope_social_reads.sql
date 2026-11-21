@@ -10,26 +10,11 @@ CREATE POLICY "Users see own memberships" ON public.community_members
 FOR SELECT TO authenticated
 USING (auth.uid() = user_id);
 
--- Profiles: only yourself and readers you have a real connection with.
+-- Profiles: private profile records are only readable by their owner.
 DROP POLICY IF EXISTS "Profiles visible to signed-in readers" ON public.profiles;
 DROP POLICY IF EXISTS "Profiles visible to connected readers" ON public.profiles;
-
-CREATE POLICY "Profiles visible to connected readers" ON public.profiles
-FOR SELECT TO authenticated
-USING (
-  auth.uid() = id
-  OR EXISTS (
-    SELECT 1 FROM public.follows f
-    WHERE (f.follower_id = auth.uid() AND f.following_id = profiles.id)
-       OR (f.following_id = auth.uid() AND f.follower_id = profiles.id)
-  )
-  OR EXISTS (
-    SELECT 1 FROM public.messages m
-    WHERE (m.sender_id = auth.uid() AND m.recipient_id = profiles.id)
-       OR (m.recipient_id = auth.uid() AND m.sender_id = profiles.id)
-  )
-
-);
+CREATE POLICY "Users see own profile" ON public.profiles
+FOR SELECT TO authenticated USING (auth.uid() = id);
 
 -- Books: the curated catalog, your own additions, books on your shelf,
 -- and books mentioned in posts you can see.
