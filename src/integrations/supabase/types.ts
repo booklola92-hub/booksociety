@@ -905,15 +905,6 @@ export type Database = {
           year: number
         }[]
       }
-      suggested_readers: {
-        Args: { _limit?: number }
-        Returns: {
-          avatar_url: string
-          display_name: string
-          id: string
-          username: string
-        }[]
-      }
       trending_books: {
         Args: { _limit?: number }
         Returns: {
