@@ -244,13 +244,13 @@ async function searchPublicCatalog(sourceId: SourceId, q: string, field: SearchF
   }
   if (!response.ok) throw new Unavailable(`O catálogo respondeu com erro (${response.status}).`);
   const html = await response.text();
-  const anchorPattern = /<a\\b[^>]*href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>/gi;
+  const anchorPattern = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\\S]*?)<\/a>/gi;
   const results: WorkResult[] = [];
   const seen = new Set<string>();
   let match: RegExpExecArray | null;
   while ((match = anchorPattern.exec(html)) !== null) {
     const href = (match[1] ?? "").replace(/&amp;/g, "&");
-    const title = stripHtml(match[2] ?? "").replace(/\\s+/g, " ").trim();
+    const title = stripHtml(match[2] ?? "").replace(/\s+/g, " ").trim();
     if (!title || title.length < 2) continue;
     let resultUrl: string;
     try { resultUrl = new URL(href, response.url || url).toString(); } catch { continue; }
