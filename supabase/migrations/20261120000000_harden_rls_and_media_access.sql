@@ -22,16 +22,21 @@ for select to authenticated using (
 );
 
 drop policy if exists "Communities visible to signed-in readers" on public.communities;
-create policy "Communities visible to signed-in readers" on public.communities
-for select to authenticated using (auth.uid() is not null);
+create policy "Communities visible to members and creators" on public.communities
+for select to authenticated using (
+  is_private = false or created_by = auth.uid() or exists (
+    select 1 from public.community_members cm
+    where cm.community_id = communities.id and cm.user_id = auth.uid()
+  )
+);
 
 drop policy if exists "Members visible" on public.community_members;
-create policy "Members visible" on public.community_members
-for select to authenticated using (auth.uid() is not null);
+create policy "Users see own memberships" on public.community_members
+for select to authenticated using (auth.uid() = user_id);
 
 drop policy if exists "Follows visible" on public.follows;
-create policy "Follows visible" on public.follows
-for select to authenticated using (auth.uid() is not null);
+create policy "Users see own follow links" on public.follows
+for select to authenticated using (auth.uid() = follower_id or auth.uid() = following_id);
 
 drop policy if exists "Likes visible" on public.likes;
 create policy "Likes visible" on public.likes
