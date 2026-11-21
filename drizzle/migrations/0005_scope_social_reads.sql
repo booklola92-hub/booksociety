@@ -2,7 +2,7 @@
 DROP POLICY IF EXISTS "Follows visible" ON public.follows;
 CREATE POLICY "Users see own follow links" ON public.follows
 FOR SELECT TO authenticated
-USING (auth.uid() = follower_id OR auth.uid() = following_id);
+USING (auth.uid() = follower_id);
 
 -- Community members: readers only see their own memberships.
 DROP POLICY IF EXISTS "Members visible" ON public.community_members;
@@ -42,27 +42,35 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
-AS $$
+AS $
   SELECT
-    (SELECT count(*) FROM public.follows f WHERE f.following_id = _user_id),
-    (SELECT count(*) FROM public.follows f WHERE f.follower_id = _user_id),
-    EXISTS (SELECT 1 FROM public.follows f WHERE f.follower_id = auth.uid() AND f.following_id = _user_id)
+    CASE WHEN _user_id = auth.uid()
+      THEN (SELECT count(*) FROM public.follows f WHERE f.following_id = auth.uid())
+      ELSE 0::bigint
+    END,
+    CASE WHEN _user_id = auth.uid()
+      THEN (SELECT count(*) FROM public.follows f WHERE f.follower_id = auth.uid())
+      ELSE 0::bigint
+    END,
+    EXISTS (
+      SELECT 1 FROM public.follows f
+      WHERE f.follower_id = auth.uid() AND f.following_id = _user_id
+    )
   WHERE auth.uid() IS NOT NULL;
-$$;
+$;
 
 REVOKE ALL ON FUNCTION public.follow_stats(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.follow_stats(uuid) TO authenticated;
 
 -- Suggestions keep working for new readers, returning only public card fields.
 CREATE OR REPLACE FUNCTION public.suggested_readers(_limit integer DEFAULT 5)
-RETURNS TABLE(id uuid, username text, display_name text, avatar_url text, followers bigint)
+RETURNS TABLE(id uuid, username text, display_name text, avatar_url text)
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT p.id, p.username, p.display_name, p.avatar_url,
-         (SELECT count(*) FROM public.follows f WHERE f.following_id = p.id) AS followers
+  SELECT p.id, p.username, p.display_name, p.avatar_url
   FROM public.profiles p
   WHERE auth.uid() IS NOT NULL
     AND p.id <> auth.uid()
