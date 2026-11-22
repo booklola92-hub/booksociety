@@ -57,6 +57,20 @@
       "when": 1795347842427,
       "tag": "0007_search_internal_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795348225099,
+      "tag": "0008_catalog_search_accent_insensitive",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795348264879,
+      "tag": "0009_catalog_search_ignore_spaces",
+      "breakpoints": true
     }
   ]
 }

@@ -23,3 +23,5 @@
 - [ ] Buscar obras: ativar busca na internet (conexão Firecrawl) e, opcionalmente, chaves Google Books / Kakao — aguardando o usuário
 - [ ] Revisão da busca: chaves testadas antes de marcar fonte como ativa, cache, limite de requisições, busca por nome alternativo, falha isolada por fonte
 - [ ] Biblioteca interna: obras encontradas salvas no banco próprio (título original/traduzido, alternativos, autor, capa, sinopse, gênero, status) e página de detalhes dentro do site, sem mandar o leitor para fora
+- [x] Busca: só no catálogo interno (Livros, Novels e Light Novels, Mangás, Manhwas, BL), sem fontes externas
+- [ ] Busca: encontrar autores e títulos cadastrados mesmo sem acento/pontuação (caso "Nora Roberts")

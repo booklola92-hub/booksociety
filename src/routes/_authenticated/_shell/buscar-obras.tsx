@@ -17,7 +17,6 @@ import {
   type CatalogItem,
 } from "@/lib/catalog-search";
 import { cn } from "@/lib/utils";
-import { normalizeQuery } from "@/lib/work-sources";
 
 export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
   head: () => ({
@@ -48,7 +47,7 @@ function BuscarObras() {
     queryFn: async ({ pageParam }): Promise<CatalogItem[]> => {
       const { data, error } = await supabase.rpc("search_catalog", {
         _q: searched,
-        _qn: normalizeQuery(searched),
+        _qn: "",
         _category: category,
         _limit: CATALOG_PAGE_SIZE,
         _offset: pageParam,

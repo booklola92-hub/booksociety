@@ -816,6 +816,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      catalog_compact: { Args: { _text: string }; Returns: string }
+      catalog_norm: { Args: { _text: string }; Returns: string }
       check_goal_milestones: { Args: { _goal_id: string }; Returns: undefined }
       discover_communities: {
         Args: { _limit?: number; _search?: string }
