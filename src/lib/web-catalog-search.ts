@@ -11,19 +11,6 @@ export interface WebCatalogSearchResult {
   unavailableSources: string[];
 }
 
-type GoogleBooksResponse = {
-  items?: Array<{
-    id: string;
-    volumeInfo?: {
-      title?: string;
-      authors?: string[];
-      description?: string;
-      imageLinks?: { thumbnail?: string; smallThumbnail?: string };
-      categories?: string[];
-    };
-  }>;
-};
-
 type OpenLibraryResponse = {
   docs?: Array<{
     key?: string;
@@ -69,32 +56,6 @@ function unique(items: WebCatalogItem[]) {
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  });
-}
-
-async function searchGoogleBooks(query: string): Promise<WebCatalogItem[]> {
-  const params = new URLSearchParams({ q: query, maxResults: "20", printType: "books", orderBy: "relevance" });
-  const response = await fetch(`https://www.googleapis.com/books/v1/volumes?${params.toString()}`);
-  if (!response.ok) throw new Error(`Google Books respondeu ${response.status}`);
-  const data = (await response.json()) as GoogleBooksResponse;
-  return (data.items ?? []).flatMap((entry) => {
-    const info = entry.volumeInfo;
-    if (!info?.title) return [];
-    const cover = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null;
-    return [{
-      id: `web-google-${entry.id}`,
-      origin: "book",
-      title: info.title,
-      authors: info.authors ?? [],
-      cover_url: cover ? cover.replace(/^http:\/\//, "https://").replace("&edge=curl", "") : null,
-      synopsis: plainText(info.description) || null,
-      kind: "livro",
-      is_bl: (info.categories ?? []).some((category) => /boys.? love|yaoi/i.test(category)),
-      alt_titles: [],
-      external: true as const,
-      source: "Google Books",
-      sourceId: entry.id,
-    }];
   });
 }
 
@@ -184,7 +145,6 @@ function matchesCategory(item: WebCatalogItem, category: CatalogCategory) {
 export async function searchWebCatalog(query: string, category: CatalogCategory): Promise<WebCatalogSearchResult> {
   const tasks: Array<{ name: string; run: () => Promise<WebCatalogItem[]> }> = [];
   if (["todos", "livros", "novels", "bl"].includes(category)) {
-    tasks.push({ name: "Google Books", run: () => searchGoogleBooks(query) });
     tasks.push({ name: "Open Library", run: () => searchOpenLibrary(query) });
   }
   if (category !== "livros") tasks.push({ name: "AniList", run: () => searchAniList(query) });
