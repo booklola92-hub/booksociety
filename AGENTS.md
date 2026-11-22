@@ -30,4 +30,4 @@ use the editor.
 <!-- LOVABLE:END -->
 
 ## Project rules
-- The Buscar obras page searches only the internal catalog (books + works) through the `search_catalog` database function; it makes no calls to outside sites and never creates works. Why: the owner wants search limited to the site's own registered catalog.
+- The Buscar obras page searches the internal catalog plus public external metadata APIs (currently Open Library and AniList). External results are temporary in the search UI; only an explicit click on “Adicionar à minha biblioteca” may create a personal `books` row and shelf item for the signed-in user. Never insert external results into the shared `works` catalog automatically. Do not add external redirects to search cards. Do not call Google Books without a securely configured API key, and do not call MangaDex directly from browser code because its API does not support third-party browser CORS.
