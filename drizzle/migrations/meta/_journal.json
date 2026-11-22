@@ -2,75 +2,16 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1795174910307,
-      "tag": "0000_social_network_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1795174954012,
-      "tag": "0001_goal_milestones",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1795174977348,
-      "tag": "0002_media_read_policy",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1795175169711,
-      "tag": "0003_public_communities",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1795179837624,
-      "tag": "0004_restrict_community_reads",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1795180073458,
-      "tag": "0005_scope_social_reads",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1795257925846,
-      "tag": "0006_internal_work_library",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1795347842427,
-      "tag": "0007_search_internal_catalog",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1795348225099,
-      "tag": "0008_catalog_search_accent_insensitive",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1795348264879,
-      "tag": "0009_catalog_search_ignore_spaces",
-      "breakpoints": true
-    }
+    { "idx": 0, "version": "7", "when": 1795174910307, "tag": "0000_social_network_schema", "breakpoints": true },
+    { "idx": 1, "version": "7", "when": 1795174954012, "tag": "0001_goal_milestones", "breakpoints": true },
+    { "idx": 2, "version": "7", "when": 1795174977348, "tag": "0002_media_read_policy", "breakpoints": true },
+    { "idx": 3, "version": "7", "when": 1795175169711, "tag": "0003_public_communities", "breakpoints": true },
+    { "idx": 4, "version": "7", "when": 1795179837624, "tag": "0004_restrict_community_reads", "breakpoints": true },
+    { "idx": 5, "version": "7", "when": 1795180073458, "tag": "0005_scope_social_reads", "breakpoints": true },
+    { "idx": 6, "version": "7", "when": 1795257925846, "tag": "0006_internal_work_library", "breakpoints": true },
+    { "idx": 7, "version": "7", "when": 1795347842427, "tag": "0007_search_internal_catalog", "breakpoints": true },
+    { "idx": 8, "version": "7", "when": 1795348225099, "tag": "0008_catalog_search_accent_insensitive", "breakpoints": true },
+    { "idx": 9, "version": "7", "when": 1795348264879, "tag": "0009_catalog_search_ignore_spaces", "breakpoints": true },
+    { "idx": 10, "version": "7", "when": 1795305600000, "tag": "0010_private_community_book_visibility", "breakpoints": true }
   ]
 }
