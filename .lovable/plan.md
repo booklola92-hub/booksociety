@@ -12,6 +12,26 @@
 - A correção para achar autores e títulos sem acento ou pontuação (ex.: "Garcia Marquez", "JRR Tolkien") já está no banco. Falta um teste com uma conta conectada.
 - "Nora Roberts" não aparece porque não existe nenhuma obra dela no catálogo. A busca interna não pode mostrar o que ainda não foi cadastrado. Com a importação da Open Library (passo 2), as obras dela passam a existir.
 
+## Revisão do banco atual
+
+- **Livros cadastrados (`books`)**:
+  - têm título, um único campo de autor (texto), capa (endereço de imagem ou arquivo enviado), descrição, páginas e quem cadastrou;
+  - não têm formato, idioma, código externo (ISBN) nem marca BL.
+  
+  Ficam como estão.
+- **Biblioteca de obras (`works`)**:
+  - já tem título, título original, títulos alternativos, lista de autores, sinopse, gêneros, tags, formato (livro, novel, webnovel, mangá, manhwa, manhua, outro), marca BL, situação, ano, capítulos, volumes, capa e "informações limitadas";
+  - já tem colunas de busca normalizada com índice.
+  
+  Faltam idioma, licença e ligação com `books`.
+- **Fontes de cada obra (`work_sources`)**:
+  - guardam fonte + código externo (único) + endereço de origem;
+  - faltam licença, crédito e os códigos cruzados entre fontes.
+- **`search_catalog`**:
+  - junta livros e obras, com filtro por categoria e BL transversal, só para leitores conectados, sem cadastrar nada;
+  - hoje normaliza cada linha na hora da busca. Funciona com poucos registros, mas fica lenta com milhões. Por isso passará a usar as colunas normalizadas e os índices.
+- Só o servidor grava obras. As leitoras não acessam as tabelas diretamente, apenas as funções de busca e de detalhe.
+
 ## Fontes legítimas e o que cada uma permite
 
 | Fonte | Cobre | Licença / regra | Usar? |
@@ -53,6 +73,17 @@ Contagens reais do MangaDex medidas agora (só obras sem conteúdo adulto explí
 - Conteúdo adulto explícito fica fora, salvo se você pedir o contrário.
 - A **Busca continua consultando só o catálogo interno**. Nenhuma fonte externa é chamada quando a leitora pesquisa.
 
+## Atualização incremental
+
+- Uma tabela de controle guarda, por fonte, o ponto onde a última sincronização parou:
+  - Open Library: data do arquivo mensal;
+  - MangaDex: data de atualização do último título lido;
+  - MangaUpdates: id e data;
+  - Wikidata: data da última revisão.
+- Uma rotina agendada (ex.: semanal) busca só o que é novo ou mudou desde esse ponto, em lotes pequenos, no ritmo permitido por cada fonte, com pausa automática quando a fonte pedir para esperar.
+- Obras já importadas só ganham coisas novas, como títulos alternativos ou outra fonte. Nada é apagado, e os 12 livros atuais nunca são alterados.
+- Cada lote registra quantas obras entraram, quantas foram reconhecidas como duplicatas e quantas foram recusadas por falta de dados (sem título ou formato verificável).
+
 ## Etapas (cada uma espera sua aprovação para a seguinte)
 
 1. **Preparação, sem importar nada**:
@@ -66,9 +97,7 @@ Contagens reais do MangaDex medidas agora (só obras sem conteúdo adulto explí
 5. **Títulos originais e alternativos (Wikidata)** para as obras já importadas.
 6. **Crédito das fontes** em uma linha discreta no rodapé da página Busca, no estilo atual (exigido pelo MangaDex e pelo MangaUpdates). Opcional: atualização mensal automática do catálogo.
 
-Antes de começar, confirme dois pontos:
-- O site não tem anúncios nem cobrança? É condição do MangaDex.
-- Deixar conteúdo adulto explícito de fora está certo?
+Confirmado: o site não tem anúncios nem cobrança, então o uso do MangaDex é permitido (com crédito). Conteúdo adulto explícito fica de fora, salvo se você pedir o contrário.
 
 ## Detalhes técnicos
 
