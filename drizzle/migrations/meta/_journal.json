@@ -50,6 +50,13 @@
       "when": 1795257925846,
       "tag": "0006_internal_work_library",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795347842427,
+      "tag": "0007_search_internal_catalog",
+      "breakpoints": true
     }
   ]
 }

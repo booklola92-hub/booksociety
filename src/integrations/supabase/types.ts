@@ -887,6 +887,26 @@ export type Database = {
           unread: number
         }[]
       }
+      search_catalog: {
+        Args: {
+          _category?: string
+          _limit?: number
+          _offset?: number
+          _q?: string
+          _qn?: string
+        }
+        Returns: {
+          alt_titles: string[]
+          authors: string[]
+          cover_url: string
+          id: string
+          is_bl: boolean
+          kind: string
+          origin: string
+          synopsis: string
+          title: string
+        }[]
+      }
       search_works: {
         Args: { _field?: string; _limit?: number; _offset?: number; _q: string }
         Returns: {

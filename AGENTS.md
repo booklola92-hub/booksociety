@@ -30,5 +30,4 @@ use the editor.
 <!-- LOVABLE:END -->
 
 ## Project rules
-- Federated work search: the source allowlist lives only in `src/lib/work-sources.ts`; every link shown must pass `isAllowedUrl`, and server calls go through the authenticated `searchWorkSource` server function. Why: keeps every source (including the general web search) restricted to the approved sites and stops anonymous use of paid search credits.
-- Sites without a public API are searched only through a restricted web search (Firecrawl, optional `FIRECRAWL_API_KEY`) — never by fetching or scraping their pages; Kakao uses `KAKAO_REST_API_KEY` and Google Books an optional `GOOGLE_BOOKS_API_KEY`. Why: respects robots.txt, terms and copyright; a missing key shows the source as unavailable instead of failing.
+- The Buscar obras page searches only the internal catalog (books + works) through the `search_catalog` database function; it makes no calls to outside sites and never creates works. Why: the owner wants search limited to the site's own registered catalog.

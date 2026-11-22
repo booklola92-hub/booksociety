@@ -1,13 +1,23 @@
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Loader2, Search } from "lucide-react";
+import { useState, type FormEvent } from "react";
 
+import { BookCover } from "@/components/book-cover";
 import { PageTitle } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const GOOGLE_CSE_ID = "418f88fdcd5194abc";
-const GOOGLE_SCRIPT_ID = "book-society-google-cse";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  CATALOG_CATEGORIES,
+  CATALOG_PAGE_SIZE,
+  catalogKindLabel,
+  type CatalogCategory,
+  type CatalogItem,
+} from "@/lib/catalog-search";
+import { cn } from "@/lib/utils";
+import { normalizeQuery } from "@/lib/work-sources";
 
 export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
   head: () => ({
@@ -15,8 +25,12 @@ export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
       { title: "Buscar obras — Book Society" },
       {
         name: "description",
-        content: "Pesquise livros, novels e mangás no Google sem sair do Book Society.",
+        content: "Pesquise livros, novels, mangás, manhwas e BL no catálogo do Book Society.",
       },
+      { property: "og:title", content: "Buscar obras — Book Society" },
+      { property: "og:description", content: "Busca no catálogo interno de obras do Book Society." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: BuscarObras,
@@ -25,115 +39,158 @@ export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
 function BuscarObras() {
   const [query, setQuery] = useState("");
   const [searched, setSearched] = useState("");
-  const [googleReady, setGoogleReady] = useState(false);
-  const pendingQuery = useRef("");
-  const rendered = useRef(false);
+  const [category, setCategory] = useState<CatalogCategory>("todos");
 
-  const renderGoogleResults = () => {
-    const google = (window as any).google;
-    const elementApi = google?.search?.cse?.element;
-    const container = document.getElementById("book-society-google-results");
-    if (!elementApi || !container || rendered.current) return;
+  const results = useInfiniteQuery({
+    queryKey: ["catalog-search", searched, category],
+    initialPageParam: 0,
+    staleTime: 60 * 1000,
+    queryFn: async ({ pageParam }): Promise<CatalogItem[]> => {
+      const { data, error } = await supabase.rpc("search_catalog", {
+        _q: searched,
+        _qn: normalizeQuery(searched),
+        _category: category,
+        _limit: CATALOG_PAGE_SIZE,
+        _offset: pageParam,
+      });
+      if (error) throw error;
+      return (data ?? []) as CatalogItem[];
+    },
+    getNextPageParam: (last, pages) =>
+      last.length === CATALOG_PAGE_SIZE ? pages.length * CATALOG_PAGE_SIZE : undefined,
+  });
 
-    elementApi.render({
-      div: "book-society-google-results",
-      tag: "searchresults-only",
-      gname: "bookSocietyResults",
-    });
-    rendered.current = true;
-    setGoogleReady(true);
-
-    if (pendingQuery.current) {
-      window.setTimeout(() => {
-        elementApi.getElement("bookSocietyResults")?.execute(pendingQuery.current);
-      }, 0);
-    }
-  };
-
-  useEffect(() => {
-    const w = window as any;
-    w.__gcse = {
-      ...(w.__gcse || {}),
-      parsetags: "explicit",
-      callback: renderGoogleResults,
-    };
-
-    if (w.google?.search?.cse?.element) {
-      renderGoogleResults();
-      return;
-    }
-
-    if (!document.getElementById(GOOGLE_SCRIPT_ID)) {
-      const script = document.createElement("script");
-      script.id = GOOGLE_SCRIPT_ID;
-      script.async = true;
-      script.src = `https://cse.google.com/cse.js?cx=${GOOGLE_CSE_ID}`;
-      script.onerror = () => console.error("Não foi possível carregar a pesquisa do Google.");
-      document.head.appendChild(script);
-    }
-  }, []);
+  const items = results.data?.pages.flat() ?? [];
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const clean = query.trim();
-    if (!clean) return;
-
-    pendingQuery.current = clean;
-    setSearched(clean);
-
-    const element = (window as any).google?.search?.cse?.element?.getElement("bookSocietyResults");
-    if (element) {
-      element.execute(clean);
-    }
+    setSearched(query.trim().slice(0, 200));
   };
 
   return (
     <div className="space-y-6">
       <PageTitle
         title="Buscar obras"
-        subtitle="Pesquise no Google e veja os resultados aqui mesmo, sem sair do Book Society."
+        subtitle="Pesquise livros, novels, mangás, manhwas e BL no catálogo do Book Society."
       />
 
       <form
         onSubmit={submitSearch}
-        className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:flex-row sm:p-5"
+        className="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5"
       >
-        <div className="relative flex-1">
-          <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            maxLength={200}
-            placeholder="Ex.: Solo Leveling, livros de fantasia, manhwa BL…"
-            aria-label="Buscar obras no Google"
-            className="h-11 rounded-full pl-11"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              maxLength={200}
+              placeholder="Título, autor(a) ou nome alternativo…"
+              aria-label="Buscar obras no catálogo"
+              className="h-11 rounded-full pl-11"
+            />
+          </div>
+          <Button type="submit" className="h-11 rounded-full px-6">
+            <Search className="h-4 w-4" /> Buscar
+          </Button>
         </div>
-        <Button type="submit" disabled={!query.trim()} className="h-11 rounded-full px-6">
-          <Search className="h-4 w-4" /> Buscar
-        </Button>
+
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Categorias">
+          {CATALOG_CATEGORIES.map((c) => {
+            const on = category === c.value;
+            return (
+              <button
+                key={c.value}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setCategory(c.value)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                  on
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-muted-foreground hover:bg-accent",
+                )}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
       </form>
 
       {searched ? (
         <p className="text-sm text-muted-foreground">
-          Resultados do Google para: <strong className="text-foreground">{searched}</strong>
+          Resultados para: <strong className="text-foreground">{searched}</strong>
         </p>
-      ) : (
+      ) : null}
+
+      {results.isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Carregando resultados">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="flex gap-4 rounded-2xl border border-border bg-card p-4">
+              <Skeleton className="h-36 w-24 shrink-0 rounded-md" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : results.isError ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
-          Digite o nome de um livro, novel, mangá ou autor para começar a pesquisa.
+          Não foi possível carregar o catálogo agora. Tente novamente em instantes.
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
+          Nenhum livro encontrado. Tente outra pesquisa.
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((item) => (
+            <CatalogCard key={`${item.origin}-${item.id}`} item={item} />
+          ))}
         </div>
       )}
 
-      <section aria-label="Resultados da pesquisa Google" className="min-h-24 rounded-2xl border border-border bg-card p-3 sm:p-5">
-        {!googleReady && searched ? (
-          <p className="text-sm text-muted-foreground">Carregando a pesquisa do Google…</p>
-        ) : null}
-        <div id="book-society-google-results" />
-      </section>
-
-      <p className="text-center text-xs text-muted-foreground">
-        Pesquisa fornecida pelo Google Programmable Search.
-      </p>
+      {results.hasNextPage ? (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            className="rounded-full px-6"
+            disabled={results.isFetchingNextPage}
+            onClick={() => void results.fetchNextPage()}
+          >
+            {results.isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Mais resultados
+          </Button>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function CatalogCard({ item }: { item: CatalogItem }) {
+  return (
+    <article className="flex gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft">
+      <BookCover book={{ title: item.title, cover_url: item.cover_url }} className="w-24" />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <h2 className="font-display line-clamp-2 text-lg leading-snug font-semibold text-foreground">{item.title}</h2>
+        <p className={cn("mt-0.5 line-clamp-1 text-sm", item.authors.length ? "text-foreground/80" : "text-muted-foreground italic")}>
+          {item.authors.length ? item.authors.join(", ") : "Autor(a) não informado(a)"}
+        </p>
+        {item.alt_titles.length ? (
+          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">Também conhecido como: {item.alt_titles.join(", ")}</p>
+        ) : null}
+        {item.synopsis ? <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p> : null}
+        <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
+            {catalogKindLabel(item.kind)}
+          </span>
+          {item.is_bl ? (
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">BL</span>
+          ) : null}
+        </div>
+      </div>
+    </article>
   );
 }
