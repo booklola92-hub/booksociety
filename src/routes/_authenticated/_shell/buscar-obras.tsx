@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2, Search } from "lucide-react";
