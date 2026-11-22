@@ -61,9 +61,7 @@ function BuscarObras() {
       return (data ?? []) as CatalogItem[];
     },
     getNextPageParam: (last, pages) =>
-      last.length === CATALOG_PAGE_SIZE
-        ? pages.length * CATALOG_PAGE_SIZE
-        : undefined,
+      last.length === CATALOG_PAGE_SIZE ? pages.length * CATALOG_PAGE_SIZE : undefined,
   });
 
   const items = results.data?.pages.flat() ?? [];
@@ -187,9 +185,7 @@ function BuscarObras() {
                 disabled={results.isFetchingNextPage}
                 onClick={() => void results.fetchNextPage()}
               >
-                {results.isFetchingNextPage && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
+                {results.isFetchingNextPage && <Loader2 className="h-4 w-4 animate-spin" />}
                 Mais resultados
               </Button>
             </div>
@@ -203,10 +199,7 @@ function BuscarObras() {
 function CatalogCard({ item }: { item: CatalogItem }) {
   return (
     <article className="flex gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft">
-      <BookCover
-        book={{ title: item.title, cover_url: item.cover_url }}
-        className="w-24"
-      />
+      <BookCover book={{ title: item.title, cover_url: item.cover_url }} className="w-24" />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <h2 className="font-display line-clamp-2 text-lg leading-snug font-semibold text-foreground">
@@ -216,14 +209,10 @@ function CatalogCard({ item }: { item: CatalogItem }) {
         <p
           className={cn(
             "mt-0.5 line-clamp-1 text-sm",
-            item.authors.length
-              ? "text-foreground/80"
-              : "text-muted-foreground italic",
+            item.authors.length ? "text-foreground/80" : "text-muted-foreground italic",
           )}
         >
-          {item.authors.length
-            ? item.authors.join(", ")
-            : "Autor(a) não informado(a)"}
+          {item.authors.length ? item.authors.join(", ") : "Autor(a) não informado(a)"}
         </p>
 
         {item.alt_titles.length > 0 && (
@@ -232,11 +221,7 @@ function CatalogCard({ item }: { item: CatalogItem }) {
           </p>
         )}
 
-        {item.synopsis && (
-          <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
-            {item.synopsis}
-          </p>
-        )}
+        {item.synopsis && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>}
 
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
           <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
