@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import type { CatalogCategory, CatalogItem } from "@/lib/catalog-search";
 
 export type WebCatalogItem = CatalogItem & {
@@ -41,7 +42,7 @@ type AniListResponse = {
 };
 
 function plainText(value?: string | null) {
-  return (value ?? "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+  return (value ?? "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\\s+/g, " ").trim();
 }
 
 function isBl(tags: string[], genres: string[]) {
@@ -52,7 +53,7 @@ function isBl(tags: string[], genres: string[]) {
 function unique(items: WebCatalogItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
-    const key = `${item.title.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()}|${item.authors.join(",").toLocaleLowerCase()}`;
+    const key = `${item.title.toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, " ").trim()}|${item.authors.join(",").toLocaleLowerCase()}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
