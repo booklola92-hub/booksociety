@@ -60,12 +60,20 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <Link to="/inicio" {...props}>
           <NavItem icon={Home} label="Início" />
         </Link>
-        <Link to="/explorar" {...props}>
-          <NavItem icon={Compass} label="Explorar" />
-        </Link>
-        <Link to="/buscar-obras" {...props}>
-          <NavItem icon={ScanSearch} label="Buscar obras" />
-        </Link>
+        <div className="space-y-1">
+          <Link to="/explorar" {...props}>
+            <NavItem icon={Compass} label="Explorar" />
+          </Link>
+          <Link
+            to="/buscar-obras"
+            className="ml-8 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            activeProps={{ className: "bg-primary/10 text-primary" }}
+            onClick={onNavigate}
+          >
+            <ScanSearch className="h-4 w-4 shrink-0" />
+            <span>Buscar obras</span>
+          </Link>
+        </div>
         <Link to="/biblioteca" {...props}>
           <NavItem icon={Library} label="Biblioteca" />
         </Link>
