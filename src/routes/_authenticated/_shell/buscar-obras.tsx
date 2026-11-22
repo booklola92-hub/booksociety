@@ -1,11 +1,9 @@
-
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2, Search } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import { BookCover } from "@/components/book-cover";
-import { ExternalBookResults } from "@/components/search/external-book-results";
 import { PageTitle } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,64 +18,18 @@ import {
 } from "@/lib/catalog-search";
 import { cn } from "@/lib/utils";
 
-const GOOGLE_CSE_ID = "418f88fdcd5194abc";
-const GOOGLE_CSE_NAME = "bookSocietyGoogle";
-
-declare global {
-  interface Window {
-    google?: {
-      search: {
-        cse: {
-          element: {
-            render: (options: {
-              div: string;
-              tag: string;
-              gname: string;
-            }) => void;
-            getElement: (name: string) => {
-              execute: (query: string) => void;
-            } | null;
-          };
-        };
-      };
-    };
-    bookSocietyCsePromise?: Promise<void>;
-  }
-}
-
-function loadGoogleSearch(): Promise<void> {
-  if (window.google?.search?.cse?.element) {
-    return Promise.resolve();
-  }
-
-  if (window.bookSocietyCsePromise) {
-    return window.bookSocietyCsePromise;
-  }
-
-  window.bookSocietyCsePromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://cse.google.com/cse.js?cx=${GOOGLE_CSE_ID}`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Não foi possível carregar a pesquisa do Google."));
-    document.head.appendChild(script);
-  });
-
-  return window.bookSocietyCsePromise;
-}
-
 export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
   head: () => ({
     meta: [
       { title: "Buscar obras — Book Society" },
       {
         name: "description",
-        content: "Pesquise livros, novels, mangás, manhwas e BL no Book Society.",
+        content: "Pesquise livros, novels, mangás, manhwas e BL no catálogo do Book Society.",
       },
       { property: "og:title", content: "Buscar obras — Book Society" },
       {
         property: "og:description",
-        content: "Encontre livros, novels, mangás, manhwas e BL.",
+        content: "Encontre livros, novels, light novels, mangás, manhwas e BL no catálogo interno.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -109,9 +61,7 @@ function BuscarObras() {
       return (data ?? []) as CatalogItem[];
     },
     getNextPageParam: (last, pages) =>
-      last.length === CATALOG_PAGE_SIZE
-        ? pages.length * CATALOG_PAGE_SIZE
-        : undefined,
+      last.length === CATALOG_PAGE_SIZE ? pages.length * CATALOG_PAGE_SIZE : undefined,
   });
 
   const items = results.data?.pages.flat() ?? [];
@@ -125,7 +75,7 @@ function BuscarObras() {
     <div className="space-y-6">
       <PageTitle
         title="Buscar obras"
-        subtitle="Encontre livros, novels, light novels, mangás, manhwas e BL."
+        subtitle="Encontre livros, novels, light novels, mangás, manhwas e BL no catálogo do Book Society."
       />
 
       <form
@@ -140,7 +90,7 @@ function BuscarObras() {
               onChange={(event) => setQuery(event.target.value)}
               maxLength={200}
               placeholder="Digite o título ou nome do autor..."
-              aria-label="Buscar obras"
+              aria-label="Buscar obras por título ou autor"
               className="h-11 rounded-full pl-11"
             />
           </div>
@@ -151,23 +101,23 @@ function BuscarObras() {
         </div>
 
         <div className="flex flex-wrap gap-2" role="group" aria-label="Categorias">
-          {CATALOG_CATEGORIES.map((c) => {
-            const on = category === c.value;
+          {CATALOG_CATEGORIES.map((item) => {
+            const selected = category === item.value;
 
             return (
               <button
-                key={c.value}
+                key={item.value}
                 type="button"
-                aria-pressed={on}
-                onClick={() => setCategory(c.value)}
+                aria-pressed={selected}
+                onClick={() => setCategory(item.value)}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                  on
+                  selected
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-muted-foreground hover:bg-accent",
                 )}
               >
-                {c.label}
+                {item.label}
               </button>
             );
           })}
@@ -175,197 +125,74 @@ function BuscarObras() {
       </form>
 
       {searched && (
-        <>
-          <p className="text-sm text-muted-foreground">
-            Resultados para:{" "}
-            <strong className="text-foreground">{searched}</strong>
-          </p>
-
-          <section className="space-y-4">
+        <section className="space-y-4" aria-live="polite">
+          <div className="space-y-1">
             <h2 className="font-display text-xl font-semibold">
-              Resultados do Google
-            </h2>
-            <GoogleCatalogSearch
-              query={searched}
-              category={category}
-            />
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-display text-xl font-semibold">
-              Sites literários selecionados
+              Resultados do catálogo Book Society
             </h2>
             <p className="text-sm text-muted-foreground">
-              Pesquisa páginas dos sites Goodreads, Novel Updates, NovelList, Visorikigai, Leitura Manga, EternalMangas, LunarX e RisingShadow.
+              Pesquisa por <strong className="text-foreground">{searched}</strong>
+              {" · "}
+              {CATALOG_CATEGORIES.find((item) => item.value === category)?.label}
             </p>
-            <GoogleCatalogSearch query={searched} category={category} scope="sources" />
-          </section>
+          </div>
 
-          <ExternalBookResults query={searched} category={category} />
-
-          <section className="space-y-4">
-            <h2 className="font-display text-xl font-semibold">
-              Resultados do Book Society
-            </h2>
-
-            {results.isLoading ? (
-              <div
-                className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-                aria-label="Carregando resultados"
-              >
-                {Array.from({ length: 6 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-4 rounded-2xl border border-border bg-card p-4"
-                  >
-                    <Skeleton className="h-36 w-24 shrink-0 rounded-md" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : results.isError ? (
-              <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
-                Não foi possível carregar o catálogo interno agora.
-              </div>
-            ) : items.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
-                Nenhuma obra encontrada no catálogo interno. Confira os resultados do Google acima.
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {items.map((item) => (
-                  <CatalogCard
-                    key={`${item.origin}-${item.id}`}
-                    item={item}
-                  />
-                ))}
-              </div>
-            )}
-
-            {results.hasNextPage && (
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  className="rounded-full px-6"
-                  disabled={results.isFetchingNextPage}
-                  onClick={() => void results.fetchNextPage()}
+          {results.isLoading ? (
+            <div
+              className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+              aria-label="Carregando resultados"
+            >
+              {Array.from({ length: 6 }, (_, index) => (
+                <div
+                  key={index}
+                  className="flex gap-4 rounded-2xl border border-border bg-card p-4"
                 >
-                  {results.isFetchingNextPage && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                  Mais resultados
-                </Button>
-              </div>
-            )}
-          </section>
-        </>
-      )}
-    </div>
-  );
-}
+                  <Skeleton className="h-36 w-24 shrink-0 rounded-md" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : results.isError ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
+              Não foi possível carregar a busca agora. Tente novamente.
+            </div>
+          ) : items.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
+              <p className="font-medium text-foreground">
+                Nenhuma obra encontrada no catálogo interno.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {
+                  "O catálogo está sendo ampliado. Quando esse livro, novel, mangá ou manhwa for cadastrado, ele aparecerá aqui."
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {items.map((item) => (
+                <CatalogCard key={`${item.origin}-${item.id}`} item={item} />
+              ))}
+            </div>
+          )}
 
-function GoogleCatalogSearch({
-  query,
-  category,
-  scope = "web",
-}: {
-  query: string;
-  category: CatalogCategory;
-  scope?: "web" | "sources";
-}) {
-  const elementName = scope === "sources" ? "bookSocietyLiterarySites" : GOOGLE_CSE_NAME;
-  const elementId = scope === "sources" ? "google-literary-sites-results" : "google-catalog-results";
-  const sourceFilter = "(site:goodreads.com OR site:novelupdates.com OR site:novellist.co OR site:visorikigai.gettocaboca.com OR site:leituramanga.net OR site:eternalmangas.org OR site:lunarx.to OR site:risingshadow.net)";
-  const [error, setError] = useState(false);
-
-  const selectedCategory = CATALOG_CATEGORIES.find(
-    (item) => item.value === category,
-  );
-
-  const googleQuery = [
-    query,
-    selectedCategory && category !== "todos"
-      ? selectedCategory.label
-      : "livro novel light novel manga manhwa BL",
-    scope === "sources" ? sourceFilter : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  useEffect(() => {
-    let cancelled = false;
-    let attempts = 0;
-    let retryTimer: number | undefined;
-
-    setError(false);
-
-    loadGoogleSearch()
-      .then(() => {
-        if (cancelled) return;
-
-        const api = window.google?.search?.cse?.element;
-
-        if (!api) {
-          setError(true);
-          return;
-        }
-
-        const existing = api.getElement(elementName);
-
-        if (existing) {
-          existing.execute(googleQuery);
-          return;
-        }
-
-        api.render({
-          div: elementId,
-          tag: "searchresults-only",
-          gname: elementName,
-        });
-
-        const executeWhenReady = () => {
-          if (cancelled) return;
-
-          const element = api.getElement(elementName);
-
-          if (element) {
-            element.execute(googleQuery);
-            return;
-          }
-
-          attempts += 1;
-
-          if (attempts < 20) {
-            retryTimer = window.setTimeout(executeWhenReady, 250);
-          } else {
-            setError(true);
-          }
-        };
-
-        executeWhenReady();
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      });
-
-    return () => {
-      cancelled = true;
-      if (retryTimer) window.clearTimeout(retryTimer);
-    };
-  }, [googleQuery]);
-
-  return (
-    <div className="min-h-20 rounded-2xl border border-border bg-card p-4">
-      {error ? (
-        <p className="text-sm text-muted-foreground">
-          Não foi possível carregar a pesquisa do Google. Tente novamente mais tarde.
-        </p>
-      ) : (
-        <div id={elementId} />
+          {results.hasNextPage && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                className="rounded-full px-6"
+                disabled={results.isFetchingNextPage}
+                onClick={() => void results.fetchNextPage()}
+              >
+                {results.isFetchingNextPage && <Loader2 className="h-4 w-4 animate-spin" />}
+                Mais resultados
+              </Button>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
@@ -374,10 +201,7 @@ function GoogleCatalogSearch({
 function CatalogCard({ item }: { item: CatalogItem }) {
   return (
     <article className="flex gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft">
-      <BookCover
-        book={{ title: item.title, cover_url: item.cover_url }}
-        className="w-24"
-      />
+      <BookCover book={{ title: item.title, cover_url: item.cover_url }} className="w-24" />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <h2 className="font-display line-clamp-2 text-lg leading-snug font-semibold text-foreground">
@@ -387,14 +211,10 @@ function CatalogCard({ item }: { item: CatalogItem }) {
         <p
           className={cn(
             "mt-0.5 line-clamp-1 text-sm",
-            item.authors.length
-              ? "text-foreground/80"
-              : "text-muted-foreground italic",
+            item.authors.length ? "text-foreground/80" : "text-muted-foreground italic",
           )}
         >
-          {item.authors.length
-            ? item.authors.join(", ")
-            : "Autor(a) não informado(a)"}
+          {item.authors.length ? item.authors.join(", ") : "Autor(a) não informado(a)"}
         </p>
 
         {item.alt_titles.length > 0 && (
@@ -404,9 +224,7 @@ function CatalogCard({ item }: { item: CatalogItem }) {
         )}
 
         {item.synopsis && (
-          <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
-            {item.synopsis}
-          </p>
+          <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>
         )}
 
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">

@@ -43,7 +43,10 @@ export function catalogKindLabel(kind: string): string {
 }
 
 /** Mirrors the category rule used by the database search, for tests and client checks. */
-export function inCategory(item: Pick<CatalogItem, "kind" | "is_bl">, category: CatalogCategory): boolean {
+export function inCategory(
+  item: Pick<CatalogItem, "kind" | "is_bl">,
+  category: CatalogCategory,
+): boolean {
   switch (category) {
     case "livros":
       return item.kind === "livro";
