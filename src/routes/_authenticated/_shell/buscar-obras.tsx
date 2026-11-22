@@ -166,7 +166,9 @@ function BuscarObras() {
                 Nenhuma obra encontrada no catálogo interno.
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                {"O catálogo está sendo ampliado. Quando esse livro, novel, mangá ou manhwa for cadastrado, ele aparecerá aqui."}
+                {
+                  "O catálogo está sendo ampliado. Quando esse livro, novel, mangá ou manhwa for cadastrado, ele aparecerá aqui."
+                }
               </p>
             </div>
           ) : (
