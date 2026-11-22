@@ -69,7 +69,7 @@ async function searchOpenLibrary(query: string): Promise<WebCatalogItem[]> {
     const sentence = Array.isArray(entry.first_sentence) ? entry.first_sentence[0] : entry.first_sentence;
     return [{
       id: `web-openlibrary-${entry.key ?? entry.title}`,
-      origin: "book",
+      origin: "book" as const,
       title: entry.title,
       authors: entry.author_name ?? [],
       cover_url: entry.cover_i ? `https://covers.openlibrary.org/b/id/${entry.cover_i}-M.jpg` : null,
@@ -116,7 +116,7 @@ async function searchAniList(query: string): Promise<WebCatalogItem[]> {
     const format = entry.format === "NOVEL" ? "novel" : entry.countryOfOrigin === "KR" ? "manhwa" : "manga";
     return [{
       id: `web-anilist-${entry.id}`,
-      origin: "work",
+      origin: "work" as const,
       title,
       authors,
       cover_url: entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? null,
