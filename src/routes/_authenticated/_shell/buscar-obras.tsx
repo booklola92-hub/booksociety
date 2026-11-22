@@ -5,6 +5,7 @@ import { Loader2, Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { BookCover } from "@/components/book-cover";
+import { ExternalBookResults } from "@/components/search/external-book-results";
 import { PageTitle } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -189,6 +190,8 @@ function BuscarObras() {
               category={category}
             />
           </section>
+
+          <ExternalBookResults query={searched} category={category} />
 
           <section className="space-y-4">
             <h2 className="font-display text-xl font-semibold">
