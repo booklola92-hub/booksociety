@@ -166,7 +166,7 @@ function BuscarObras() {
                 Nenhuma obra encontrada no catálogo interno.
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                O catálogo está sendo ampliado. Quando esse livro, novel, mangá ou manhwa for cadastrado, ele aparecerá aqui.
+                {"O catálogo está sendo ampliado. Quando esse livro, novel, mangá ou manhwa for cadastrado, ele aparecerá aqui."}
               </p>
             </div>
           ) : (
@@ -221,7 +221,9 @@ function CatalogCard({ item }: { item: CatalogItem }) {
           </p>
         )}
 
-        {item.synopsis && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>}
+        {item.synopsis && (
+          <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>
+        )}
 
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
           <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
