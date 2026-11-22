@@ -191,6 +191,16 @@ function BuscarObras() {
             />
           </section>
 
+          <section className="space-y-4">
+            <h2 className="font-display text-xl font-semibold">
+              Sites literários selecionados
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Pesquisa páginas dos sites Goodreads, Novel Updates, NovelList, Visorikigai, Leitura Manga, EternalMangas, LunarX e RisingShadow.
+            </p>
+            <GoogleCatalogSearch query={searched} category={category} scope="sources" />
+          </section>
+
           <ExternalBookResults query={searched} category={category} />
 
           <section className="space-y-4">
@@ -261,10 +271,15 @@ function BuscarObras() {
 function GoogleCatalogSearch({
   query,
   category,
+  scope = "web",
 }: {
   query: string;
   category: CatalogCategory;
+  scope?: "web" | "sources";
 }) {
+  const elementName = scope === "sources" ? "bookSocietyLiterarySites" : GOOGLE_CSE_NAME;
+  const elementId = scope === "sources" ? "google-literary-sites-results" : "google-catalog-results";
+  const sourceFilter = "(site:goodreads.com OR site:novelupdates.com OR site:novellist.co OR site:visorikigai.gettocaboca.com OR site:leituramanga.net OR site:eternalmangas.org OR site:lunarx.to OR site:risingshadow.net)";
   const [error, setError] = useState(false);
 
   const selectedCategory = CATALOG_CATEGORIES.find(
@@ -276,6 +291,7 @@ function GoogleCatalogSearch({
     selectedCategory && category !== "todos"
       ? selectedCategory.label
       : "livro novel light novel manga manhwa BL",
+    scope === "sources" ? sourceFilter : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -298,7 +314,7 @@ function GoogleCatalogSearch({
           return;
         }
 
-        const existing = api.getElement(GOOGLE_CSE_NAME);
+        const existing = api.getElement(elementName);
 
         if (existing) {
           existing.execute(googleQuery);
@@ -306,15 +322,15 @@ function GoogleCatalogSearch({
         }
 
         api.render({
-          div: "google-catalog-results",
+          div: elementId,
           tag: "searchresults-only",
-          gname: GOOGLE_CSE_NAME,
+          gname: elementName,
         });
 
         const executeWhenReady = () => {
           if (cancelled) return;
 
-          const element = api.getElement(GOOGLE_CSE_NAME);
+          const element = api.getElement(elementName);
 
           if (element) {
             element.execute(googleQuery);
@@ -349,7 +365,7 @@ function GoogleCatalogSearch({
           Não foi possível carregar a pesquisa do Google. Tente novamente mais tarde.
         </p>
       ) : (
-        <div id="google-catalog-results" />
+        <div id={elementId} />
       )}
     </div>
   );
