@@ -1,13 +1,13 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, FileUp, Library, Upload } from "lucide-react";
+import { BookOpen, Download, FileUp, Library, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PageTitle } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { getMyId, useInvalidate } from "@/lib/social";
+import { getMyId, useInvalidate, useMe, useShelf } from "@/lib/social";
 
 type CsvRow = Record<string, string>;
 
@@ -205,10 +205,65 @@ function GoodreadsTransfer() {
   );
 }
 
+function ReadBooks() {
+  const { data: me } = useMe();
+  const { data: shelf = [], isLoading } = useShelf(me?.id);
+  const readBooks = shelf.filter((item) => item.status === "read" && item.book);
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-semibold">Livros que já li</h2>
+          <p className="text-sm text-muted-foreground">Suas leituras concluídas, com as capas dos livros.</p>
+        </div>
+        <span className="text-sm text-muted-foreground">{readBooks.length} {readBooks.length === 1 ? "livro" : "livros"}</span>
+      </div>
+
+      {isLoading ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">Carregando seus livros...</p>
+      ) : readBooks.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
+          <BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+          <p className="font-medium">Você ainda não marcou livros como lidos.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Quando mudar o status de um livro para “Lido”, ele aparecerá aqui.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {readBooks.map((item) => (
+            <article key={item.id} className="min-w-0 space-y-2">
+              <div className="aspect-[2/3] overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
+                {item.book.cover_url ? (
+                  <img
+                    src={item.book.cover_url}
+                    alt={`Capa de ${item.book.title}`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
+                    <BookOpen className="h-8 w-8" />
+                    <span className="text-xs">Capa não disponível</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <h3 className="line-clamp-2 text-sm font-medium leading-snug">{item.book.title}</h3>
+                <p className="line-clamp-1 text-xs text-muted-foreground">{item.book.author || "Autor desconhecido"}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function BibliotecaPage() {
   return (
     <div className="space-y-7">
       <PageTitle title="Biblioteca" subtitle="Organize suas leituras e mantenha sua coleção por perto." />
+      <ReadBooks />
       <GoodreadsTransfer />
     </div>
   );
