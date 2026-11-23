@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, FileUp, Library, Upload } from "lucide-react";
 import { useRef, useState } from "react";
