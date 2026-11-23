@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { uploadMedia } from "@/lib/media";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, UserPlus, Users, CalendarDays, Search, Folder, Camera, Image as ImageIcon, Smile, Bell, Send, Palette, Heart, Gift, Settings, Shirt, Volume2, VolumeX, Pencil, X, ChevronDown, Radio, Check } from "lucide-react";
@@ -88,6 +90,9 @@ function MessengerPage() {
   const [chatTheme, setChatTheme] = useState("winecream");
   const [customColors, setCustomColors] = useState<MessengerColors>(defaultCustomColors);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
+  const [noticeVisible, setNoticeVisible] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const lastIncomingRef = useRef<string | null>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
 
@@ -209,9 +214,24 @@ function MessengerPage() {
   const contactPresence = contactPresenceQuery.data;
   const displayName = me?.display_name || me?.username || "Leitora";
   const myAvatar = me?.avatar_url || null;
-  const avatar = (url: string | null, name: string, size = "h-10 w-10", extra = "") => url
-    ? <img src={url} alt={name} className={`${size} shrink-0 rounded-full border-2 border-[#c98f79] object-cover ${extra}`} />
-    : <div className={`${size} grid shrink-0 place-items-center rounded-full border-2 border-[#c98f79] bg-[#ead9c8] font-semibold text-[#a71925] ${extra}`}>{name.slice(0, 1).toUpperCase()}</div>;
+  const avatar = (url: string | null, name: string, size = "h-12 w-12", extra = "") => url
+    ? <img src={url} alt={name} className={"messenger-avatar " + size + " shrink-0 object-cover " + extra} />
+    : <div className={"messenger-avatar " + size + " grid shrink-0 place-items-center bg-[#ead9c8] font-semibold text-[#a71925] " + extra}>{name.slice(0, 1).toUpperCase()}</div>;
+
+  async function uploadChatFile(file: File, photo: boolean) {
+    if (!me?.id || !selected) return;
+    try {
+      const path = await uploadMedia(me.id, file, "messages/" + selected);
+      await sendContent(photo ? "[PHOTO]" + path : "[FILE]" + path + "|" + file.name);
+      toast.success(photo ? "Foto enviada!" : "Arquivo enviado!");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível enviar o arquivo."); }
+  }
+  async function inviteContact() {
+    if (!me?.id || !selected) return;
+    const { error } = await supabase.from("friend_requests").insert({ requester_id: me.id, addressee_id: selected, status: "pending" });
+    if (error) { toast.error(error.code === "23505" ? "O convite já foi enviado." : "Não foi possível enviar o convite."); return; }
+    toast.success("Convite de amizade enviado!");
+  }
 
   async function sendContent(value: string) {
     if (!value.trim() || !me?.id || !selected) return;
