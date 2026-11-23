@@ -89,7 +89,7 @@ function PublicProfilePage() {
         return { kind: "outgoing", request: row };
       }
       if (row.status === "pending") return { kind: "incoming", request: row };
-      return { kind: "none", request: null };
+      return { kind: "none", request: row };
     },
   });
 
@@ -114,6 +114,13 @@ function PublicProfilePage() {
     try {
       if (state.kind === "none") {
         const myId = await getMyId();
+        if (state.request) {
+          const { error: removeRejectedError } = await supabase
+            .from("friend_requests")
+            .delete()
+            .eq("id", state.request.id);
+          if (removeRejectedError) throw removeRejectedError;
+        }
         const { error } = await supabase.from("friend_requests").insert({
           requester_id: myId,
           addressee_id: profileId,
@@ -200,7 +207,7 @@ function PublicProfilePage() {
                 <Button
                   variant="outline"
                   className="rounded-full"
-                  disabled={busy !== null || friendship.isLoading}
+                  disabled={busy !== null || friendship.isLoading || friendship.isError}
                   onClick={handleFriendAction}
                 >
                   {friendState === "friends" ? (
