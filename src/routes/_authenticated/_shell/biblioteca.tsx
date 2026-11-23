@@ -146,7 +146,7 @@ function GoodreadsTransfer() {
       const userId = await getMyId();
       const { data, error } = await supabase
         .from("shelf_items")
-        .select("status,rating,review,started_at,finished_at,books(title,author,pages)")
+        .select("status,rating,review,started_at,finished_at,created_at,books(title,author,pages)")
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -158,7 +158,7 @@ function GoodreadsTransfer() {
         const shelfName = item.status === "reading" ? "currently-reading" : item.status === "read" ? "read" : "to-read";
         lines.push([
           book.title, book.author, "", "", item.rating ?? "", "", "", "", book.pages ?? "", "", "",
-          csvDate(item.finished_at), csvDate(item.started_at), shelfName, shelfName, item.review,
+          csvDate(item.finished_at), csvDate(item.created_at), shelfName, shelfName, item.review,
         ].map(csvCell).join(","));
       }
       const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
