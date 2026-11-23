@@ -62,3 +62,8 @@ export function inCategory(
       return ["livro", "novel", "webnovel", "manga", "manhwa"].includes(item.kind) || item.is_bl;
   }
 }
+
+/** Trims and collapses extra spaces before sending the query; accent/case/punctuation folding happens in the database. */
+export function cleanCatalogQuery(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim().slice(0, 200);
+}

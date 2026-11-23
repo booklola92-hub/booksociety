@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CATALOG_CATEGORIES, inCategory } from "@/lib/catalog-search";
+import { CATALOG_CATEGORIES, cleanCatalogQuery, inCategory } from "@/lib/catalog-search";
 
 describe("catalog search categories", () => {
   it("offers exactly Livros, Novels e Light Novels, Mangás, Manhwas and BL (plus Todos)", () => {
@@ -27,5 +27,15 @@ describe("catalog search categories", () => {
     expect(inCategory({ kind: "outro", is_bl: false }, "todos")).toBe(false);
     expect(inCategory({ kind: "manhua", is_bl: false }, "todos")).toBe(false);
     expect(inCategory({ kind: "manhua", is_bl: true }, "todos")).toBe(true);
+  });
+});
+
+
+describe("catalog query cleanup", () => {
+  it("collapses extra spaces so '  Nora   Roberts ' searches 'Nora Roberts'", () => {
+    expect(cleanCatalogQuery("  Nora   Roberts ")).toBe("Nora Roberts");
+  });
+  it("caps the query at 200 characters", () => {
+    expect(cleanCatalogQuery("a".repeat(300))).toHaveLength(200);
   });
 });
