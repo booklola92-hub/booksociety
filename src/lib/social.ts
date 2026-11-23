@@ -88,7 +88,7 @@ const POST_SELECT = `id, content, image_url, created_at, updated_at,
 
 export async function fetchPosts(filter: FeedFilter): Promise<PostView[]> {
   const me = await getMyId();
-  let query = supabase.from("posts").select(POST_SELECT).order("created_at", { ascending: false }).limit(50);
+  let query = supabase.from("posts").select(POST_SELECT).order("created_at", { ascending: false }).limit(filter.kind === "user" || filter.kind === "community" ? 1000 : 50);
 
   if (filter.kind === "following") {
     const { data: f, error } = await supabase.from("follows").select("following_id").eq("follower_id", me);
