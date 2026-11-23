@@ -1016,6 +1016,15 @@ export type Database = {
           username: string
         }[]
       }
+      list_visible_profiles: {
+        Args: { _ids: string[] }
+        Returns: {
+          avatar_url: string | null
+          display_name: string
+          id: string
+          username: string
+        }[]
+      }
       can_view_community: {
         Args: { _community: string; _user: string }
         Returns: boolean
