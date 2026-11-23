@@ -299,6 +299,15 @@ function MessengerPage() {
     return token;
   }
 
+  async function spotifyHttpError(response: Response) {
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = typeof body?.error?.message === "string" ? body.error.message : typeof body?.error === "string" ? body.error : "";
+    } catch { /* resposta sem JSON */ }
+    return new Error(`Spotify respondeu com HTTP ${response.status}${detail ? ": " + detail : "."}`);
+  }
+
   async function refreshSpotify() {
     const token = await getSpotifyAccessToken();
     if (!token) return;
@@ -311,13 +320,13 @@ function MessengerPage() {
       if (!renewed) return;
       const retry = await fetch("https://api.spotify.com/v1/me/player/currently-playing", { headers: { Authorization: `Bearer ${renewed}` } });
       if (retry.status === 204) { setSpotifyTrack(null); return; }
-      if (!retry.ok) throw new Error("Não foi possível consultar o Spotify.");
+      if (!retry.ok) throw await spotifyHttpError(retry);
       const retryData = await retry.json();
       if (!retryData.item) { setSpotifyTrack(null); return; }
       setSpotifyTrack({ name: retryData.item.name, artist: retryData.item.artists?.map((a: { name: string }) => a.name).join(", ") ?? "Artista", album: retryData.item.album?.name ?? "", image: retryData.item.album?.images?.[0]?.url ?? null, url: retryData.item.external_urls?.spotify ?? null, isPlaying: !!retryData.is_playing });
       return;
     }
-    if (!response.ok) throw new Error("Não foi possível consultar o Spotify.");
+    if (!response.ok) throw await spotifyHttpError(response);
     const data = await response.json();
     if (!data.item) { setSpotifyTrack(null); return; }
     setSpotifyTrack({
@@ -360,8 +369,8 @@ function MessengerPage() {
     const token = localStorage.getItem("book-spotify-token");
     if (!token && !localStorage.getItem("book-spotify-refresh")) return;
     setSpotifyConnected(true);
-    void refreshSpotify().catch(() => setSpotifyError("Não foi possível carregar a música atual."));
-    const timer = window.setInterval(() => { void refreshSpotify().catch(() => undefined); }, 30000);
+    void refreshSpotify().catch((error) => setSpotifyError(error instanceof Error ? error.message : "Não foi possível carregar a música atual."));
+    const timer = window.setInterval(() => { void refreshSpotify().catch((error) => setSpotifyError(error instanceof Error ? error.message : "Não foi possível carregar a música atual.")); }, 30000);
     return () => window.clearInterval(timer);
   }, []);
 
