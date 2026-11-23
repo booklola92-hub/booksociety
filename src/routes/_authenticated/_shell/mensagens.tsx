@@ -23,13 +23,17 @@ function MessengerPage() {
     queryKey: ["messages", "contacts", me?.id],
     enabled: !!me?.id,
     queryFn: async () => {
-      const [following, followers] = await Promise.all([
+      const [following, followers, friendships] = await Promise.all([
         supabase.from("follows").select("following_id").eq("follower_id", me!.id),
         supabase.from("follows").select("follower_id").eq("following_id", me!.id),
+        supabase.from("friend_requests").select("requester_id, addressee_id").eq("status", "accepted")
+          .or(`requester_id.eq.${me!.id},addressee_id.eq.${me!.id}`),
       ]);
       if (following.error) throw following.error;
       if (followers.error) throw followers.error;
-      const ids = [...new Set([...(following.data ?? []).map((r) => r.following_id), ...(followers.data ?? []).map((r) => r.follower_id)])];
+      if (friendships.error) throw friendships.error;
+      const friendIds = (friendships.data ?? []).map((r) => r.requester_id === me!.id ? r.addressee_id : r.requester_id);
+      const ids = [...new Set([...(following.data ?? []).map((r) => r.following_id), ...(followers.data ?? []).map((r) => r.follower_id), ...friendIds])];
       if (!ids.length) return [] as Contact[];
       const { data, error } = await supabase.from("profiles").select("id, username, display_name, avatar_url").in("id", ids).order("display_name");
       if (error) throw error;
@@ -127,7 +131,7 @@ function MessengerPage() {
             <div className="p-2">
               {contactsQuery.isLoading && <p className="p-4 text-xs text-[#9a7772]">Carregando contatos…</p>}
               {contactsQuery.isError && <p className="p-4 text-xs text-rose-700">Não foi possível carregar seus contatos.</p>}
-              {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs leading-relaxed text-[#9a7772]">Seus contatos aparecerão aqui quando você seguir outros leitores ou receber seguidores.</p>}
+              {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs leading-relaxed text-[#9a7772]">Seus contatos aparecerão aqui quando você seguir alguém, receber seguidores ou aceitar uma amizade.</p>}
               {contacts.map((c) => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${selected === c.id ? "bg-[#ead8d0] shadow-inner" : "hover:bg-white/70"}`}>
                 {c.avatar ? <img src={c.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d9c0b4] font-serif text-[#623b42]">{c.name.slice(0,1).toUpperCase()}</div>}
                 <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-[#573640]">{c.name}</span><span className="block truncate text-xs text-[#9a7772]">{c.handle}</span></span>
@@ -151,7 +155,7 @@ function MessengerPage() {
                 <div className="flex items-center gap-2 rounded-xl border border-[#dec9be] bg-white p-2 focus-within:border-[#a8797b]"><input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMessage()} placeholder="Escreva uma mensagem..." className="min-w-0 flex-1 bg-transparent px-2 text-sm text-[#573640] outline-none placeholder:text-[#b9a39b]" /><button onClick={sendMessage} disabled={!draft.trim()} className="rounded-lg bg-[#754653] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#5b3440] disabled:opacity-50">Enviar ↗</button></div>
                 <p className="mt-2 text-center text-[10px] text-[#b49a90]">conversas, livros e boas companhias ♡</p>
               </div>
-            </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="font-serif text-xl text-[#754653]">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#a17d76]">Siga leitores ou receba seguidores para começar a trocar mensagens por aqui. ♡</p></div></div>}
+            </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="font-serif text-xl text-[#754653]">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#a17d76]">Adicione amigos ou conecte-se com leitores para começar a trocar mensagens por aqui. ♡</p></div></div>}
           </div>
         </div>
       </div>
