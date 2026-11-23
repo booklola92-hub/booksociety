@@ -465,9 +465,9 @@ function MessengerPage() {
                   {mine && avatar(myAvatar, displayName, "h-12 w-12")}
                 </div>;
                 return <div key={m.id} className={`flex items-end gap-2 py-1 ${mine ? "justify-end" : "justify-start"}`}>
-                  {!mine && avatar(contact.avatar, contact.name, "h-20 w-20")}
-                  <div className={`max-w-[80%] rounded-[24px] border-2 border-[#d9a78d] bg-[#fff4e5] px-5 py-3 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
-                    <p className="whitespace-pre-wrap text-lg leading-relaxed">{clean}</p><p className="mt-1 text-right text-xs text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
+                  {!mine && avatar(contact.avatar, contact.name, "h-10 w-10")}
+                  <div className={`max-w-[80%] rounded-[20px] border border-[#d9a78d] bg-[#fff4e5] px-4 py-2 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{clean}</p><p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
                   </div>
                   {mine && avatar(myAvatar, displayName, "h-12 w-12")}
                 </div>;
@@ -494,7 +494,7 @@ function MessengerPage() {
                 </div>}
               </div>
               <div className="flex items-center gap-3 rounded-2xl border-2 border-[#d9a78d] bg-[#fffaf3] p-2">
-                <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-lg text-[#981d27] outline-none placeholder:text-[#b78c79]" />
+                <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-sm text-[#981d27] outline-none placeholder:text-[#b78c79]" />
                 <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a71c29] to-[#780d19] px-6 py-4 text-base font-bold text-white shadow hover:brightness-110 disabled:opacity-40"><Send size={20} />Enviar</button>
               </div>
               <div className="mt-3 flex items-center justify-between gap-3">
