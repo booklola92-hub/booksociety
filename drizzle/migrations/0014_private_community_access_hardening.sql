@@ -132,3 +132,42 @@ REVOKE ALL ON FUNCTION public.follow_stats(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.follow_stats(uuid) TO authenticated;
 
 COMMIT;
+
+
+-- Preserve owner/admin management without exposing arbitrary role lookups via RPC.
+-- These SECURITY DEFINER functions read the target role internally instead of
+-- calling the now self-only public community_role helper.
+CREATE OR REPLACE FUNCTION public.set_community_member_role(_community uuid, _user uuid, _role text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE target_role text;
+BEGIN
+  IF _role NOT IN ('admin','member') THEN RAISE EXCEPTION 'Papel inválido.'; END IF;
+  IF public.community_role(_community, auth.uid()) IS DISTINCT FROM 'owner' THEN
+    RAISE EXCEPTION 'Somente o dono pode nomear administradores.';
+  END IF;
+  SELECT role INTO target_role FROM public.community_members
+    WHERE community_id = _community AND user_id = _user;
+  IF target_role IS NULL OR target_role = 'owner' THEN RAISE EXCEPTION 'Membro inválido.'; END IF;
+  UPDATE public.community_members SET role = _role
+    WHERE community_id = _community AND user_id = _user;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.remove_community_member(_community uuid, _user uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE my_role text := public.community_role(_community, auth.uid());
+        their_role text;
+BEGIN
+  SELECT role INTO their_role FROM public.community_members
+    WHERE community_id = _community AND user_id = _user;
+  IF their_role IS NULL THEN RETURN; END IF;
+  IF their_role = 'owner' THEN RAISE EXCEPTION 'O dono não pode ser removido.'; END IF;
+  IF my_role = 'owner' OR (my_role = 'admin' AND their_role = 'member') THEN
+    DELETE FROM public.community_members WHERE community_id = _community AND user_id = _user;
+  ELSE
+    RAISE EXCEPTION 'Sem permissão.';
+  END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.set_community_member_role(uuid, uuid, text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.remove_community_member(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_community_member_role(uuid, uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.remove_community_member(uuid, uuid) TO authenticated;
