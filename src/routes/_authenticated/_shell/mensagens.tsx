@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { uploadMedia, useMediaUrl } from "@/lib/media";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, UserPlus, Users, CalendarDays, Search, Folder, Camera, Image as ImageIcon, Smile, Bell, Send, Palette, Heart, Gift, Settings, Shirt, Volume2, VolumeX, Pencil, X, ChevronDown, Radio, Check } from "lucide-react";
+import { BookOpen, UserPlus, Search, Folder, Camera, Image as ImageIcon, Smile, Bell, Send, Palette, Heart, Gift, Settings, Shirt, Volume2, VolumeX, Pencil, X, ChevronDown, Radio, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/lib/social";
 
@@ -400,15 +400,15 @@ function MessengerPage() {
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-0.5">
               <button onClick={inviteContact} className="toolbar-btn"><UserPlus size={16} />Convidar</button>
               <button onClick={() => fileInputRef.current?.click()} className="toolbar-btn"><Folder size={16} />Enviar arquivos</button>
-              <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="toolbar-btn"><Smile size={15} />Emoticons <ChevronDown size={13} /></button>
-              <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
+              <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); setBackgroundOpen(false); }} className="toolbar-btn"><Smile size={15} />Emoticons <ChevronDown size={13} /></button>
+              <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); setBackgroundOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
               <button onClick={() => photoInputRef.current?.click()} className="toolbar-btn"><Camera size={16} />Enviar fotos</button>
               <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={15} />Planos de fundo <ChevronDown size={13} /></button>
             </div>
             {(emojiOpen || winksOpen || backgroundOpen) && <div className="mx-2 my-2 rounded-xl border border-[var(--msg-border)] bg-[var(--msg-received)] p-2 text-[var(--msg-text)] shadow-md">
-{emojiOpen && <div className="grid grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
+{emojiOpen && <div className="grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
                 {winksOpen && <div className="grid grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
-                {backgroundOpen && <div className="w-full max-w-[320px] mx-auto w-[min(340px,90vw)] rounded-2xl border-2 border-[var(--msg-border)] bg-[var(--msg-received)] p-3 text-[var(--msg-text)] shadow-2xl">
+                {backgroundOpen && <div className="w-full max-w-[320px] mx-auto rounded-2xl border-2 border-[var(--msg-border)] bg-[var(--msg-received)] p-3 text-[var(--msg-text)] shadow-2xl">
                   <p className="mb-2 text-sm font-bold">Personalizar sua interface</p>
                   <div className="grid grid-cols-2 gap-2">
                     {(Object.entries(messengerPresets) as [keyof typeof messengerPresets, typeof messengerPresets[keyof typeof messengerPresets]][]).map(([id,preset]) => <button key={id} onClick={() => void chooseTheme(id)} className={`flex items-center gap-2 rounded-xl border p-2 text-left text-xs transition hover:brightness-95 ${chatTheme === id ? "border-[var(--msg-accent)] ring-2 ring-[var(--msg-accent)]" : "border-[var(--msg-border)]"}`}><span className="h-7 w-7 shrink-0 rounded-full border" style={{background: `linear-gradient(135deg,${preset.sent} 50%,${preset.received} 50%)`,borderColor:preset.border}} />{preset.label}</button>)}
