@@ -215,7 +215,7 @@ function GoodreadsTransfer() {
           try {
             let coverUrl = book.cover_url;
             if (!/^https?:\/\//i.test(coverUrl)) {
-              const { data: signed, error: signedError } = await supabase.storage.from("media").createSignedUrl(coverUrl, 3600);
+              const { data: signed, error: signedError } = await supabase.storage.from("media").createSignedUrl(coverUrl, 60);
               if (signedError) throw signedError;
               coverUrl = signed.signedUrl;
             }
