@@ -202,7 +202,7 @@ function PublicProfilePage() {
                   onClick={toggleFollow}
                 >
                   {followStats.data?.iFollow ? <Check className="mr-2 h-4 w-4" /> : <Heart className="mr-2 h-4 w-4" />}
-                  {followStats.data?.iFollow ? "Seguindo" : "Seguir"}
+                  {followStats.data?.iFollow ? "Deixar de seguir" : "Seguir"}
                 </Button>
                 <Button
                   variant="outline"
@@ -211,7 +211,7 @@ function PublicProfilePage() {
                   onClick={handleFriendAction}
                 >
                   {friendState === "friends" ? (
-                    <><UserCheck className="mr-2 h-4 w-4" /> Amigos</>
+                    <><UserCheck className="mr-2 h-4 w-4" /> Desfazer amizade</>
                   ) : friendState === "incoming" ? (
                     <><Check className="mr-2 h-4 w-4" /> Aceitar amizade</>
                   ) : friendState === "outgoing" ? (
