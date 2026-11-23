@@ -8,16 +8,33 @@ type Contact = { id: string; name: string; handle: string; avatar: string | null
 type ChatMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; read_at: string | null };
 
 const stamp = (value: string) => new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const emojis = ["😀", "😂", "😍", "🥰", "😘", "😉", "😮", "😎", "🥳", "❤️", "💋", "📚", "✨", "🙈"];
+const winks = [
+  { label: "Porquinho dançante", icon: "🐷", message: "🐷 [WINK] Porquinho dançante!" },
+  { label: "Coração", icon: "💗", message: "💗 [WINK] Um coração para você!" },
+  { label: "Beijo", icon: "💋", message: "💋 [WINK] Um beijo!" },
+  { label: "Dança", icon: "💃", message: "💃 [WINK] Vamos dançar!" },
+  { label: "Gargalhada", icon: "🤣", message: "🤣 [WINK] Caindo de rir!" },
+  { label: "Surpresa", icon: "😲", message: "😲 [WINK] Surpresa!" },
+  { label: "Arco-íris", icon: "🌈", message: "🌈 [WINK] Um arco-íris para alegrar seu dia!" },
+];
 
 function MessengerPage() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const [selected, setSelected] = useState("");
   const [phrase, setPhrase] = useState("perdida em um bom livro ♡");
-  useEffect(() => { const saved = window.localStorage.getItem("book-messenger-phrase"); if (saved) { setPhrase(saved); setDraftPhrase(saved); } }, []);
-  const [editingPhrase, setEditingPhrase] = useState(false);
   const [draftPhrase, setDraftPhrase] = useState(phrase);
+  const [editingPhrase, setEditingPhrase] = useState(false);
   const [draft, setDraft] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [winksOpen, setWinksOpen] = useState(false);
+  const [attention, setAttention] = useState(false);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("book-messenger-phrase");
+    if (saved) { setPhrase(saved); setDraftPhrase(saved); }
+  }, []);
 
   const contactsQuery = useQuery({
     queryKey: ["messages", "contacts", me?.id],
@@ -80,19 +97,21 @@ function MessengerPage() {
 
   const contact = contacts.find((c) => c.id === selected);
   const messages = messagesQuery.data ?? [];
-  const onlineCount = 0;
+  const displayName = me?.display_name || me?.username || "Leitora";
+  const myAvatar = me?.avatar_url || null;
+
+  async function sendContent(value: string) {
+    if (!value.trim() || !me?.id || !selected) return;
+    const { error } = await supabase.from("messages").insert({ sender_id: me.id, recipient_id: selected, content: value });
+    if (error) { console.error("Erro ao enviar mensagem:", error); return; }
+    await qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id, selected] });
+  }
 
   async function sendMessage() {
     const text = draft.trim();
-    if (!text || !me?.id || !selected) return;
+    if (!text) return;
     setDraft("");
-    const { error } = await supabase.from("messages").insert({ sender_id: me.id, recipient_id: selected, content: text });
-    if (error) {
-      setDraft(text);
-      console.error("Erro ao enviar mensagem:", error);
-      return;
-    }
-    await qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id, selected] });
+    await sendContent(text);
   }
 
   function savePhrase() {
@@ -101,65 +120,110 @@ function MessengerPage() {
     setEditingPhrase(false);
   }
 
-  const displayName = me?.display_name || me?.username || "Leitora";
+  async function callAttention() {
+    if (!selected) return;
+    setAttention(true);
+    window.setTimeout(() => setAttention(false), 1100);
+    await sendContent("📣 [NUDGE] chamou sua atenção!");
+  }
+
+  const avatar = (url: string | null, name: string, size = "h-10 w-10") => url
+    ? <img src={url} alt={name} className={`${size} shrink-0 rounded-full border-2 border-[#7b2635]/25 object-cover`} />
+    : <div className={`${size} grid shrink-0 place-items-center rounded-full border-2 border-[#7b2635]/20 bg-[#ead9c8] font-semibold text-[#b3262e]`}>{name.slice(0, 1).toUpperCase()}</div>;
 
   return (
-    <section className="mx-auto max-w-6xl space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9b6b65]">Book Society • conexão</p><h1 className="mt-1 font-serif text-3xl text-[#512b35]">Mensagens</h1><p className="mt-1 text-sm text-muted-foreground">Um cantinho para conversar entre capítulos.</p></div>
-        <div className="rounded-full border border-[#e7d7ce] bg-[#fbf6ef] px-4 py-2 text-xs text-[#71464a]">✦ {contacts.length} contatos</div>
+    <section className="mx-auto max-w-[1500px] space-y-4 text-[#b3262e]">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div><p className="text-xs font-bold uppercase tracking-[.2em] text-[#9b6b55]">Book Society</p><h1 className="text-3xl font-semibold text-[#b3262e]">Mensagens</h1></div>
+        <span className="rounded-full border border-[#d9c6ae] bg-[#fffaf1] px-4 py-2 text-xs font-medium text-[#7b2635]">● {contacts.length} contatos</span>
       </header>
 
-      <div className="overflow-hidden rounded-2xl border border-[#d9c4b8] bg-[#fffaf4] shadow-[0_14px_45px_-28px_rgba(81,43,53,.45)]">
-        <div className="flex items-center justify-between border-b border-[#d9c4b8] bg-gradient-to-r from-[#713e4a] to-[#9b6870] px-4 py-3 text-white">
-          <div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 text-xl">✉</div><div><p className="font-serif text-lg leading-tight">Book Messenger</p><p className="text-[10px] tracking-[0.18em] text-white/75">SEU CLUBE DE LEITURA, SEM SAIR DO CHAT</p></div></div>
-          <span className="rounded-md border border-white/25 px-2 py-1 text-[10px]">● conectado</span>
+      <div className="overflow-hidden rounded-xl border-2 border-[#7b2635] bg-[#f8efe2] shadow-[0_12px_35px_-20px_rgba(75,25,30,.45)]">
+        <div className="flex items-center justify-between gap-3 border-b-2 border-[#7b2635] bg-[#7b2635] px-4 py-3 text-[#fff8ed]">
+          <div className="flex items-center gap-3"><span className="text-2xl">📖</span><div><p className="text-lg font-semibold leading-tight">Book Society Messenger</p><p className="text-[10px] tracking-widest text-[#f4dfcf]">CONVERSAS ENTRE LEITORES</p></div></div>
+          <span className="hidden rounded border border-white/30 px-2 py-1 text-[10px] sm:inline">● Conectado</span>
         </div>
 
-        <div className="grid min-h-[570px] md:grid-cols-[260px_1fr]">
-          <aside className="border-b border-[#eadbd2] bg-[#f7eee6] md:border-b-0 md:border-r">
+        <div className="grid min-h-[650px] md:grid-cols-[245px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_210px]">
+          <aside className="border-b border-[#d9c6ae] bg-[#f2e6d5] md:border-b-0 md:border-r">
             <div className="p-4">
-              <div className="flex items-center gap-3">
-                {me?.avatar_url ? <img src={me.avatar_url} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-white" /> : <div className="grid h-11 w-11 place-items-center rounded-full border-2 border-white bg-[#d8b8aa] font-serif text-lg text-[#512b35]">{displayName.slice(0,1).toUpperCase()}</div>}
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[#512b35]">{displayName}</p><p className="text-xs text-emerald-700">● disponível</p></div>
+              <div className="flex items-center gap-3">{avatar(myAvatar, displayName, "h-12 w-12")}<div className="min-w-0"><p className="truncate text-sm font-bold">{displayName}</p><p className="text-xs text-[#a3292f]">● Online</p></div></div>
+              <div className="mt-3 rounded-md border border-[#d9c6ae] bg-[#fffaf1] p-2">
+                {editingPhrase ? <div className="flex gap-1"><input autoFocus value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 flex-1 bg-transparent text-xs outline-none" /><button onClick={savePhrase} className="font-bold">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="w-full text-left text-xs">“{phrase}” <span className="float-right">✎</span></button>}
               </div>
-              <div className="mt-3 rounded-lg border border-[#e7d5ca] bg-white/70 p-2">
-                {editingPhrase ? <div className="flex gap-1"><input autoFocus value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 flex-1 bg-transparent text-xs text-[#71464a] outline-none" /><button onClick={savePhrase} className="text-xs font-semibold text-[#8b4f5a]">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="w-full text-left text-xs text-[#8b6866]">“{phrase}” <span className="float-right">✎</span></button>}
-              </div>
+              <div className="mt-2 rounded-md border border-[#d9c6ae] bg-[#fffaf1] p-2 text-[11px]"><span className="font-bold">♫ Spotify</span><p className="mt-1 text-[#8c5b51]">Compartilhe o que está ouvindo</p><span className="text-[10px] text-[#a3292f]">Conecte sua música pelo seu perfil</span></div>
             </div>
-            <div className="flex items-center justify-between border-y border-[#eadbd2] px-4 py-2"><span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#956d68]">Meus contatos</span><span className="text-xs text-[#956d68]">{contacts.length}</span></div>
-            <div className="p-2">
-              {contactsQuery.isLoading && <p className="p-4 text-xs text-[#9a7772]">Carregando contatos…</p>}
-              {contactsQuery.isError && <p className="p-4 text-xs text-rose-700">Não foi possível carregar seus contatos.</p>}
-              {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs leading-relaxed text-[#9a7772]">Seus contatos aparecerão aqui quando você seguir alguém, receber seguidores ou aceitar uma amizade.</p>}
-              {contacts.map((c) => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${selected === c.id ? "bg-[#ead8d0] shadow-inner" : "hover:bg-white/70"}`}>
-                {c.avatar ? <img src={c.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" /> : <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#d9c0b4] font-serif text-[#623b42]">{c.name.slice(0,1).toUpperCase()}</div>}
-                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-[#573640]">{c.name}</span><span className="block truncate text-xs text-[#9a7772]">{c.handle}</span></span>
+            <div className="border-y border-[#d9c6ae] px-4 py-2 text-[11px] font-bold uppercase tracking-widest">Contatos <span className="float-right">{contacts.length}</span></div>
+            <div className="max-h-[430px] overflow-y-auto p-2">
+              {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
+              {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar seus contatos.</p>}
+              {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs leading-relaxed text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém, receber seguidores ou aceitar uma amizade.</p>}
+              {contacts.map((c) => <button key={c.id} onClick={() => setSelected(c.id)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-2 py-3 text-left transition ${selected === c.id ? "border-[#7b2635] bg-[#ead9c8]" : "border-transparent hover:border-[#d9c6ae] hover:bg-[#fffaf1]"}`}>
+                {avatar(c.avatar, c.name, "h-10 w-10")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-[10px] text-[#a3292f]">●</span>
               </button>)}
             </div>
           </aside>
 
-          <div className="flex min-h-[570px] flex-col bg-[#fffaf4]">
+          <main className={`flex min-h-[650px] min-w-0 flex-col bg-[#fffaf1] ${attention ? "animate-[messengerShake_.12s_ease-in-out_8]" : ""}`}>
             {contact ? <>
-              <div className="flex items-center justify-between border-b border-[#eadbd2] bg-white/60 px-5 py-4">
-                <div className="flex items-center gap-3">{contact.avatar ? <img src={contact.avatar} alt="" className="h-10 w-10 rounded-full object-cover" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-[#e4cec3] font-serif text-[#623b42]">{contact.name.slice(0,1).toUpperCase()}</div>}<div><p className="font-serif text-lg text-[#512b35]">{contact.name}</p><p className="text-xs text-[#9a7772]">{contact.handle}</p></div></div>
-                <span className="text-xl text-[#a47c75]">♡</span>
+              <div className="flex items-center justify-between border-b border-[#d9c6ae] bg-[#f4e8d9] px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">{avatar(contact.avatar, contact.name)}<div className="min-w-0"><p className="truncate font-bold">{contact.name}</p><p className="text-xs">● <span className="text-[#a3292f]">Online</span></p></div></div>
+                <button onClick={callAttention} className="rounded-md border border-[#7b2635] bg-[#7b2635] px-3 py-2 text-xs font-semibold text-[#fff8ed] hover:bg-[#5e1c29]">🔔 Chamar atenção</button>
               </div>
-              <div className="flex-1 space-y-4 overflow-y-auto p-5">
-                <div className="mx-auto w-fit rounded-full bg-[#f4e9e1] px-3 py-1 text-[10px] text-[#a17d76]">✦ conversa ✦</div>
-                {messagesQuery.isLoading && <p className="py-10 text-center text-sm text-[#b0958c]">Carregando mensagens…</p>}
-                {messages.map((m) => { const mine = m.sender_id === me?.id; return <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] rounded-2xl px-4 py-3 shadow-sm ${mine ? "rounded-br-sm bg-[#754653] text-white" : "rounded-bl-sm border border-[#eadbd2] bg-white text-[#60434a]"}`}><p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p><p className={`mt-1 text-right text-[9px] ${mine ? "text-white/60" : "text-[#b29a91]"}`}>{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p></div></div>; })}
-                {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#b0958c]">Diga oi e comece uma conversa ♡</p>}
+
+              <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+                <div className="mx-auto w-fit rounded-full border border-[#e3d3c0] bg-[#f5eadb] px-3 py-1 text-[10px]">— conversa —</div>
+                {messagesQuery.isLoading && <p className="py-10 text-center text-sm">Carregando mensagens…</p>}
+                {messages.map((m) => {
+                  const mine = m.sender_id === me?.id;
+                  const isWink = m.content.includes("[WINK]");
+                  const isNudge = m.content.includes("[NUDGE]");
+                  const clean = m.content.replace(" [WINK]", "").replace(" [NUDGE]", "");
+                  return <div key={m.id} className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+                    {!mine && avatar(contact.avatar, contact.name, "h-8 w-8")}
+                    <div className={`max-w-[82%] rounded-2xl border border-[#e5d5c3] bg-[#f4e6d4] px-4 py-3 text-[#b3262e] shadow-sm ${mine ? "rounded-br-sm" : "rounded-bl-sm"} ${isWink ? "text-center text-2xl font-semibold animate-bounce" : ""} ${isNudge ? "font-bold" : ""}`}>
+                      <p className={`whitespace-pre-wrap leading-relaxed ${isWink ? "text-xl" : "text-sm"}`}>{clean}</p><p className="mt-1 text-right text-[9px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
+                    </div>
+                    {mine && avatar(myAvatar, displayName, "h-8 w-8")}
+                  </div>;
+                })}
+                {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#9c6d60]">Diga oi e comece uma conversa!</p>}
               </div>
-              <div className="border-t border-[#eadbd2] bg-white/70 p-4">
-                <div className="flex items-center gap-2 rounded-xl border border-[#dec9be] bg-white p-2 focus-within:border-[#a8797b]"><input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMessage()} placeholder="Escreva uma mensagem..." className="min-w-0 flex-1 bg-transparent px-2 text-sm text-[#573640] outline-none placeholder:text-[#b9a39b]" /><button onClick={sendMessage} disabled={!draft.trim()} className="rounded-lg bg-[#754653] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#5b3440] disabled:opacity-50">Enviar ↗</button></div>
-                <p className="mt-2 text-center text-[10px] text-[#b49a90]">conversas, livros e boas companhias ♡</p>
+
+              <div className="border-t border-[#d9c6ae] bg-[#f4e8d9] p-3 sm:p-4">
+                <div className="relative mb-2 flex flex-wrap items-center gap-1 border-b border-[#d9c6ae] pb-2">
+                  <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md px-3 py-1 text-lg hover:bg-[#ead9c8]" title="Emoticons">😊 <span className="text-xs font-semibold">Emoticons</span></button>
+                  <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="rounded-md px-3 py-1 text-lg hover:bg-[#ead9c8]" title="Winks">✨ <span className="text-xs font-semibold">Winks</span></button>
+                  <span className="ml-auto text-[10px] text-[#8c5b51]">Personalize sua conversa</span>
+                  {emojiOpen && <div className="absolute bottom-11 left-0 z-20 grid grid-cols-7 gap-1 rounded-lg border border-[#7b2635] bg-[#fffaf1] p-2 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
+                  {winksOpen && <div className="absolute bottom-11 left-0 z-20 grid grid-cols-2 gap-1 rounded-lg border border-[#7b2635] bg-[#fffaf1] p-2 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.label} onClick={() => { void sendContent(wink.message); setWinksOpen(false); }} className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-2xl">{wink.icon}</span>{wink.label}</button>)}</div>}
+                </div>
+                <div className="flex items-end gap-2 rounded-lg border border-[#cdb8a2] bg-[#fffdf8] p-2 focus-within:border-[#7b2635]">
+                  <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1 text-sm text-[#b3262e] outline-none placeholder:text-[#b79b87]" />
+                  <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="rounded-md bg-[#7b2635] px-5 py-3 text-sm font-bold text-[#fff8ed] hover:bg-[#5e1c29] disabled:opacity-40">➤ Enviar</button>
+                </div>
+                <p className="mt-2 text-[10px] text-[#9c6d60]">Enter para enviar · Shift + Enter para pular linha</p>
               </div>
-            </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="font-serif text-xl text-[#754653]">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#a17d76]">Adicione amigos ou conecte-se com leitores para começar a trocar mensagens por aqui. ♡</p></div></div>}
-          </div>
+            </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-xl font-semibold">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#9c6d60]">Adicione amigos ou conecte-se com leitores para começar a conversar.</p></div></div>}
+          </main>
+
+          <aside className="hidden border-l border-[#d9c6ae] bg-[#f2e6d5] p-4 xl:block">
+            <p className="mb-4 text-center text-[11px] font-bold uppercase tracking-widest">Nesta conversa</p>
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-[#d9c6ae] bg-[#fffaf1] p-3 text-center">
+              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-24 w-24")}
+              <p className="text-sm font-bold">{contact?.name ?? "Contato"}</p><p className="text-xs">● Online</p><p className="text-[10px] text-[#8c5b51]">{contact?.handle ?? ""}</p>
+            </div>
+            <div className="my-4 border-t border-[#d9c6ae]" />
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-[#d9c6ae] bg-[#fffaf1] p-3 text-center">
+              {avatar(myAvatar, displayName, "h-24 w-24")}
+              <p className="text-sm font-bold">Você</p><p className="text-xs">● Online</p><p className="text-[10px] text-[#8c5b51]">{phrase}</p>
+            </div>
+            <div className="mt-4 rounded-lg border border-[#d9c6ae] bg-[#fffaf1] p-3 text-center"><p className="text-xs font-bold">♫ Spotify</p><p className="mt-1 text-[10px] text-[#8c5b51]">Mostre aos amigos o que você está ouvindo quando conectar sua conta.</p></div>
+          </aside>
         </div>
       </div>
-      <p className="text-center text-xs text-muted-foreground">Mensagens salvas na sua conta · atualização em tempo real quando o Supabase Realtime estiver habilitado.</p>
+      <p className="text-center text-xs text-[#9c6d60]">Mensagens sincronizadas pela sua conta · atualização em tempo real pelo Supabase.</p>
+      <style>{`@keyframes messengerShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }`}</style>
     </section>
   );
 }
