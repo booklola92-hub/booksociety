@@ -1,149 +1,144 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
-import { BookOpen, Search, Sparkles } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { BookOpen, Search, Users } from "lucide-react";
+import { useState } from "react";
+
 import { PageTitle } from "@/components/empty-state";
+import { UserAvatar } from "@/components/user-avatar";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 
-type SearchField = "all" | "title" | "author";
-type BookItem = { id: string; title: string; authors: string[]; cover: string | null; source: "Google Books" | "Open Library" };
-type GoogleBooksResponse = { items?: Array<{ id: string; volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }> };
-type OpenLibraryResponse = { docs?: Array<{ key?: string; title?: string; author_name?: string[]; cover_i?: number }> };
+type PublicProfile = {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+};
 
-const plannedSources = ["Goodreads", "Novel Updates", "NovelList", "KakaoPage", "Visorikigai", "LeituraManga", "EternalMangas", "LunarX", "RisingShadow"];
+async function searchPeople(term: string): Promise<PublicProfile[]> {
+  const { data, error } = await supabase.rpc("search_public_profiles", {
+    _search: term.trim(),
+    _limit: 30,
+  });
+
+  if (error) throw error;
+  return (data ?? []) as PublicProfile[];
+}
 
 function ExplorePage() {
-  useEffect(() => {
-    const scriptId = "book-society-google-cse";
-    if (document.getElementById(scriptId)) return;
-    const script = document.createElement("script");
-    script.id = scriptId;
-    script.async = true;
-    script.src = "https://cse.google.com/cse.js?cx=35ec7cd2f3337418b";
-    document.body.appendChild(script);
-  }, []);
-
   const [query, setQuery] = useState("");
-  const [field, setField] = useState<SearchField>("all");
-  const [results, setResults] = useState<BookItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [error, setError] = useState("");
-  const [sourceNotice, setSourceNotice] = useState("");
+  const term = query.trim();
 
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const term = query.trim();
-    if (!term || loading) return;
-    setLoading(true);
-    setError("");
-    setSourceNotice("");
-    setSearched(true);
-    setResults([]);
-
-    const googleQuery = field === "title" ? `intitle:${term}` : field === "author" ? `inauthor:${term}` : term;
-    const openParams = new URLSearchParams({ limit: "24", fields: "key,title,author_name,cover_i" });
-    openParams.set(field === "title" ? "title" : field === "author" ? "author" : "q", term);
-    const googleParams = new URLSearchParams({ q: googleQuery, maxResults: "24", printType: "books", orderBy: "relevance" });
-
-    const [googleResult, openResult] = await Promise.allSettled([
-      fetch(`https://www.googleapis.com/books/v1/volumes?${googleParams.toString()}`).then(async (response) => {
-        if (!response.ok) throw new Error(response.status === 429 ? "limite de consultas atingido" : "indisponível");
-        return (await response.json()) as GoogleBooksResponse;
-      }),
-      fetch(`https://openlibrary.org/search.json?${openParams.toString()}`).then(async (response) => {
-        if (!response.ok) throw new Error(response.status === 429 ? "limite de consultas atingido" : "indisponível");
-        return (await response.json()) as OpenLibraryResponse;
-      }),
-    ]);
-
-    const books: BookItem[] = [];
-    if (googleResult.status === "fulfilled") {
-      for (const item of googleResult.value.items ?? []) {
-        const info = item.volumeInfo;
-        if (!info?.title) continue;
-        const rawCover = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null;
-        books.push({ id: `google-${item.id}`, title: info.title, authors: info.authors ?? [], cover: rawCover ? rawCover.replace(/^http:\/\//, "https://").replace("&edge=curl", "") : null, source: "Google Books" });
-      }
-    }
-    if (openResult.status === "fulfilled") {
-      for (const item of openResult.value.docs ?? []) {
-        if (!item.title) continue;
-        books.push({ id: `openlibrary-${item.key ?? item.title}`, title: item.title, authors: item.author_name ?? [], cover: item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` : null, source: "Open Library" });
-      }
-    }
-
-    const seen = new Set<string>();
-    const uniqueBooks = books.filter((book) => {
-      const key = `${book.title.toLocaleLowerCase()}|${book.authors.join(",").toLocaleLowerCase()}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    setResults(uniqueBooks);
-
-    const failedSources = [
-      ...(googleResult.status === "rejected" ? [`Google Books: ${googleResult.reason instanceof Error ? googleResult.reason.message : "erro na consulta"}`] : []),
-      ...(openResult.status === "rejected" ? [`Open Library: ${openResult.reason instanceof Error ? openResult.reason.message : "erro na consulta"}`] : []),
-    ];
-    if (failedSources.length === 2) setError("Não foi possível consultar Google Books nem Open Library agora. Tente novamente mais tarde.");
-    else if (failedSources.length) setSourceNotice(`Uma fonte não respondeu; exibindo os resultados disponíveis. ${failedSources.join(" · ")}.`);
-    setLoading(false);
-  }
+  const people = useQuery({
+    queryKey: ["public-profile-search", term],
+    queryFn: () => searchPeople(term),
+    enabled: term.length >= 2,
+    staleTime: 30_000,
+  });
 
   return (
     <div className="space-y-7">
-      <PageTitle title="Explorar" subtitle="Descubra livros, novels, mangás e webtoons em um só lugar." />
-      <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
-        <div className="mb-4 flex items-center gap-2 text-primary">
-          <Sparkles className="h-5 w-5" />
-          <h2 className="font-display text-2xl font-semibold">Encontre sua próxima leitura</h2>
+      <PageTitle
+        title="Explorar"
+        subtitle="Encontre leitores e descubra novas pessoas para acompanhar no Book Society."
+      />
+
+      <section className="space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
+        <div className="flex items-center gap-2 text-primary">
+          <Users className="h-5 w-5" />
+          <h2 className="font-display text-2xl font-semibold">Encontre pessoas</h2>
         </div>
-        <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:flex-row">
-          <label className="sr-only" htmlFor="explore-query">Buscar por título, autor ou palavra-chave</label>
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-            <input id="explore-query" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Digite um título, autor ou palavra-chave..." maxLength={120} className="h-12 w-full rounded-xl border border-input bg-background pl-12 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20" />
-          </div>
-          <select aria-label="Tipo de busca" value={field} onChange={(event) => setField(event.target.value as SearchField)} className="h-12 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-primary">
-            <option value="all">Tudo</option><option value="title">Título</option><option value="author">Autor</option>
-          </select>
-          <button type="submit" disabled={!query.trim() || loading} className="h-12 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">{loading ? "Buscando..." : "Buscar"}</button>
-        </form>
-        <div className="mt-5 border-t border-border pt-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fontes da busca</p>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Open Library · conectada</span>
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Google Books · conectado</span>
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Busca na internet · Google</span>
-            {plannedSources.map((source) => <span key={source} title="Integração ainda não disponível" className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-muted-foreground">{source} · em integração</span>)}
-          </div>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">A busca de livros consulta Open Library e Google Books. A pesquisa geral usa o Google Programmable Search; ao abrir um resultado, o Google pode direcionar para o site de origem. As demais fontes aparecem como em integração até existir uma conexão compatível.</p>
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Pesquise pelo nome ou @usuário..."
+            aria-label="Pesquisar pessoas pelo nome ou nome de usuário"
+            maxLength={80}
+            className="h-12 rounded-xl pl-12"
+          />
         </div>
+
+        {term.length < 2 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-background/60 px-6 py-10 text-center">
+            <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="font-medium text-foreground">Encontre sua comunidade</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Digite pelo menos 2 caracteres para procurar pessoas cadastradas.
+            </p>
+          </div>
+        ) : people.isLoading ? (
+          <div className="flex items-center justify-center gap-3 rounded-2xl border border-border bg-background/60 px-5 py-10 text-sm text-muted-foreground" role="status">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
+            Procurando pessoas...
+          </div>
+        ) : people.isError ? (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
+            Não foi possível pesquisar pessoas agora. Tente novamente.
+          </div>
+        ) : people.data.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-background/60 px-6 py-10 text-center">
+            <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="font-medium text-foreground">Ninguém encontrado</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Não encontramos pessoas com esse nome ou nome de usuário.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
+            {people.data.map((person) => (
+              <Link
+                key={person.id}
+                to="/perfil/$username"
+                params={{ username: person.username }}
+                className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-background p-4 transition hover:border-primary/40 hover:bg-accent/40"
+              >
+                <UserAvatar
+                  profile={person}
+                  className="h-12 w-12 shrink-0"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-foreground">
+                    {person.display_name || person.username}
+                  </span>
+                  <span className="block truncate text-sm text-muted-foreground">
+                    @{person.username}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
-      <section className="space-y-3 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7"><div><h2 className="font-display text-xl font-semibold">Pesquisar na internet</h2><p className="mt-1 text-sm text-muted-foreground">Resultados do Google em sites permitidos pelo mecanismo configurado. Os links podem abrir páginas externas.</p></div><div className="gcse-search" /></section>
-      {error ? <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div> : null}
-      {sourceNotice ? <div role="status" className="rounded-2xl border border-border bg-muted/40 p-3 text-sm text-muted-foreground">{sourceNotice}</div> : null}
-      {loading ? <div className="flex items-center justify-center gap-3 rounded-2xl border border-border bg-card px-5 py-12 text-sm text-muted-foreground"><span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />Procurando leituras...</div> : null}
-      {!loading && searched && !error && results.length === 0 ? <div className="rounded-2xl border border-dashed border-border bg-card/60 px-6 py-12 text-center"><BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-display text-xl font-semibold text-foreground">Nenhum resultado encontrado</p><p className="mt-2 text-sm text-muted-foreground">Tente outro termo ou faça uma busca mais ampla.</p></div> : null}
-      {!loading && results.length > 0 ? (
-        <section aria-live="polite">
-          <div className="mb-4 flex items-end justify-between gap-3"><div><h2 className="font-display text-2xl font-semibold text-primary">Resultados</h2><p className="text-sm text-muted-foreground">{results.length} {results.length === 1 ? "obra encontrada" : "obras encontradas"}</p></div><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Open Library + Google Books</span></div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-            {results.map((book) => <article key={book.id} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card transition hover:-translate-y-0.5 hover:shadow-md">
-              <div className="flex aspect-[2/3] items-center justify-center overflow-hidden bg-muted">
-                {book.cover ? <img src={book.cover} alt={`Capa de ${book.title}`} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" /> : <div className="flex flex-col items-center gap-2 px-3 text-center text-muted-foreground"><BookOpen className="h-9 w-9" /><span className="text-xs">Capa indisponível</span></div>}
-              </div>
-              <div className="space-y-2 p-3"><h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={book.title}>{book.title}</h3><p className="line-clamp-2 min-h-8 text-xs text-muted-foreground">{book.authors.length ? book.authors.join(", ") : "Autor não informado"}</p><span className="inline-flex rounded-full bg-secondary px-2.5 py-1 text-[10px] font-medium text-secondary-foreground">{book.source}</span></div>
-            </article>)}
-          </div>
-        </section>
-      ) : null}
-      {!searched ? <div className="rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center"><BookOpen className="mx-auto mb-3 h-9 w-9 text-primary/60" /><p className="font-display text-xl font-semibold text-foreground">Sua próxima história começa aqui</p><p className="mt-2 text-sm text-muted-foreground">Pesquise pelo nome da obra, pelo autor ou por uma palavra-chave.</p></div> : null}
+
+      <Link
+        to="/buscar-obras"
+        className="flex items-center justify-between gap-4 rounded-3xl border border-border bg-card p-5 shadow-sm transition hover:border-primary/40 hover:shadow-md sm:p-7"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <BookOpen className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-display text-xl font-semibold text-foreground">Buscar obras</span>
+            <span className="mt-1 block text-sm text-muted-foreground">
+              Encontre livros, novels, mangás, manhwas e webtoons.
+            </span>
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
+          Buscar obras
+        </span>
+      </Link>
     </div>
   );
 }
 
 export const Route = createFileRoute("/_authenticated/_shell/explorar")({
-  validateSearch: (s: Record<string, unknown>): { q?: string } => (typeof s["q"] === "string" ? { q: s["q"] } : {}),
+  validateSearch: (s: Record<string, unknown>): { q?: string } =>
+    typeof s["q"] === "string" ? { q: s["q"] } : {},
   head: () => ({ meta: [{ title: "Explorar — Book Society" }] }),
   component: ExplorePage,
 });
