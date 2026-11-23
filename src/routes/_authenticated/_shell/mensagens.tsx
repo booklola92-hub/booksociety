@@ -223,6 +223,13 @@ function MessengerPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "messenger_presence" }, () => {
         qc.invalidateQueries({ queryKey: ["messages", "presence"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "messenger_group_messages" }, () => {
+        qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id] });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messenger_group_members" }, () => {
+        qc.invalidateQueries({ queryKey: ["messages", "groups", me.id] });
+        qc.invalidateQueries({ queryKey: ["messages", "group-members"] });
+      })
       .on("broadcast", { event: "nudge" }, (event) => {
         const payload = event.payload as { sender_id?: string };
         if (payload.sender_id && payload.sender_id !== me.id) {
@@ -232,7 +239,7 @@ function MessengerPage() {
         }
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [me?.id, qc, soundOn]);
+  }, [me?.id, qc, soundOn, selectedGroupId]);
 
   const contact = selectedGroupId ? undefined : contacts.find((c) => c.id === selected);
   const messages = messagesQuery.data ?? [];
@@ -272,9 +279,9 @@ function MessengerPage() {
   }
 
   async function sendContent(value: string) {
-    if (!value.trim() || !me?.id || !selected) return;
+    if (!value.trim() || !me?.id || (!selected && !selectedGroupId)) return;
     if (selectedGroupId) {
-      const { error } = await supabase.from("messenger_group_messages").insert({ group_id: selectedGroupId, sender_id: me.id, content: value });
+      const { error } = await (supabase as any).from("messenger_group_messages").insert({ group_id: selectedGroupId, sender_id: me.id, content: value });
       if (error) { toast.error("Não foi possível enviar a mensagem ao grupo."); return; }
       await qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id, selected, selectedGroupId] });
       return;
@@ -478,7 +485,7 @@ function MessengerPage() {
                   {mine && avatar(myAvatar, displayName, "h-7 w-7")}
                 </div>;
                 return <div key={m.id} className={`flex items-end gap-2 py-1 ${mine ? "justify-end" : "justify-start"}`}>
-                  {!mine && avatar(contact.avatar, contact.name, "h-7 w-7")}
+                  {!mine && (contact ? avatar(contact.avatar, contact.name, "h-7 w-7") : <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#ead6c0]">👥</span>)}
                   <div className={`max-w-[80%] rounded-[16px] border border-[#d9a78d] bg-[#fff4e5] px-3 py-1.5 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
                     {isAttachment ? <ChatAttachment content={m.content} /> : <p className="whitespace-pre-wrap text-xs leading-tight">{clean}</p>}<p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
                   </div>
