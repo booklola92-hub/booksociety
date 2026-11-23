@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, UserPlus, Users, CalendarDays, Search, Folder, Camera, Image as ImageIcon, Smile, Bell, Send, Palette, Music2, Heart, Gift, Settings, Shirt, Volume2, VolumeX, Pencil, X, ChevronDown, Radio, Check } from "lucide-react";
+import { BookOpen, UserPlus, Users, CalendarDays, Search, Folder, Camera, Image as ImageIcon, Smile, Bell, Send, Palette, Heart, Gift, Settings, Shirt, Volume2, VolumeX, Pencil, X, ChevronDown, Radio, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/lib/social";
 
@@ -9,7 +9,6 @@ type Contact = { id: string; name: string; handle: string; avatar: string | null
 type ChatMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; read_at: string | null };
 type WinkKind = "pig" | "heart" | "kiss" | "dance" | "laugh" | "surprise" | "rainbow";
 type Wink = { kind: WinkKind; label: string; icon: string; caption: string };
-type SpotifyTrack = { name: string; artist: string; album: string; image: string | null; url: string | null; isPlaying: boolean };
 const stamp = (value: string) => new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const emojis = ["😀", "😂", "😍", "🥰", "😘", "😉", "😮", "😎", "🥳", "❤️", "💋", "📚", "✨", "🙈", "👏", "🤍", "🤣", "🌹", "🐷", "🌈"];
 const messengerPresets = {
@@ -30,16 +29,6 @@ const winks: Wink[] = [
   { kind: "surprise", label: "Surpresa", icon: "😲", caption: "Surpresaaa!" },
   { kind: "rainbow", label: "Arco-íris", icon: "🌈", caption: "Um dia colorido para você!" },
 ];
-const spotifyClientId = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_SPOTIFY_CLIENT_ID || (typeof window !== "undefined" ? localStorage.getItem("book-spotify-client-id") || "6e85fcfa359647fc83b03995dc17e035" : "6e85fcfa359647fc83b03995dc17e035");
-const spotifyScopes = "user-read-currently-playing user-read-playback-state";
-
-function base64Url(bytes: Uint8Array) {
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-async function spotifyChallenge(verifier: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
-  return base64Url(new Uint8Array(digest));
-}
 function playWinkSound(kind: WinkKind = "pig") {
   try {
     const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -96,9 +85,6 @@ function MessengerPage() {
   const [winksOpen, setWinksOpen] = useState(false);
   const [attention, setAttention] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
-  const [spotifyTrack, setSpotifyTrack] = useState<SpotifyTrack | null>(null);
-  const [spotifyConnected, setSpotifyConnected] = useState(false);
-  const [spotifyError, setSpotifyError] = useState("");
   const [chatTheme, setChatTheme] = useState("winecream");
   const [customColors, setCustomColors] = useState<MessengerColors>(defaultCustomColors);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
@@ -316,139 +302,6 @@ function MessengerPage() {
     conversationRef.current?.scrollTo({ top: conversationRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, selected]);
 
-  async function getSpotifyAccessToken() {
-    let token = localStorage.getItem("book-spotify-token");
-    const expiresAt = Number(localStorage.getItem("book-spotify-expires") || "0");
-    if (token && expiresAt > Date.now() + 60000) return token;
-    const refreshToken = localStorage.getItem("book-spotify-refresh");
-    if (!refreshToken || !spotifyClientId) return token;
-    const response = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ client_id: spotifyClientId, grant_type: "refresh_token", refresh_token: refreshToken }),
-    });
-    if (!response.ok) {
-      localStorage.removeItem("book-spotify-token");
-      setSpotifyConnected(false);
-      setSpotifyError("Sua sessão do Spotify expirou. Conecte novamente.");
-      return null;
-    }
-    const tokens = await response.json();
-    token = tokens.access_token as string;
-    localStorage.setItem("book-spotify-token", token);
-    localStorage.setItem("book-spotify-expires", String(Date.now() + Number(tokens.expires_in) * 1000));
-    if (tokens.refresh_token) localStorage.setItem("book-spotify-refresh", tokens.refresh_token as string);
-    return token;
-  }
-
-  async function spotifyHttpError(response: Response) {
-    let detail = "";
-    try {
-      const body = await response.json();
-      detail = typeof body?.error?.message === "string" ? body.error.message : typeof body?.error === "string" ? body.error : "";
-    } catch { /* resposta sem JSON */ }
-    return new Error(`Spotify respondeu com HTTP ${response.status}${detail ? ": " + detail : "."}`);
-  }
-
-  async function refreshSpotify() {
-    const token = await getSpotifyAccessToken();
-    if (!token) return;
-    const response = await fetch("https://api.spotify.com/v1/me/player/currently-playing", { headers: { Authorization: `Bearer ${token}` } });
-    if (response.status === 204) { setSpotifyTrack(null); return; }
-    if (response.status === 401) {
-      localStorage.removeItem("book-spotify-token");
-      localStorage.removeItem("book-spotify-expires");
-      const renewed = await getSpotifyAccessToken();
-      if (!renewed) return;
-      const retry = await fetch("https://api.spotify.com/v1/me/player/currently-playing", { headers: { Authorization: `Bearer ${renewed}` } });
-      if (retry.status === 204) { setSpotifyTrack(null); return; }
-      if (!retry.ok) throw await spotifyHttpError(retry);
-      const retryData = await retry.json();
-      if (!retryData.item) { setSpotifyTrack(null); return; }
-      setSpotifyTrack({ name: retryData.item.name, artist: retryData.item.artists?.map((a: { name: string }) => a.name).join(", ") ?? "Artista", album: retryData.item.album?.name ?? "", image: retryData.item.album?.images?.[0]?.url ?? null, url: retryData.item.external_urls?.spotify ?? null, isPlaying: !!retryData.is_playing });
-      return;
-    }
-    if (!response.ok) throw await spotifyHttpError(response);
-    const data = await response.json();
-    if (!data.item) { setSpotifyTrack(null); return; }
-    setSpotifyTrack({
-      name: data.item.name,
-      artist: data.item.artists?.map((a: { name: string }) => a.name).join(", ") ?? "Artista",
-      album: data.item.album?.name ?? "",
-      image: data.item.album?.images?.[0]?.url ?? null,
-      url: data.item.external_urls?.spotify ?? null,
-      isPlaying: !!data.is_playing,
-    });
-  }
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const state = params.get("state");
-    const savedState = localStorage.getItem("book-spotify-state");
-    const verifier = localStorage.getItem("book-spotify-verifier");
-    if (code && state && savedState && state === savedState && verifier && spotifyClientId) {
-      const redirectUri = window.location.origin + window.location.pathname;
-      void (async () => {
-        try {
-          const body = new URLSearchParams({ client_id: spotifyClientId, grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: verifier });
-          const response = await fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
-          if (!response.ok) throw new Error("O Spotify não autorizou a conexão.");
-          const tokens = await response.json();
-          localStorage.setItem("book-spotify-token", tokens.access_token);
-          if (tokens.refresh_token) localStorage.setItem("book-spotify-refresh", tokens.refresh_token);
-          localStorage.setItem("book-spotify-expires", String(Date.now() + tokens.expires_in * 1000));
-          setSpotifyConnected(true); setSpotifyError("");
-          localStorage.removeItem("book-spotify-state"); localStorage.removeItem("book-spotify-verifier");
-          window.history.replaceState({}, "", redirectUri);
-          await refreshSpotify();
-        } catch (error) { setSpotifyError(error instanceof Error ? error.message : "Erro ao conectar ao Spotify."); }
-      })();
-    }
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem("book-spotify-token");
-    if (!token && !localStorage.getItem("book-spotify-refresh")) return;
-    setSpotifyConnected(true);
-    void refreshSpotify().catch((error) => setSpotifyError(error instanceof Error ? error.message : "Não foi possível carregar a música atual."));
-    const timer = window.setInterval(() => { void refreshSpotify().catch((error) => setSpotifyError(error instanceof Error ? error.message : "Não foi possível carregar a música atual.")); }, 30000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  async function connectSpotify() {
-    const clientId = spotifyClientId || window.prompt("Cole o Client ID do seu aplicativo Spotify Developer. Não informe o Client Secret.")?.trim();
-    if (!clientId) { setSpotifyError("Informe o Client ID do Spotify para continuar."); return; }
-    if (!spotifyClientId) localStorage.setItem("book-spotify-client-id", clientId);
-    const verifier = base64Url(crypto.getRandomValues(new Uint8Array(64)));
-    const challenge = await spotifyChallenge(verifier);
-    const state = base64Url(crypto.getRandomValues(new Uint8Array(16)));
-    localStorage.setItem("book-spotify-verifier", verifier); localStorage.setItem("book-spotify-state", state);
-    const redirectUri = window.location.origin + window.location.pathname;
-    const params = new URLSearchParams({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, code_challenge_method: "S256", code_challenge: challenge, state, scope: spotifyScopes });
-    window.location.assign("https://accounts.spotify.com/authorize?" + params.toString());
-  }
-  function disconnectSpotify() {
-    ["book-spotify-token", "book-spotify-refresh", "book-spotify-expires"].forEach((key) => localStorage.removeItem(key));
-    setSpotifyConnected(false); setSpotifyTrack(null); setSpotifyError("");
-    if (me?.id) void supabase.from("messenger_presence").upsert({ user_id: me.id, spotify_track_name: null, spotify_artist: null, spotify_album_image: null, spotify_url: null, spotify_is_playing: false }, { onConflict: "user_id" });
-  }
-
-  useEffect(() => {
-    if (!me?.id || !spotifyConnected) return;
-    void supabase.from("messenger_presence").upsert({
-      user_id: me.id,
-      spotify_track_name: spotifyTrack?.name ?? null,
-      spotify_artist: spotifyTrack?.artist ?? null,
-      spotify_album_image: spotifyTrack?.image ?? null,
-      spotify_url: spotifyTrack?.url ?? null,
-      spotify_is_playing: spotifyTrack?.isPlaying ?? false,
-    }, { onConflict: "user_id" }).then(({ error }) => {
-      if (error) console.error("Não foi possível compartilhar sua música:", error);
-      else void qc.invalidateQueries({ queryKey: ["messages", "presence", me.id] });
-    });
-  }, [me?.id, spotifyConnected, spotifyTrack, qc]);
-
   useEffect(() => {
     if (myPresence?.status_text) {
       setPhrase(myPresence.status_text);
@@ -486,13 +339,6 @@ function MessengerPage() {
               <p className="truncate text-xs font-bold">{displayName} <ChevronDown className="inline" size={16} /></p>
               <p className="mt-1 text-[10px] text-[#258a43]">● Online</p>
               {editingPhrase ? <div className="mt-2 flex gap-1"><input value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 w-full rounded border border-[#d9b49b] bg-[#fffaf1] px-2 py-1 text-xs" /><button onClick={savePhrase} className="text-xs font-bold">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="mt-1 text-left text-xs italic">“{phrase}” <Pencil className="inline" size={13} /></button>}
-              <div className="mt-2 flex items-center gap-2">
-                {spotifyTrack?.image ? <img src={spotifyTrack.image} alt="" className="h-7 w-7 rounded-md object-cover" /> : <span className="grid h-7 w-7 place-items-center rounded-full bg-[#1db954] text-base text-white">♫</span>}
-                <div className="min-w-0 text-[11px] leading-tight"><p className="font-semibold">Você está ouvindo:</p>{spotifyTrack ? <a href={spotifyTrack.url ?? "#"} target="_blank" rel="noreferrer" className="block truncate underline">{spotifyTrack.name} — {spotifyTrack.artist}</a> : <p className="text-[#8c5b51]">Conecte seu Spotify</p>}</div>
-                <Music2 className="ml-auto shrink-0" size={16} />
-              </div>
-              <button onClick={spotifyConnected ? disconnectSpotify : connectSpotify} className="mt-1 rounded-full bg-[#168b45] px-2 py-1 text-[9px] font-bold text-white">{spotifyConnected ? "Desconectar Spotify" : "Conectar Spotify"}</button>
-              {spotifyError && <p className="mt-1 text-[10px] leading-tight text-[#a71925]">{spotifyError}</p>}
             </div>
           </div>
 
