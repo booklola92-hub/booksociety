@@ -155,7 +155,7 @@ export async function searchWebCatalog(query: string, category: CatalogCategory)
   const unavailableSources: string[] = [];
   settled.forEach((result, index) => {
     if (result.status === "fulfilled") items.push(...result.value);
-    else unavailableSources.push(tasks[index].name);
+    else unavailableSources.push(tasks[index]?.name ?? "Fonte");
   });
 
   return { items: unique(items.filter((item) => matchesCategory(item, category))), unavailableSources };

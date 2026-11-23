@@ -31,3 +31,4 @@ use the editor.
 
 ## Project rules
 - The Buscar obras page searches the internal catalog plus public external metadata APIs (currently Open Library and AniList). External results are temporary in the search UI; only an explicit click on “Adicionar à minha biblioteca” may create a personal `books` row and shelf item for the signed-in user. Never insert external results into the shared `works` catalog automatically. Do not add external redirects to search cards. Do not call Google Books without a securely configured API key, and do not call MangaDex directly from browser code because its API does not support third-party browser CORS.
+- Community permissions live in the database (role helpers is_community_admin/can_view_community, decide_join_request, set_community_member_role, remove_community_member); community images go under {uid}/communities/{community_id}/ so viewers can read them. Why: UI checks alone can't stop edits to other people's communities.

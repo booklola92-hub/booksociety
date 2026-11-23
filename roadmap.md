@@ -25,3 +25,5 @@
 - [ ] Biblioteca interna: obras encontradas salvas no banco próprio (título original/traduzido, alternativos, autor, capa, sinopse, gênero, status) e página de detalhes dentro do site, sem mandar o leitor para fora
 - [x] Busca: só no catálogo interno (Livros, Novels e Light Novels, Mangás, Manhwas, BL), sem fontes externas
 - [ ] Busca: encontrar autores e títulos cadastrados mesmo sem acento/pontuação (caso "Nora Roberts")
+- [ ] Catálogo amplo: plano de importação de metadados (aguardando aprovação)
+- [ ] Comunidade: listagem com busca e "Criar comunidade", página própria (capa, avatar, mural, membros, admins, galeria), públicas/privadas com solicitações, papéis dono/admin/membro com regras no banco

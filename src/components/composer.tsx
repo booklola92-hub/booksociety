@@ -50,7 +50,7 @@ export function Composer({
     setBusy(true);
     try {
       const me = await getMyId();
-      const imagePath = image ? await uploadMedia(me, image, "posts") : null;
+      const imagePath = image ? await uploadMedia(me, image, communityId ? `communities/${communityId}` : "posts") : null;
       await createPost({
         content: content.trim(),
         imagePath,

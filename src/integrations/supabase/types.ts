@@ -88,6 +88,7 @@ export type Database = {
       }
       communities: {
         Row: {
+          avatar_url: string | null
           cover_url: string | null
           created_at: string
           created_by: string
@@ -96,8 +97,10 @@ export type Database = {
           is_private: boolean
           name: string
           slug: string
+          updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           cover_url?: string | null
           created_at?: string
           created_by: string
@@ -106,8 +109,10 @@ export type Database = {
           is_private?: boolean
           name: string
           slug: string
+          updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           cover_url?: string | null
           created_at?: string
           created_by?: string
@@ -116,11 +121,57 @@ export type Database = {
           is_private?: boolean
           name?: string
           slug?: string
+          updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "communities_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_join_requests: {
+        Row: {
+          community_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_join_requests_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_join_requests_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -816,9 +867,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_community: {
+        Args: { _community: string; _user: string }
+        Returns: boolean
+      }
       catalog_compact: { Args: { _text: string }; Returns: string }
       catalog_norm: { Args: { _text: string }; Returns: string }
       check_goal_milestones: { Args: { _goal_id: string }; Returns: undefined }
+      community_detail: {
+        Args: { _slug: string }
+        Returns: {
+          avatar_url: string
+          cover_url: string
+          created_at: string
+          created_by: string
+          description: string
+          has_request: boolean
+          id: string
+          is_private: boolean
+          member_count: number
+          my_role: string
+          name: string
+          slug: string
+        }[]
+      }
+      community_role: {
+        Args: { _community: string; _user: string }
+        Returns: string
+      }
+      decide_join_request: {
+        Args: { _approve: boolean; _request: string }
+        Returns: undefined
+      }
       discover_communities: {
         Args: { _limit?: number; _search?: string }
         Returns: {
@@ -879,6 +959,25 @@ export type Database = {
         Args: { _bucket: string; _limit: number; _window_seconds: number }
         Returns: boolean
       }
+      is_community_admin: {
+        Args: { _community: string; _user: string }
+        Returns: boolean
+      }
+      list_communities: {
+        Args: { _limit?: number; _search?: string }
+        Returns: {
+          avatar_url: string
+          cover_url: string
+          description: string
+          has_request: boolean
+          id: string
+          is_private: boolean
+          member_count: number
+          my_role: string
+          name: string
+          slug: string
+        }[]
+      }
       my_conversations: {
         Args: never
         Returns: {
@@ -888,6 +987,10 @@ export type Database = {
           other_id: string
           unread: number
         }[]
+      }
+      remove_community_member: {
+        Args: { _community: string; _user: string }
+        Returns: undefined
       }
       search_catalog: {
         Args: {
@@ -926,6 +1029,10 @@ export type Database = {
           title: string
           year: number
         }[]
+      }
+      set_community_member_role: {
+        Args: { _community: string; _role: string; _user: string }
+        Returns: undefined
       }
       suggested_readers: {
         Args: { _limit?: number }
