@@ -388,57 +388,57 @@ function MessengerPage() {
 
   return (
     <section className="bs-messenger mx-auto max-w-[1600px] overflow-hidden rounded-[22px] border-2 border-[#c98f79] bg-[#fff4e5] text-[#981d27] shadow-[0_14px_38px_rgba(90,25,25,.13)]">
-      <div className="flex items-center gap-3 bg-gradient-to-r from-[#790d19] to-[#a51b28] px-5 py-3 text-[#fff8ed]">
-        <BookOpen size={34} strokeWidth={2.2} />
-        <span className="text-xl font-semibold tracking-tight">Book Society Messenger</span>
+      <div className="flex items-center gap-2 bg-gradient-to-r from-[#790d19] to-[#a51b28] px-4 py-2 text-[#fff8ed]">
+        <BookOpen size={25} strokeWidth={2.2} />
+        <span className="text-base font-semibold tracking-tight">Book Society Messenger</span>
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[780px] grid-cols-1 lg:grid-cols-[minmax(285px,25%)_minmax(0,1fr)_minmax(205px,17%)]">
+      <div className="grid min-h-[620px] grid-cols-1 lg:grid-cols-[minmax(220px,22%)_minmax(0,1fr)_minmax(165px,15%)]">
         <aside className="border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:border-b-0 lg:border-r-2">
-          <div className="flex items-center gap-4 border-b border-[#d9b49b] p-4">
-            {avatar(myAvatar, displayName, "h-32 w-32", "max-h-32 max-w-32")}
+          <div className="flex items-center gap-3 border-b border-[#d9b49b] p-3">
+            {avatar(myAvatar, displayName, "h-14 w-14", "max-h-14 max-w-14")}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xl font-bold">{displayName} <ChevronDown className="inline" size={16} /></p>
-              <p className="mt-1 text-sm text-[#258a43]">● Online</p>
-              {editingPhrase ? <div className="mt-2 flex gap-1"><input value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 w-full rounded border border-[#d9b49b] bg-[#fffaf1] px-2 py-1 text-xs" /><button onClick={savePhrase} className="text-xs font-bold">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="mt-2 text-left text-sm italic">“{phrase}” <Pencil className="inline" size={13} /></button>}
-              <div className="mt-3 flex items-center gap-2">
-                {spotifyTrack?.image ? <img src={spotifyTrack.image} alt="" className="h-9 w-9 rounded-md object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full bg-[#1db954] text-xl text-white">♫</span>}
+              <p className="truncate text-sm font-bold">{displayName} <ChevronDown className="inline" size={16} /></p>
+              <p className="mt-1 text-xs text-[#258a43]">● Online</p>
+              {editingPhrase ? <div className="mt-2 flex gap-1"><input value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 w-full rounded border border-[#d9b49b] bg-[#fffaf1] px-2 py-1 text-xs" /><button onClick={savePhrase} className="text-xs font-bold">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="mt-1 text-left text-xs italic">“{phrase}” <Pencil className="inline" size={13} /></button>}
+              <div className="mt-2 flex items-center gap-2">
+                {spotifyTrack?.image ? <img src={spotifyTrack.image} alt="" className="h-7 w-7 rounded-md object-cover" /> : <span className="grid h-7 w-7 place-items-center rounded-full bg-[#1db954] text-base text-white">♫</span>}
                 <div className="min-w-0 text-[11px] leading-tight"><p className="font-semibold">Você está ouvindo:</p>{spotifyTrack ? <a href={spotifyTrack.url ?? "#"} target="_blank" rel="noreferrer" className="block truncate underline">{spotifyTrack.name} — {spotifyTrack.artist}</a> : <p className="text-[#8c5b51]">Conecte seu Spotify</p>}</div>
-                <Music2 className="ml-auto shrink-0" size={20} />
+                <Music2 className="ml-auto shrink-0" size={16} />
               </div>
-              <button onClick={spotifyConnected ? disconnectSpotify : connectSpotify} className="mt-2 rounded-full bg-[#168b45] px-3 py-1 text-[10px] font-bold text-white">{spotifyConnected ? "Desconectar Spotify" : "Conectar Spotify"}</button>
+              <button onClick={spotifyConnected ? disconnectSpotify : connectSpotify} className="mt-1 rounded-full bg-[#168b45] px-2 py-1 text-[9px] font-bold text-white">{spotifyConnected ? "Desconectar Spotify" : "Conectar Spotify"}</button>
               {spotifyError && <p className="mt-1 text-[10px] leading-tight text-[#a71925]">{spotifyError}</p>}
             </div>
           </div>
 
-          <div className="flex items-center justify-around border-b border-[#d9b49b] py-4">
-            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Convidar"><UserPlus size={27} /></button>
-            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Grupos"><Users size={27} /></button>
-            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Calendário"><CalendarDays size={27} /></button>
+          <div className="flex items-center justify-around border-b border-[#d9b49b] py-2">
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Convidar"><UserPlus size={20} /></button>
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Grupos"><Users size={20} /></button>
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Calendário"><CalendarDays size={20} /></button>
           </div>
           <div className="p-3">
-            <div className="flex items-center gap-2 rounded-full border-2 border-[#d9a78d] bg-[#fff8ed] px-3 py-2"><Search size={20} /><input placeholder="Pesquisar contatos..." className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-[#b78c79]" onChange={(e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll("[data-contact-name]").forEach((el) => { (el as HTMLElement).style.display = (el.getAttribute("data-contact-name") ?? "").includes(q) ? "" : "none"; }); }} /></div>
+            <div className="flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#fff8ed] px-3 py-1.5"><Search size={16} /><input placeholder="Pesquisar contatos..." className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-[#b78c79]" onChange={(e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll("[data-contact-name]").forEach((el) => { (el as HTMLElement).style.display = (el.getAttribute("data-contact-name") ?? "").includes(q) ? "" : "none"; }); }} /></div>
           </div>
-          <div className="px-4 pb-2 text-lg font-bold">🟢 Online ({contacts.length})</div>
-          <div className="max-h-[450px] overflow-y-auto px-2 pb-3">
+          <div className="px-3 pb-1 text-sm font-bold">🟢 Online ({contacts.length})</div>
+          <div className="max-h-[360px] overflow-y-auto px-2 pb-2">
             {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
             {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar os contatos.</p>}
             {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém ou aceitar uma amizade.</p>}
-            {contacts.map((c) => <button key={c.id} data-contact-name={c.name.toLowerCase()} onClick={() => setSelected(c.id)} className={`mb-1 flex w-full items-center gap-3 rounded-xl border-2 p-2 text-left transition ${selected === c.id ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}>
-              {avatar(c.avatar, c.name, "h-14 w-14")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
+            {contacts.map((c) => <button key={c.id} data-contact-name={c.name.toLowerCase()} onClick={() => setSelected(c.id)} className={`mb-1 flex w-full items-center gap-2 rounded-lg border p-1.5 text-left transition ${selected === c.id ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}>
+              {avatar(c.avatar, c.name, "h-9 w-9")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
             </button>)}
           </div>
-          <div className="flex items-center gap-6 border-t border-[#d9b49b] px-5 py-4"><Settings size={23} /><Shirt size={23} /><Bell size={23} /></div>
+          <div className="flex items-center gap-5 border-t border-[#d9b49b] px-4 py-2"><Settings size={18} /><Shirt size={18} /><Bell size={18} /></div>
         </aside>
 
-        <main className={`flex min-h-[780px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
+        <main className={`flex min-h-[620px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
           {contact ? <>
-            <div className="flex items-center gap-4 border-b border-[#d9b49b] bg-[#fff2df] px-4 py-3">
-              {avatar(contact.avatar, contact.name, "h-24 w-24")}
-              <div className="min-w-0"><p className="text-2xl font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="mt-1 text-sm italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={15} /></p></div>
+            <div className="flex items-center gap-3 border-b border-[#d9b49b] bg-[#fff2df] px-3 py-2">
+              {avatar(contact.avatar, contact.name, "h-12 w-12")}
+              <div className="min-w-0"><p className="text-base font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="mt-0.5 text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={15} /></p></div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 border-b border-[#d9b49b] bg-[#f8ead7] px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-[#d9b49b] bg-[#f8ead7] px-2 py-1.5">
               <button className="toolbar-btn"><UserPlus size={19} />Convidar</button>
               <button className="toolbar-btn"><Folder size={19} />Enviar arquivos</button>
               <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="toolbar-btn"><Smile size={20} />Emoticons <ChevronDown size={13} /></button>
@@ -446,9 +446,9 @@ function MessengerPage() {
               <button className="toolbar-btn"><Camera size={19} />Enviar fotos</button>
               <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={19} />Planos de fundo <ChevronDown size={13} /></button>
             </div>
-            <div className="mx-3 mt-2 flex items-center gap-3 rounded-full border border-[#d9a78d] bg-[#ffefe1] px-4 py-2 text-sm"><span className="text-lg">ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><X size={19} /></div>
+            <div className="mx-2 mt-1.5 flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#ffefe1] px-3 py-1.5 text-xs"><span className="text-sm">ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><X size={15} /></div>
 
-            <div ref={conversationRef} className={`messenger-chat-area messenger-theme-${chatTheme} flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5`}>
+            <div ref={conversationRef} className={`messenger-chat-area messenger-theme-${chatTheme} flex-1 space-y-2 overflow-y-auto px-3 py-3`}>
               {messagesQuery.isLoading && <p className="py-10 text-center text-sm">Carregando mensagens…</p>}
               {messages.map((m) => {
                 const mine = m.sender_id === me?.id;
@@ -475,17 +475,17 @@ function MessengerPage() {
               {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#9c6d60]">Diga oi e comece uma conversa!</p>}
             </div>
 
-            <div className="border-t-2 border-[#d9a78d] bg-[#fff2df] p-3 sm:p-4">
-              <div className="relative mb-3 flex flex-wrap items-center gap-2 border-b border-[#d9b49b] pb-2">
-                <button className="rounded-md px-3 py-1 text-3xl font-bold hover:bg-[#f0dfcb]" title="Fonte">A</button>
-                <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md p-2 hover:bg-[#f0dfcb]" title="Emoticons"><Smile size={30} /></button>
-                <button className="rounded-md p-2 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={28} /></button>
-                <button className="rounded-md p-2 hover:bg-[#f0dfcb]" title="Presentes"><Gift size={28} /></button>
-                <button onClick={() => void sendWink(winks[0])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Porquinho dançante">🐷</button>
+            <div className="border-t border-[#d9a78d] bg-[#fff2df] p-2">
+              <div className="relative mb-2 flex flex-wrap items-center gap-1.5 border-b border-[#d9b49b] pb-1.5">
+                <button className="rounded-md px-2 py-1 text-xl font-bold hover:bg-[#f0dfcb]" title="Fonte">A</button>
+                <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md p-1.5 hover:bg-[#f0dfcb]" title="Emoticons"><Smile size={20} /></button>
+                <button className="rounded-md p-1.5 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={20} /></button>
+                <button className="rounded-md p-1.5 hover:bg-[#f0dfcb]" title="Presentes"><Gift size={20} /></button>
+                <button onClick={() => void sendWink(winks[0])} className="rounded-md p-1.5 text-lg hover:bg-[#f0dfcb]" title="Porquinho dançante">🐷</button>
                 <button onClick={() => void sendWink(winks[1])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Coração">❤️</button>
                 <button onClick={() => void sendWink(winks[2])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Beijo">💋</button>
                 <button onClick={() => void sendWink(winks[3])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Dança">♫</button>
-                <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="ml-auto rounded-md px-3 py-2 text-sm font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-2 inline" size={18} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
+                <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="ml-auto rounded-md px-2 py-1.5 text-xs font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-1 inline" size={15} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
                 <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-2 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
                 {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
                 {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
@@ -493,31 +493,31 @@ function MessengerPage() {
                   {[["cream","Creme","#fff8ed"],["rose","Rosa suave","#f8e5e1"],["mint","Verde menta","#e5f1e9"],["lilac","Lavanda","#eee8f7"],["night","Noite","#34252b"]].map(([id,label,color]) => <button key={id} onClick={() => chooseTheme(id)} className="flex items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="h-5 w-5 rounded-full border border-[#b78c79]" style={{backgroundColor:color}} />{label}</button>)}
                 </div>}
               </div>
-              <div className="flex items-center gap-3 rounded-2xl border-2 border-[#d9a78d] bg-[#fffaf3] p-2">
-                <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-sm text-[#981d27] outline-none placeholder:text-[#b78c79]" />
-                <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a71c29] to-[#780d19] px-6 py-4 text-base font-bold text-white shadow hover:brightness-110 disabled:opacity-40"><Send size={20} />Enviar</button>
+              <div className="flex items-center gap-3 rounded-xl border border-[#d9a78d] bg-[#fffaf3] p-1.5">
+                <textarea rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-xs text-[#981d27] outline-none placeholder:text-[#b78c79]" />
+                <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="flex items-center gap-2 rounded-lg bg-gradient-to-b from-[#a71c29] to-[#780d19] px-4 py-2.5 text-sm font-bold text-white shadow hover:brightness-110 disabled:opacity-40"><Send size={16} />Enviar</button>
               </div>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <button onClick={callAttention} className="flex items-center gap-3 rounded-lg px-3 py-2 font-semibold hover:bg-[#f0dfcb]"><Bell size={28} />Chamar atenção <ChevronDown size={15} /></button>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <button onClick={callAttention} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-semibold hover:bg-[#f0dfcb]"><Bell size={18} />Chamar atenção <ChevronDown size={15} /></button>
                 <span className="text-[10px] text-[#9c6d60]">Enter para enviar · Shift + Enter para pular linha</span>
               </div>
             </div>
           </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-xl font-semibold">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#9c6d60]">Adicione amigos ou conecte-se com leitores para começar a conversar.</p></div></div>}
         </main>
 
-        <aside className="border-t-2 border-[#d9b49b] bg-[#f4e5d1] p-4 lg:border-l-2 lg:border-t-0">
+        <aside className="border-t border-[#d9b49b] bg-[#f4e5d1] p-3 lg:border-l lg:border-t-0">
           <div className="flex flex-row items-center justify-around gap-3 lg:flex-col lg:justify-start">
             <div className="flex flex-col items-center gap-2 text-center">
-              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-28 w-28 sm:h-36 sm:w-36")}
-              <p className="text-xl font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={13} /></p>
+              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-16 w-16")}
+              <p className="text-sm font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={13} /></p>
             </div>
             <div className="my-3 hidden w-full border-t border-[#d9b49b] lg:block" />
             <div className="flex flex-col items-center gap-2 text-center">
-              {avatar(myAvatar, displayName, "h-28 w-28 sm:h-36 sm:w-36")}
-              <p className="text-xl font-bold">{displayName}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{phrase}” <Heart className="inline" size={13} /></p>
+              {avatar(myAvatar, displayName, "h-16 w-16")}
+              <p className="text-sm font-bold">{displayName}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{phrase}” <Heart className="inline" size={13} /></p>
             </div>
           </div>
-          <div className="mt-4 rounded-xl border border-[#d9b49b] bg-[#fff8ed] p-3 text-center">
+          <div className="mt-3 rounded-lg border border-[#d9b49b] bg-[#fff8ed] p-2 text-center">
             <p className="text-sm font-bold"><Music2 className="mr-1 inline" size={15} /> Spotify</p>
             {contactPresence?.spotify_track_name ? <div className="mt-2 flex items-center gap-2 text-left">{contactPresence.spotify_album_image && <img src={contactPresence.spotify_album_image} alt="" className="h-10 w-10 rounded object-cover" />}<div className="min-w-0"><p className="truncate text-xs font-semibold">{contactPresence.spotify_track_name}</p><p className="truncate text-[10px]">{contactPresence.spotify_artist}</p><p className="text-[9px] text-[#258a43]">{contactPresence.spotify_is_playing ? "● Ouvindo agora" : "Pausado"}</p></div></div> : <p className="mt-1 text-[10px] text-[#8c5b51]">Quando essa pessoa conectar o Spotify, a música aparecerá aqui.</p>}
           </div>
