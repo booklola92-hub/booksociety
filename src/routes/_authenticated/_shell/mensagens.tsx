@@ -93,6 +93,9 @@ function MessengerPage() {
   const [noticeVisible, setNoticeVisible] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [noticeVisible, setNoticeVisible] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const lastIncomingRef = useRef<string | null>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
 
@@ -389,14 +392,16 @@ function MessengerPage() {
               <div className="min-w-0"><p className="text-sm font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-[10px] italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={15} /></p></div>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-1">
-              <button className="toolbar-btn"><UserPlus size={15} />Convidar</button>
-              <button className="toolbar-btn"><Folder size={15} />Enviar arquivos</button>
+              <button onClick={inviteContact} className="toolbar-btn"><UserPlus size={16} />Convidar</button>
+              <button onClick={() => fileInputRef.current?.click()} className="toolbar-btn"><Folder size={16} />Enviar arquivos</button>
               <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="toolbar-btn"><Smile size={15} />Emoticons <ChevronDown size={13} /></button>
               <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
-              <button className="toolbar-btn"><Camera size={15} />Enviar fotos</button>
+              <button onClick={() => photoInputRef.current?.click()} className="toolbar-btn"><Camera size={16} />Enviar fotos</button>
               <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={15} />Planos de fundo <ChevronDown size={13} /></button>
             </div>
-            <div className="mx-2 mt-1.5 flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#ffefe1] px-3 py-1.5 text-xs"><span className="text-sm">ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><X size={15} /></div>
+            {noticeVisible && <div className="mx-2 mt-1.5 flex items-center gap-2 rounded-full border border-[var(--msg-border)] bg-[var(--msg-panel)] px-3 py-1.5 text-xs"><span>ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><button onClick={() => setNoticeVisible(false)} aria-label="Fechar aviso"><X size={15} /></button></div>}
+            <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const file=e.target.files?.[0]; if(file) void uploadChatFile(file,false); e.currentTarget.value=""; }} />
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file=e.target.files?.[0]; if(file) void uploadChatFile(file,true); e.currentTarget.value=""; }} />
 
             <div ref={conversationRef} className={`messenger-chat-area messenger-theme-${chatTheme} flex-1 space-y-1 overflow-y-auto px-2 py-2`}>
               {messagesQuery.isLoading && <p className="py-10 text-center text-sm">Carregando mensagens…</p>}
@@ -429,8 +434,8 @@ function MessengerPage() {
               <div className="relative mb-1 flex flex-wrap items-center gap-1 border-b border-[#d9b49b] pb-1">
                 <button className="rounded-md px-1.5 py-0.5 text-lg font-bold hover:bg-[#f0dfcb]" title="Fonte">A</button>
                 <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Emoticons"><Smile size={16} /></button>
-                <button className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={16} /></button>
-                <button className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Presentes"><Gift size={16} /></button>
+                <button onClick={() => photoInputRef.current?.click()} className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={16} /></button>
+                <button onClick={() => void sendWink({kind:"heart",label:"Presente",icon:"🎁",caption:"Um presente para você! 🎁"})} className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Enviar presente"><Gift size={16} /></button>
                 <button onClick={() => void sendWink(winks[0])} className="rounded-md p-1.5 text-lg hover:bg-[#f0dfcb]" title="Porquinho dançante">🐷</button>
                 <button onClick={() => void sendWink(winks[1])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Coração">❤️</button>
                 <button onClick={() => void sendWink(winks[2])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Beijo">💋</button>
@@ -458,7 +463,7 @@ function MessengerPage() {
                 <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="flex items-center gap-2 rounded-lg bg-gradient-to-b from-[#a71c29] to-[#780d19] px-4 py-2.5 text-sm font-bold text-white shadow hover:brightness-110 disabled:opacity-40"><Send size={14} />Enviar</button>
               </div>
               <div className="mt-2 flex items-center justify-between gap-2">
-                <button onClick={callAttention} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-semibold hover:bg-[#f0dfcb]"><Bell size={18} />Chamar atenção <ChevronDown size={15} /></button>
+                <button onClick={callAttention} className="flex items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-4 py-2 text-sm font-bold text-white shadow-md hover:brightness-110"><Bell size={19} />Chamar atenção <ChevronDown size={15} /></button>
                 <span className="text-[10px] text-[#9c6d60]">Enter para enviar · Shift + Enter para pular linha</span>
               </div>
             </div>
