@@ -10,9 +10,9 @@ export function useMediaUrl(value: string | null | undefined) {
   const { data } = useQuery({
     queryKey: ["media-url", value],
     enabled: isPath,
-    staleTime: 50 * 60 * 1000,
+    staleTime: 30 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(value!, 60 * 60);
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(value!, 60);
       if (error) throw error;
       return data.signedUrl;
     },
