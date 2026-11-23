@@ -483,7 +483,7 @@ function MessengerPage() {
                 <button onClick={() => void sendWink(winks[1])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Coração">❤️</button>
                 <button onClick={() => void sendWink(winks[2])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Beijo">💋</button>
                 <button onClick={() => void sendWink(winks[3])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Dança">♫</button>
-                <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="ml-auto rounded-md px-3 py-2 text-sm font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-2 inline" size={18} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
+                <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="ml-auto rounded-md px-3 py-2 text-sm font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-2 inline" size={18} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
                 <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-2 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
                 {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
                 {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
@@ -507,7 +507,7 @@ function MessengerPage() {
           <div className="flex flex-row items-center justify-around gap-3 lg:flex-col lg:justify-start">
             <div className="flex flex-col items-center gap-2 text-center">
               {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-28 w-28 sm:h-36 sm:w-36")}
-              <p className="text-xl font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“Sonhe, leia, converse...” <Heart className="inline" size={13} /></p>
+              <p className="text-xl font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={13} /></p>
             </div>
             <div className="my-3 hidden w-full border-t border-[#d9b49b] lg:block" />
             <div className="flex flex-col items-center gap-2 text-center">
