@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { uploadMedia } from "@/lib/media";
+import { uploadMedia, useMediaUrl } from "@/lib/media";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, UserPlus, Users, CalendarDays, Search, Folder, Camera, Image as ImageIcon, Smile, Bell, Send, Palette, Heart, Gift, Settings, Shirt, Volume2, VolumeX, Pencil, X, ChevronDown, Radio, Check } from "lucide-react";
@@ -75,6 +75,14 @@ function WinkArtwork({ kind }: { kind: WinkKind }) {
   </div>;
 }
 
+function ChatAttachment({ content }: { content: string }) {
+  const isPhoto = content.startsWith("[PHOTO]");
+  const raw = content.slice(isPhoto ? 7 : 6);
+  const [path, fileName] = raw.split("|", 2);
+  const url = useMediaUrl(path);
+  if (!url) return <span className="text-xs opacity-70">Carregando anexo…</span>;
+  return isPhoto ? <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Foto enviada" className="max-h-72 max-w-full rounded-xl object-contain" /></a> : <a href={url} target="_blank" rel="noreferrer" download className="inline-flex items-center gap-2 underline"><Folder size={16} />{fileName || "Abrir arquivo"}</a>;
+}
 function MessengerPage() {
   const { data: me } = useMe();
   const qc = useQueryClient();
@@ -410,6 +418,7 @@ function MessengerPage() {
                 const mine = m.sender_id === me?.id;
                 const winkKind = winkFromContent(m.content);
                 const isNudge = m.content.startsWith("[NUDGE]");
+                const isAttachment = m.content.startsWith("[PHOTO]") || m.content.startsWith("[FILE]");
                 const clean = winkKind ? (winks.find((w) => w.kind === winkKind)?.caption ?? m.content.replace(/^\[WINK[^\]]*\]/, "")) : m.content.replace(/^\[NUDGE\]/, "🔔 ");
                 if (winkKind) return <div key={m.id} className={`flex items-center gap-3 py-2 ${mine ? "justify-end" : "justify-start"}`}>
                   {!mine && avatar(contact.avatar, contact.name, "h-7 w-7")}
@@ -423,7 +432,7 @@ function MessengerPage() {
                 return <div key={m.id} className={`flex items-end gap-2 py-1 ${mine ? "justify-end" : "justify-start"}`}>
                   {!mine && avatar(contact.avatar, contact.name, "h-7 w-7")}
                   <div className={`max-w-[80%] rounded-[20px] border border-[#d9a78d] bg-[#fff4e5] px-4 py-2 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{clean}</p><p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
+                    {isAttachment ? <ChatAttachment content={m.content} /> : <p className="whitespace-pre-wrap text-sm leading-relaxed">{clean}</p>}<p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
                   </div>
                   {mine && avatar(myAvatar, displayName, "h-7 w-7")}
                 </div>;
