@@ -75,6 +75,10 @@ function WinkArtwork({ kind }: { kind: WinkKind }) {
   </div>;
 }
 
+function MessengerAvatar({ url, name, size, extra = "" }: { url: string | null; name: string; size: string; extra?: string }) {
+  const resolvedUrl = useMediaUrl(url);
+  return resolvedUrl ? <img src={resolvedUrl} alt={name} className={"messenger-avatar " + size + " shrink-0 object-cover " + extra} /> : <div className={"messenger-avatar " + size + " grid shrink-0 place-items-center bg-[#ead9c8] font-semibold text-[#a71925] " + extra}>{name.slice(0,1).toUpperCase()}</div>;
+}
 function ChatAttachment({ content }: { content: string }) {
   const isPhoto = content.startsWith("[PHOTO]");
   const raw = content.slice(isPhoto ? 7 : 6);
@@ -225,9 +229,7 @@ function MessengerPage() {
   const contactPresence = contactPresenceQuery.data;
   const displayName = me?.display_name || me?.username || "Leitora";
   const myAvatar = me?.avatar_url || null;
-  const avatar = (url: string | null, name: string, size = "h-12 w-12", extra = "") => url
-    ? <img src={url} alt={name} className={"messenger-avatar " + size + " shrink-0 object-cover " + extra} />
-    : <div className={"messenger-avatar " + size + " grid shrink-0 place-items-center bg-[#ead9c8] font-semibold text-[#a71925] " + extra}>{name.slice(0, 1).toUpperCase()}</div>;
+  const avatar = (url: string | null, name: string, size = "h-12 w-12", extra = "") => <MessengerAvatar url={url} name={name} size={size} extra={extra} />;
 
   async function uploadChatFile(file: File, photo: boolean) {
     if (!me?.id || !selected) return;
