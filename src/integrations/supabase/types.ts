@@ -89,7 +89,10 @@ export type Database = {
       communities: {
         Row: {
           avatar_url: string | null
+          cover_pos_x: number
+          cover_pos_y: number
           cover_url: string | null
+          cover_zoom: number
           created_at: string
           created_by: string
           description: string
@@ -101,7 +104,10 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          cover_pos_x?: number
+          cover_pos_y?: number
           cover_url?: string | null
+          cover_zoom?: number
           created_at?: string
           created_by: string
           description?: string
@@ -113,7 +119,10 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          cover_pos_x?: number
+          cover_pos_y?: number
           cover_url?: string | null
+          cover_zoom?: number
           created_at?: string
           created_by?: string
           description?: string
@@ -127,6 +136,54 @@ export type Database = {
           {
             foreignKeyName: "communities_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_files: {
+        Row: {
+          community_id: string
+          created_at: string
+          id: string
+          mime_type: string
+          name: string
+          size_bytes: number
+          storage_path: string
+          uploader_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          id?: string
+          mime_type: string
+          name: string
+          size_bytes: number
+          storage_path: string
+          uploader_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          id?: string
+          mime_type?: string
+          name?: string
+          size_bytes?: number
+          storage_path?: string
+          uploader_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_files_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_files_uploader_id_fkey"
+            columns: ["uploader_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -878,7 +935,10 @@ export type Database = {
         Args: { _slug: string }
         Returns: {
           avatar_url: string
+          cover_pos_x: number
+          cover_pos_y: number
           cover_url: string
+          cover_zoom: number
           created_at: string
           created_by: string
           description: string
@@ -967,7 +1027,10 @@ export type Database = {
         Args: { _limit?: number; _search?: string }
         Returns: {
           avatar_url: string
+          cover_pos_x: number
+          cover_pos_y: number
           cover_url: string
+          cover_zoom: number
           description: string
           has_request: boolean
           id: string
