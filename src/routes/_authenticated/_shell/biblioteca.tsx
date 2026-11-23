@@ -322,14 +322,49 @@ function ReadBooks() {
         if (!book || book.cover_url || lookedUp.current.has(book.id)) continue;
         lookedUp.current.add(book.id);
         try {
-          const params = new URLSearchParams({ title: book.title, fields: "cover_i", limit: "1" });
-          if (book.author) params.set("author", book.author);
-          const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
-          if (!response.ok) continue;
-          const result = await response.json();
-          const coverId = result.docs?.[0]?.cover_i;
-          if (!coverId) continue;
-          const coverUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+          let coverUrl: string | null = null;
+
+          // Google Books primeiro: busca por título e autor e confere a correspondência.
+          const googleTerms = [`intitle:${book.title}`, book.author ? `inauthor:${book.author}` : ""].filter(Boolean).join(" ");
+          const googleQuery = new URLSearchParams({ q: googleTerms, maxResults: "10", printType: "books" });
+          const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?${googleQuery.toString()}`);
+          if (googleResponse.ok) {
+            const googleResult = await googleResponse.json();
+            const targetTitle = normalize(book.title);
+            const targetAuthor = normalize(book.author ?? "");
+            const match = (googleResult.items ?? []).find((entry: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }) => {
+              const info = entry.volumeInfo;
+              if (!info?.title || !info.imageLinks?.thumbnail && !info.imageLinks?.smallThumbnail) return false;
+              const candidateTitle = normalize(info.title);
+              const titleMatches = candidateTitle === targetTitle || candidateTitle.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidateTitle} `);
+              const authors = normalize((info.authors ?? []).join(" "));
+              const authorMatches = !targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors);
+              return titleMatches && authorMatches;
+            });
+            const image = match?.volumeInfo?.imageLinks?.thumbnail ?? match?.volumeInfo?.imageLinks?.smallThumbnail;
+            if (image) coverUrl = image.replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
+          }
+
+          // Open Library fica como segunda fonte se o Google Books não encontrar.
+          if (!coverUrl) {
+            const params = new URLSearchParams({ title: book.title, fields: "cover_i,title,author_name", limit: "10" });
+            if (book.author) params.set("author", book.author);
+            const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
+            if (response.ok) {
+              const result = await response.json();
+              const targetTitle = normalize(book.title);
+              const targetAuthor = normalize(book.author ?? "");
+              const match = (result.docs ?? []).find((doc: { title?: string; author_name?: string[]; cover_i?: number }) => {
+                const candidateTitle = normalize(doc.title ?? "");
+                const titleMatches = candidateTitle === targetTitle || candidateTitle.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidateTitle} `);
+                const authors = normalize((doc.author_name ?? []).join(" "));
+                const authorMatches = !targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors);
+                return titleMatches && authorMatches && doc.cover_i;
+              });
+              if (match?.cover_i) coverUrl = `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
+            }
+          }
+          if (!coverUrl) continue;
           const { error } = await supabase.from("books").update({ cover_url: coverUrl }).eq("id", book.id);
           if (error) {
             lookedUp.current.delete(book.id);
