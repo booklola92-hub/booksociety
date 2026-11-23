@@ -7,12 +7,11 @@ do $$
 declare p record;
 begin
   for p in
-    select policyname from pg_policies
+    select policyname, tablename from pg_policies
     where schemaname = 'public' and tablename in ('profiles','communities','community_members')
       and cmd = 'SELECT'
   loop
-    execute format('drop policy if exists %I on public.%I', p.policyname,
-      case when p.tablename is null then 'profiles' else p.tablename end);
+    execute format('drop policy if exists %I on public.%I', p.policyname, p.tablename);
   end loop;
 end $$;
 
