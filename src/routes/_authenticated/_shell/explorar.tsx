@@ -35,6 +35,7 @@ function ExplorePage() {
     enabled: term.length >= 2,
     staleTime: 30_000,
   });
+  const peopleResults = people.data ?? [];
 
   return (
     <div className="space-y-7">
@@ -78,7 +79,7 @@ function ExplorePage() {
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
             Não foi possível pesquisar pessoas agora. Tente novamente.
           </div>
-        ) : people.data.length === 0 ? (
+        ) : peopleResults.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-background/60 px-6 py-10 text-center">
             <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
             <p className="font-medium text-foreground">Ninguém encontrado</p>
@@ -88,7 +89,7 @@ function ExplorePage() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
-            {people.data.map((person) => (
+            {peopleResults.map((person) => (
               <Link
                 key={person.id}
                 to="/perfil/$username"
