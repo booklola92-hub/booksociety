@@ -8,7 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/lib/social";
 
 type Contact = { id: string; name: string; handle: string; avatar: string | null };
-type ChatMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; read_at: string | null };
+type ChatMessage = { id: string; sender_id: string; recipient_id?: string; content: string; created_at: string; read_at?: string | null };
+type MessengerGroup = { id: string; name: string; created_at: string };
 type WinkKind = "pig" | "heart" | "kiss" | "dance" | "laugh" | "surprise" | "rainbow";
 type Wink = { kind: WinkKind; label: string; icon: string; caption: string };
 const stamp = (value: string) => new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -91,6 +92,9 @@ function MessengerPage() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const [selected, setSelected] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteIds, setInviteIds] = useState<string[]>([]);
   const [phrase, setPhrase] = useState("Sonhe, leia, converse...");
   const [draftPhrase, setDraftPhrase] = useState(phrase);
   const [editingPhrase, setEditingPhrase] = useState(false);
@@ -154,10 +158,13 @@ function MessengerPage() {
     },
   });
   const contacts = contactsQuery.data ?? [];
+  const groupsQuery = useQuery({ queryKey: ["messages", "groups", me?.id], enabled: !!me?.id, queryFn: async () => { const { data, error } = await supabase.from("messenger_group_members").select("group_id, messenger_groups!inner(id,name,created_at)").eq("user_id", me!.id); if (error) throw error; return (data ?? []).map((row: any) => row.messenger_groups as MessengerGroup); } });
+  const groups = groupsQuery.data ?? [];
+  const activeGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
   useEffect(() => {
-    if (!selected && contacts.length) setSelected(contacts[0].id);
-    if (selected && contacts.length && !contacts.some((c) => c.id === selected)) setSelected(contacts[0].id);
-  }, [contacts, selected]);
+    if (!selectedGroupId && !selected && contacts.length) setSelected(contacts[0].id);
+    if (!selectedGroupId && selected && contacts.length && !contacts.some((c) => c.id === selected)) setSelected(contacts[0].id);
+  }, [contacts, selected, selectedGroupId]);
 
   const myPresenceQuery = useQuery({
     queryKey: ["messages", "presence", me?.id],
@@ -180,8 +187,13 @@ function MessengerPage() {
   });
 
   const messagesQuery = useQuery({
-    queryKey: ["messages", "conversation", me?.id, selected], enabled: !!me?.id && !!selected,
+    queryKey: ["messages", "conversation", me?.id, selected, selectedGroupId], enabled: !!me?.id && (!!selected || !!selectedGroupId),
     queryFn: async () => {
+      if (selectedGroupId) {
+        const { data, error } = await supabase.from("messenger_group_messages").select("id, sender_id, content, created_at").eq("group_id", selectedGroupId).order("created_at", { ascending: true }).limit(200);
+        if (error) throw error;
+        return (data ?? []) as ChatMessage[];
+      }
       const { data, error } = await supabase.from("messages").select("id, sender_id, recipient_id, content, created_at, read_at")
         .or(`and(sender_id.eq.${me!.id},recipient_id.eq.${selected}),and(sender_id.eq.${selected},recipient_id.eq.${me!.id})`)
         .order("created_at", { ascending: true }).limit(200);
@@ -220,7 +232,7 @@ function MessengerPage() {
     return () => { void supabase.removeChannel(channel); };
   }, [me?.id, qc, soundOn]);
 
-  const contact = contacts.find((c) => c.id === selected);
+  const contact = selectedGroupId ? undefined : contacts.find((c) => c.id === selected);
   const messages = messagesQuery.data ?? [];
   const myPresence = myPresenceQuery.data;
   const contactPresence = contactPresenceQuery.data;
@@ -237,10 +249,16 @@ function MessengerPage() {
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível enviar o arquivo."); }
   }
   async function inviteContact() {
-    if (!me?.id || !selected) return;
-    const { error } = await supabase.from("friend_requests").insert({ requester_id: me.id, addressee_id: selected, status: "pending" });
-    if (error) { toast.error(error.code === "23505" ? "O convite já foi enviado." : "Não foi possível enviar o convite."); return; }
-    toast.success("Convite de amizade enviado!");
+    if (!me?.id || (!selected && !selectedGroupId)) return;
+    setInviteIds([]); setInviteOpen(true);
+  }
+  async function createGroupConversation() {
+    if (!me?.id || !selected || inviteIds.length < 1) return;
+    if (inviteIds.length > 3) { toast.error("Você pode convidar até 3 pessoas por vez."); return; }
+    const { data, error } = await supabase.rpc("create_messenger_group", { _participant_ids: [selected, ...inviteIds] });
+    if (error) { toast.error(error.message || "Não foi possível criar o grupo."); return; }
+    await qc.invalidateQueries({ queryKey: ["messages", "groups", me.id] });
+    setSelectedGroupId(data as string); setSelected(""); setInviteOpen(false); toast.success("Conversa em grupo criada!");
   }
 
   async function sendContent(value: string) {
