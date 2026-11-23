@@ -216,7 +216,7 @@ function ReadBooks() {
   useEffect(() => {
     let cancelled = false;
     async function fillMissingCovers() {
-      for (const item of readBooks) {
+      for (const item of shelf.filter((entry) => entry.status === "read" && entry.book)) {
         const book = item.book;
         if (!book || book.cover_url || lookedUp.current.has(book.id)) continue;
         lookedUp.current.add(book.id);
