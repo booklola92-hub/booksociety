@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { CoverFraming } from "@/components/community-image";
 
 import { supabase } from "@/integrations/supabase/client";
 import { slugify } from "@/lib/format";
@@ -18,6 +19,9 @@ export interface CommunityCard {
   member_count: number;
   my_role: CommunityRole | null;
   has_request: boolean;
+  cover_pos_x: number;
+  cover_pos_y: number;
+  cover_zoom: number;
 }
 
 export interface CommunityDetail extends CommunityCard {
@@ -118,7 +122,7 @@ const check = (error: { message: string } | null) => {
   if (error) throw new Error(error.message);
 };
 
-export async function createCommunity(input: { name: string; description: string; isPrivate: boolean; cover?: File | null }) {
+export async function createCommunity(input: { name: string; description: string; isPrivate: boolean; cover?: File | null; coverFraming?: CoverFraming }) {
   const me = await getMyId();
   const name = input.name.trim();
   if (name.length < 3 || name.length > 80) throw new Error("O nome precisa ter entre 3 e 80 caracteres.");
@@ -133,17 +137,17 @@ export async function createCommunity(input: { name: string; description: string
   check(error);
   if (input.cover && data) {
     const path = await uploadMedia(me, input.cover, `communities/${data.id}`);
-    check((await supabase.from("communities").update({ cover_url: path }).eq("id", data.id)).error);
+    check((await supabase.from("communities").update({ cover_url: path, cover_pos_x: input.coverFraming?.x ?? 50, cover_pos_y: input.coverFraming?.y ?? 50, cover_zoom: input.coverFraming?.zoom ?? 1 }).eq("id", data.id)).error);
   }
   return data!;
 }
 
 export async function updateCommunity(
   id: string,
-  patch: { name?: string; description?: string; is_private?: boolean; cover?: File | null; avatar?: File | null },
+  patch: { name?: string; description?: string; is_private?: boolean; cover?: File | null; avatar?: File | null; coverFraming?: CoverFraming },
 ) {
   const me = await getMyId();
-  const update: { name?: string; description?: string; is_private?: boolean; cover_url?: string; avatar_url?: string } = {};
+  const update: { name?: string; description?: string; is_private?: boolean; cover_url?: string; avatar_url?: string; cover_pos_x?: number; cover_pos_y?: number; cover_zoom?: number } = {};
   if (patch.name !== undefined) {
     const n = patch.name.trim();
     if (n.length < 3 || n.length > 80) throw new Error("O nome precisa ter entre 3 e 80 caracteres.");
@@ -155,8 +159,13 @@ export async function updateCommunity(
   }
   if (patch.is_private !== undefined) update.is_private = patch.is_private;
   if (patch.cover) update.cover_url = await uploadMedia(me, patch.cover, `communities/${id}`);
+  if (patch.coverFraming) { update.cover_pos_x = patch.coverFraming.x; update.cover_pos_y = patch.coverFraming.y; update.cover_zoom = patch.coverFraming.zoom; }
   if (patch.avatar) update.avatar_url = await uploadMedia(me, patch.avatar, `communities/${id}`);
   check((await supabase.from("communities").update(update).eq("id", id)).error);
+}
+
+export async function deleteCommunity(communityId: string) {
+  check((await supabase.rpc("delete_community", { _community: communityId })).error);
 }
 
 export async function joinCommunity(c: Pick<CommunityCard, "id" | "is_private">) {
