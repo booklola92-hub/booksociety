@@ -212,7 +212,7 @@ function MessengerPage() {
 
   useEffect(() => {
     if (!me?.id) return;
-    const channel = supabase.channel("book-messenger-" + me.id)
+    const channel = supabase.channel(selectedGroupId ? "book-messenger-group-" + selectedGroupId : "book-messenger-" + me.id)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, (payload) => {
         const row = (payload.new ?? payload.old) as Partial<ChatMessage>;
         if (row.sender_id === me.id || row.recipient_id === me.id) {
@@ -331,14 +331,14 @@ function MessengerPage() {
     }
   }
   async function callAttention() {
-    if (!selected || !me?.id) return;
+    if ((!selected && !selectedGroupId) || !me?.id) return;
     const rateKey = "book-messenger-nudge-" + me.id + "-" + selected;
     const lastSent = Number(window.localStorage.getItem(rateKey) || "0");
     if (Date.now() - lastSent < 5000) return;
     window.localStorage.setItem(rateKey, String(Date.now()));
     setAttention(true);
     window.setTimeout(() => setAttention(false), 1100);
-    const channel = supabase.channel("book-messenger-" + selected);
+    const channel = supabase.channel(selectedGroupId ? "book-messenger-group-" + selectedGroupId : "book-messenger-" + selected);
     try {
       await new Promise<void>((resolve, reject) => {
         channel.subscribe((status) => {
