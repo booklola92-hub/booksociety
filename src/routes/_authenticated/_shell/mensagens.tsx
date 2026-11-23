@@ -387,9 +387,10 @@ function MessengerPage() {
 
         <main className={`flex min-h-[440px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
           {contact ? <>
-            <div className="flex items-center gap-2 border-b border-[#d9b49b] bg-[#fff2df] px-2 py-1.5">
-              {avatar(contact.avatar, contact.name, "h-8 w-8")}
-              <div className="min-w-0"><p className="text-sm font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-[10px] italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={15} /></p></div>
+            <div className="flex min-h-[112px] items-center gap-4 border-b border-[var(--msg-border)] bg-[var(--msg-panel)] px-4 py-3">
+              {avatar(contact.avatar, contact.name, "h-20 w-20")}
+              <div className="min-w-0 flex-1"><p className="text-xl font-bold">{contact.name} <ChevronDown className="inline" size={19} /></p><p className="mt-1 text-base text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-1 text-sm italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={16} /></p></div>
+              <button onClick={callAttention} className="hidden items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-5 py-3 text-sm font-bold text-white shadow-lg hover:brightness-110 md:flex"><Bell size={18} />Chamar atenção</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-1">
               <button onClick={inviteContact} className="toolbar-btn"><UserPlus size={16} />Convidar</button>
@@ -474,6 +475,10 @@ function MessengerPage() {
 
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
+        .bs-messenger .messenger-avatar { border:3px solid #f5fff0; border-radius:17px; box-shadow:0 0 0 2px #8bbd77, 0 0 13px 4px rgba(110,220,90,.72), inset 0 0 0 1px rgba(255,255,255,.85); background:#e9d6c6; }
+        .bs-messenger .messenger-chat-area { min-height:360px; padding:18px 16px; }
+        .bs-messenger .toolbar-btn { min-height:42px; padding:8px 14px; font-size:13px; }
+        .bs-messenger .toolbar-btn svg { width:18px; height:18px; }
         .bs-messenger aside { background:var(--msg-sidebar) !important; color:#fff8f1; border-color:var(--msg-border) !important; }
         .bs-messenger aside .border-b, .bs-messenger aside .border-t { border-color:var(--msg-border) !important; }
         .bs-messenger aside input { color:var(--msg-text); }
