@@ -158,7 +158,7 @@ function MessengerPage() {
     },
   });
   const contacts = contactsQuery.data ?? [];
-  const groupsQuery = useQuery({ queryKey: ["messages", "groups", me?.id], enabled: !!me?.id, queryFn: async () => { const { data, error } = await supabase.from("messenger_group_members").select("group_id, messenger_groups!inner(id,name,created_at)").eq("user_id", me!.id); if (error) throw error; return (data ?? []).map((row: any) => row.messenger_groups as MessengerGroup); } });
+  const groupsQuery = useQuery({ queryKey: ["messages", "groups", me?.id], enabled: !!me?.id, queryFn: async () => { const { data, error } = await (supabase as any).from("messenger_group_members").select("group_id, messenger_groups!inner(id,name,created_at)").eq("user_id", me!.id); if (error) throw error; return (data ?? []).map((row: any) => row.messenger_groups as MessengerGroup); } });
   const groups = groupsQuery.data ?? [];
   const activeGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
   useEffect(() => {
@@ -190,7 +190,7 @@ function MessengerPage() {
     queryKey: ["messages", "conversation", me?.id, selected, selectedGroupId], enabled: !!me?.id && (!!selected || !!selectedGroupId),
     queryFn: async () => {
       if (selectedGroupId) {
-        const { data, error } = await supabase.from("messenger_group_messages").select("id, sender_id, content, created_at").eq("group_id", selectedGroupId).order("created_at", { ascending: true }).limit(200);
+        const { data, error } = await (supabase as any).from("messenger_group_messages").select("id, sender_id, content, created_at").eq("group_id", selectedGroupId).order("created_at", { ascending: true }).limit(200);
         if (error) throw error;
         return (data ?? []) as ChatMessage[];
       }
@@ -255,7 +255,7 @@ function MessengerPage() {
   async function createGroupConversation() {
     if (!me?.id || !selected || inviteIds.length < 1) return;
     if (inviteIds.length > 3) { toast.error("Você pode convidar até 3 pessoas por vez."); return; }
-    const { data, error } = await supabase.rpc("create_messenger_group", { _participant_ids: [selected, ...inviteIds] });
+    const { data, error } = await (supabase as any).rpc("create_messenger_group", { _participant_ids: [selected, ...inviteIds] });
     if (error) { toast.error(error.message || "Não foi possível criar o grupo."); return; }
     await qc.invalidateQueries({ queryKey: ["messages", "groups", me.id] });
     setSelectedGroupId(data as string); setSelected(""); setInviteOpen(false); toast.success("Conversa em grupo criada!");
@@ -422,16 +422,16 @@ function MessengerPage() {
               <button onClick={callAttention} className="hidden items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-3 py-2 text-xs font-bold text-white shadow-lg hover:brightness-110 md:flex"><Bell size={18} />Chamar atenção</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-0.5">
-              <button onClick={inviteContact} className="toolbar-btn"><UserPlus size={16} />Convidar</button>
+              <button onClick={() => { if (selectedGroupId) toast.info("Novos convites para grupos existentes estarão disponíveis em breve."); else void inviteContact(); }} className="toolbar-btn"><UserPlus size={14} />Convidar</button>
               <button onClick={() => fileInputRef.current?.click()} className="toolbar-btn"><Folder size={16} />Enviar arquivos</button>
               <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); setBackgroundOpen(false); }} className="toolbar-btn"><Smile size={15} />Emoticons <ChevronDown size={13} /></button>
               <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); setBackgroundOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
               <button onClick={() => photoInputRef.current?.click()} className="toolbar-btn"><Camera size={16} />Enviar fotos</button>
               <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={15} />Planos de fundo <ChevronDown size={13} /></button>
             </div>
-            {(emojiOpen || winksOpen || backgroundOpen) && <div className="mx-2 my-2 rounded-xl border border-[var(--msg-border)] bg-[var(--msg-received)] p-2 text-[var(--msg-text)] shadow-md">
+            {(emojiOpen || winksOpen || backgroundOpen) && <div className="relative z-30 mx-2 my-2 rounded-xl border border-[var(--msg-border)] bg-[var(--msg-received)] p-2 text-[var(--msg-text)] shadow-2xl">
 {emojiOpen && <div className="grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
-                {winksOpen && <div className="grid grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
+                {winksOpen && <div className="grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
                 {backgroundOpen && <div className="w-full max-w-[320px] mx-auto rounded-2xl border-2 border-[var(--msg-border)] bg-[var(--msg-received)] p-3 text-[var(--msg-text)] shadow-2xl">
                   <p className="mb-2 text-sm font-bold">Personalizar sua interface</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -506,18 +506,26 @@ function MessengerPage() {
 
         </div>
 
+      {inviteOpen && <div className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-3" role="dialog" aria-modal="true" aria-label="Convidar pessoas para a conversa">
+        <div className="w-full max-w-sm rounded-2xl border-2 border-[#9a1d29] bg-[#fff4e8] p-4 text-[#351a18] shadow-2xl">
+          <div className="mb-3 flex items-center justify-between"><h3 className="text-base font-bold">Convidar pessoas</h3><button onClick={() => setInviteOpen(false)} aria-label="Fechar"><X size={18} /></button></div>
+          <p className="mb-3 text-xs">Escolha até 3 pessoas para entrar nesta conversa. O grupo poderá ter no máximo 6 participantes, contando você.</p>
+          <div className="max-h-60 space-y-1 overflow-y-auto">{contacts.filter((c) => c.id !== selected).map((c) => <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-sm hover:bg-[#f0dfcf]"><input type="checkbox" checked={inviteIds.includes(c.id)} disabled={!inviteIds.includes(c.id) && inviteIds.length >= 3} onChange={(e) => setInviteIds((old) => e.target.checked ? [...old, c.id] : old.filter((id) => id !== c.id))} />{avatar(c.avatar,c.name,"h-7 w-7")}<span>{c.name}</span></label>)}</div>
+          <div className="mt-4 flex items-center justify-between"><span className="text-xs">{inviteIds.length}/3 selecionadas</span><button onClick={() => void createGroupConversation()} disabled={!inviteIds.length} className="rounded-full bg-gradient-to-b from-[#a71c29] to-[#780d19] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Criar conversa</button></div>
+        </div>
+      </div>}
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
         .bs-messenger .messenger-avatar { border:3px solid #f5fff0; border-radius:17px; box-shadow:0 0 0 2px #8bbd77, 0 0 13px 4px rgba(110,220,90,.72), inset 0 0 0 1px rgba(255,255,255,.85); background:#e9d6c6; }
-        .bs-messenger .messenger-chat-area { min-height:175px; padding:7px 7px; }
-        .bs-messenger .toolbar-btn { min-height:28px; padding:3px 7px; font-size:10px; }
-        .bs-messenger .toolbar-btn svg { width:13px; height:13px; }
+        .bs-messenger .messenger-chat-area { min-height:145px; padding:5px 6px; }
+        .bs-messenger .toolbar-btn { min-height:24px; padding:2px 6px; font-size:9px; }
+        .bs-messenger .toolbar-btn svg { width:12px; height:12px; }
         .bs-messenger aside { background:var(--msg-sidebar) !important; color:#fff8f1; border-color:var(--msg-border) !important; }
         .bs-messenger aside .border-b, .bs-messenger aside .border-t { border-color:var(--msg-border) !important; }
         .bs-messenger aside input { color:var(--msg-text); }
         .bs-messenger main { background:var(--msg-bg) !important; color:var(--msg-text); }
         .bs-messenger main > div:first-child, .bs-messenger main > div:nth-child(2), .bs-messenger main > div:last-child { background:var(--msg-panel) !important; color:var(--msg-text); border-color:var(--msg-border) !important; }
-        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:6px; border-radius:999px; border:1px solid var(--msg-border); background:linear-gradient(180deg,var(--msg-accent),var(--msg-sent)); color:#fff; padding:3px 7px; font-size:10px; font-weight:700; white-space:nowrap; box-shadow:0 2px 5px #0002; }
+        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:4px; border-radius:999px; border:1px solid var(--msg-border); background:linear-gradient(180deg,var(--msg-accent),var(--msg-sent)); color:#fff; padding:2px 6px; font-size:9px; font-weight:700; white-space:nowrap; box-shadow:0 2px 5px #0002; }
         .bs-messenger .toolbar-btn:hover { filter:brightness(1.12); }
         .bs-messenger .messenger-chat-area { background-color:var(--msg-bg) !important; color:var(--msg-text); transition:background-color .2s ease; }
         .bs-messenger .messenger-chat-area > div > div { border-color:var(--msg-border) !important; }
