@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, Download, FileUp, Library, Upload } from "lucide-react";
+import { BookOpen, Download, FileUp, Library, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -279,6 +279,39 @@ function ReadBooks() {
   const readBooks = shelf.filter((item) => item.status === "read" && item.book);
   const lookedUp = useRef(new Set<string>());
   const invalidate = useInvalidate();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
+
+  async function removeBook(itemId: string, title: string) {
+    if (!window.confirm(`Deseja excluir “${title}” da sua Biblioteca?`)) return;
+    setDeletingId(itemId);
+    try {
+      const { error } = await supabase.from("shelf_items").delete().eq("id", itemId).eq("user_id", me!.id);
+      if (error) throw error;
+      await invalidate("shelf");
+      toast.success(`“${title}” foi removido da sua Biblioteca.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir o livro.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function removeLibrary() {
+    if (!me?.id || !shelf.length) return;
+    if (!window.confirm(`ATENÇÃO: deseja excluir todos os ${shelf.length} livros da sua Biblioteca? Essa ação não pode ser desfeita. Os livros públicos do catálogo não serão apagados.`)) return;
+    setDeletingAll(true);
+    try {
+      const { error } = await supabase.from("shelf_items").delete().eq("user_id", me.id);
+      if (error) throw error;
+      await invalidate("shelf");
+      toast.success("Sua Biblioteca foi esvaziada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível excluir sua Biblioteca.");
+    } finally {
+      setDeletingAll(false);
+    }
+  }
 
   // Livros importados do Goodreads podem não ter capa. Tenta encontrá-la pelo título/autor.
   useEffect(() => {
@@ -321,7 +354,12 @@ function ReadBooks() {
           <h2 className="font-display text-2xl font-semibold">Livros que já li</h2>
           <p className="text-sm text-muted-foreground">Suas leituras concluídas, com as capas dos livros.</p>
         </div>
-        <span className="text-sm text-muted-foreground">{readBooks.length} {readBooks.length === 1 ? "livro" : "livros"}</span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="text-sm text-muted-foreground">{readBooks.length} {readBooks.length === 1 ? "livro lido" : "livros lidos"}</span>
+          <Button type="button" variant="destructive" size="sm" disabled={!shelf.length || deletingAll || !!deletingId} onClick={() => void removeLibrary()}>
+            <Trash2 className="h-4 w-4" /> {deletingAll ? "Excluindo..." : "Excluir biblioteca"}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -339,9 +377,23 @@ function ReadBooks() {
               <div className="aspect-[2/3] overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
                 <BookCover book={item.book} className="h-full w-full rounded-none object-cover" />
               </div>
-              <div>
-                <h3 className="line-clamp-2 text-sm font-medium leading-snug">{item.book.title}</h3>
-                <p className="line-clamp-1 text-xs text-muted-foreground">{item.book.author || "Autor desconhecido"}</p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="line-clamp-2 text-sm font-medium leading-snug">{item.book.title}</h3>
+                  <p className="line-clamp-1 text-xs text-muted-foreground">{item.book.author || "Autor desconhecido"}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  aria-label={`Excluir ${item.book.title} da Biblioteca`}
+                  title="Excluir livro"
+                  disabled={deletingAll || deletingId === item.id}
+                  onClick={() => void removeBook(item.id, item.book.title)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </article>
           ))}
