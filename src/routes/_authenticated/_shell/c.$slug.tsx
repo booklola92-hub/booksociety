@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Lock, Settings, ShieldCheck, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { CommunityAvatar, CommunityCover } from "@/components/community-image";
+import { CommunityAvatar, CommunityCover, CoverFramer, DEFAULT_FRAMING, type CoverFraming } from "@/components/community-image";
 import { Composer } from "@/components/composer";
 import { EmptyState } from "@/components/empty-state";
 import { Feed } from "@/components/feed";
@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   cancelJoinRequest,
   canSeeContent,
+  deleteCommunity,
   decideRequest,
   isAdminRole,
   joinCommunity,
@@ -67,6 +68,7 @@ function CommunityPage() {
   const { data: c, isLoading } = useCommunityDetail(slug);
   const act = useAct();
   const [editing, setEditing] = useState(false);
+  const navigate = useNavigate();
 
   if (isLoading) return <Skeleton className="h-72 rounded-2xl" />;
   if (!c)
@@ -87,7 +89,7 @@ function CommunityPage() {
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
         <div className="h-40 sm:h-56">
-          <CommunityCover path={c.cover_url} />
+          <CommunityCover path={c.cover_url} framing={{ x: c.cover_pos_x, y: c.cover_pos_y, zoom: c.cover_zoom }} />
         </div>
         <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end">
           <CommunityAvatar path={c.avatar_url} name={c.name} className="-mt-12 h-24 w-24" />
@@ -101,7 +103,7 @@ function CommunityPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {admin ? (
+            {c.my_role === "owner" ? (
               <Button variant="outline" className="rounded-full" onClick={() => setEditing(true)}>
                 <Settings className="h-4 w-4" /> Editar
               </Button>
@@ -163,7 +165,7 @@ function CommunityPage() {
         </Tabs>
       )}
 
-      {admin ? <EditDialog community={c} open={editing} onOpenChange={setEditing} /> : null}
+      {c.my_role === "owner" ? <EditDialog community={c} open={editing} onOpenChange={setEditing} onDeleted={() => navigate({ to: "/comunidade" })} /> : null}
     </div>
   );
 }
@@ -277,15 +279,17 @@ function Requests({ communityId }: { communityId: string }) {
   );
 }
 
-function EditDialog({ community: c, open, onOpenChange }: { community: CommunityDetail; open: boolean; onOpenChange: (o: boolean) => void }) {
+function EditDialog({ community: c, open, onOpenChange, onDeleted }: { community: CommunityDetail; open: boolean; onOpenChange: (o: boolean) => void; onDeleted: () => void }) {
   const [name, setName] = useState(c.name);
   const [description, setDescription] = useState(c.description);
   const [isPrivate, setIsPrivate] = useState(c.is_private);
   const [cover, setCover] = useState<File | null>(null);
+  const [coverFraming, setCoverFraming] = useState<CoverFraming>({ x: c.cover_pos_x, y: c.cover_pos_y, zoom: c.cover_zoom });
   const [avatar, setAvatar] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const act = useAct();
   const owner = c.my_role === "owner";
+  if (!owner) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -305,7 +309,8 @@ function EditDialog({ community: c, open, onOpenChange }: { community: Community
                   description,
                   cover,
                   avatar,
-                  ...(owner && isPrivate !== c.is_private ? { is_private: isPrivate } : {}),
+                  coverFraming,
+                  is_private: isPrivate,
                 }),
               "Comunidade atualizada.",
             );
@@ -324,7 +329,8 @@ function EditDialog({ community: c, open, onOpenChange }: { community: Community
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="ec-cover">Nova capa</Label>
-              <Input id="ec-cover" type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+              <Input id="ec-cover" type="file" accept="image/*" onChange={(e) => { setCover(e.target.files?.[0] ?? null); setCoverFraming(DEFAULT_FRAMING); }} />
+              <CoverFramer file={cover} path={c.cover_url} value={coverFraming} onChange={setCoverFraming} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ec-avatar">Nova foto de perfil</Label>
@@ -340,13 +346,23 @@ function EditDialog({ community: c, open, onOpenChange }: { community: Community
               <Switch checked={isPrivate} onCheckedChange={setIsPrivate} aria-label="Comunidade privada" />
             </div>
           ) : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Salvando…" : "Salvar"}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+            <Button type="button" variant="destructive" disabled={busy} onClick={async () => {
+              if (!window.confirm(`Excluir definitivamente a comunidade "${c.name}"? Esta ação não pode ser desfeita.`)) return;
+              setBusy(true);
+              try {
+                await deleteCommunity(c.id);
+                toast.success("Comunidade excluída.");
+                onOpenChange(false);
+                onDeleted();
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Não foi possível excluir a comunidade.");
+              } finally { setBusy(false); }
+            }}>Excluir comunidade</Button>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit" disabled={busy}>{busy ? "Salvando…" : "Salvar"}</Button>
+            </div>
           </div>
         </form>
       </DialogContent>
