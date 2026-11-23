@@ -4,7 +4,7 @@ import { Lock, Plus, Search, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { CommunityAvatar, CommunityCover } from "@/components/community-image";
+import { CommunityAvatar, CommunityCover, CoverFramer, DEFAULT_FRAMING, type CoverFraming } from "@/components/community-image";
 import { EmptyState, PageTitle } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -87,7 +87,7 @@ function ComunidadePage() {
               className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-transform hover:-translate-y-0.5"
             >
               <div className="h-28">
-                <CommunityCover path={c.cover_url} />
+                <CommunityCover path={c.cover_url} framing={{ x: c.cover_pos_x, y: c.cover_pos_y, zoom: c.cover_zoom }} />
               </div>
               <div className="relative px-4 pb-4">
                 <CommunityAvatar path={c.avatar_url} name={c.name} className="-mt-8 h-16 w-16" />
@@ -119,6 +119,7 @@ function CreateCommunityDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [cover, setCover] = useState<File | null>(null);
+  const [coverFraming, setCoverFraming] = useState<CoverFraming>(DEFAULT_FRAMING);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const invalidate = useInvalidate();
@@ -135,7 +136,7 @@ function CreateCommunityDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             e.preventDefault();
             setBusy(true);
             try {
-              const c = await createCommunity({ name, description, isPrivate, cover });
+              const c = await createCommunity({ name, description, isPrivate, cover, coverFraming });
               await invalidate("communities");
               toast.success("Comunidade criada!");
               onOpenChange(false);
@@ -157,7 +158,8 @@ function CreateCommunityDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cc-cover">Capa (opcional)</Label>
-            <Input id="cc-cover" type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+            <Input id="cc-cover" type="file" accept="image/*" onChange={(e) => { setCover(e.target.files?.[0] ?? null); setCoverFraming(DEFAULT_FRAMING); }} />
+            {cover ? <CoverFramer file={cover} path={null} value={coverFraming} onChange={setCoverFraming} /> : null}
           </div>
           <div className="flex items-center justify-between rounded-xl border border-border p-3">
             <div>
