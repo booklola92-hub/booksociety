@@ -263,9 +263,15 @@ function MessengerPage() {
 
   async function sendContent(value: string) {
     if (!value.trim() || !me?.id || !selected) return;
+    if (selectedGroupId) {
+      const { error } = await supabase.from("messenger_group_messages").insert({ group_id: selectedGroupId, sender_id: me.id, content: value });
+      if (error) { toast.error("Não foi possível enviar a mensagem ao grupo."); return; }
+      await qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id, selected, selectedGroupId] });
+      return;
+    }
     const { error } = await supabase.from("messages").insert({ sender_id: me.id, recipient_id: selected, content: value });
     if (error) { console.error("Erro ao enviar mensagem:", error); return; }
-    await qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id, selected] });
+    await qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id, selected, selectedGroupId] });
   }
   async function sendMessage() {
     const text = draft.trim(); if (!text) return;
@@ -390,9 +396,7 @@ function MessengerPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-around border-b border-[#d9b49b] py-2">
-            <button onClick={inviteContact} className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Convidar"><UserPlus size={18} /></button>
-          </div>
+
           <div className="p-2">
             <div className="flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#fff8ed] px-3 py-1.5"><Search size={16} /><input placeholder="Pesquisar contatos..." className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-[#b78c79]" onChange={(e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll("[data-contact-name]").forEach((el) => { (el as HTMLElement).style.display = (el.getAttribute("data-contact-name") ?? "").includes(q) ? "" : "none"; }); }} /></div>
           </div>
@@ -401,18 +405,20 @@ function MessengerPage() {
             {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
             {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar os contatos.</p>}
             {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém ou aceitar uma amizade.</p>}
-            {contacts.map((c) => <button key={c.id} data-contact-name={c.name.toLowerCase()} onClick={() => setSelected(c.id)} className={`mb-1 flex w-full items-center gap-2 rounded-lg border p-1.5 text-left transition ${selected === c.id ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}>
-              {avatar(c.avatar, c.name, "h-7 w-7")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
+            {contacts.map((c) => <button key={c.id} data-contact-name={c.name.toLowerCase()} onClick={() => { setSelected(c.id); setSelectedGroupId(null); }} className={`mb-1 flex w-full items-center gap-2 rounded-lg border p-1.5 text-left transition ${selected === c.id && !selectedGroupId ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}>
+              {avatar(c.avatar, c.name, "h-7 w-7")}<span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{c.name}</span><span className="block truncate text-[10px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
             </button>)}
+            {!!groups.length && <p className="px-1 pb-1 pt-2 text-xs font-bold">Grupos</p>}
+            {groups.map((g) => <button key={g.id} onClick={() => { setSelectedGroupId(g.id); setSelected(""); }} className={`mb-1 flex w-full items-center gap-2 rounded-lg border p-1.5 text-left ${selectedGroupId === g.id ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#ead6c0] text-sm">👥</span><span className="min-w-0 flex-1 truncate text-xs font-bold">{g.name}</span></button>)}
           </div>
           <div className="flex items-center gap-5 border-t border-[#d9b49b] px-4 py-2"><button onClick={() => { window.location.href = "/configuracoes"; }} title="Configurações"><Settings size={18} /></button><button onClick={() => setBackgroundOpen(true)} title="Personalizar tema"><Shirt size={18} /></button><button onClick={() => { window.location.href = "/notificacoes"; }} title="Notificações"><Bell size={18} /></button></div>
         </aside>
 
         <main className={`flex min-h-[380px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
-          {contact ? <>
+          {(contact || activeGroup) ? <>
             <div className="flex min-h-[64px] items-center gap-2 border-b border-[var(--msg-border)] bg-[var(--msg-panel)] px-3 py-2">
-              {avatar(contact.avatar, contact.name, "h-11 w-11")}
-              <div className="min-w-0 flex-1"><p className="text-base font-bold">{contact.name} <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-sm text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-1 text-sm italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={16} /></p></div>
+              {activeGroup ? <div className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--msg-border)] bg-[var(--msg-received)] text-lg">👥</div> : avatar(contact!.avatar, contact!.name, "h-9 w-9")}
+              <div className="min-w-0 flex-1"><p className="text-base font-bold">{activeGroup?.name || contact?.name} <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-sm text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-1 text-sm italic">“{activeGroup ? "Conversa em grupo" : (contactPresence?.status_text || "Sonhe, leia, converse...")}” <Heart className="inline" size={16} /></p></div>
               <button onClick={callAttention} className="hidden items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-3 py-2 text-xs font-bold text-white shadow-lg hover:brightness-110 md:flex"><Bell size={18} />Chamar atenção</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-0.5">
@@ -453,7 +459,7 @@ function MessengerPage() {
                 const isAttachment = m.content.startsWith("[PHOTO]") || m.content.startsWith("[FILE]");
                 const clean = winkKind ? (winks.find((w) => w.kind === winkKind)?.caption ?? m.content.replace(/^\[WINK[^\]]*\]/, "")) : m.content.replace(/^\[NUDGE\]/, "🔔 ");
                 if (winkKind) return <div key={m.id} className={`flex items-center gap-3 py-2 ${mine ? "justify-end" : "justify-start"}`}>
-                  {!mine && avatar(contact.avatar, contact.name, "h-7 w-7")}
+                  {!mine && (contact ? avatar(contact.avatar, contact.name, "h-7 w-7") : <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#ead6c0]">👥</span>)}
                   <div className="wink-message">
                     <WinkArtwork kind={winkKind} />
                     <p className="text-center text-xs font-semibold">{clean}</p>
