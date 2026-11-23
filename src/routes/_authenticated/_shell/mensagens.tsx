@@ -101,8 +101,8 @@ function MessengerPage() {
     setSoundOn(window.localStorage.getItem("book-messenger-sound") !== "off");
   }, []);
   useEffect(() => {
-    setChatTheme(window.localStorage.getItem("book-messenger-theme-" + selected) || "cream");
-  }, [selected]);
+    if (me?.id) setChatTheme(window.localStorage.getItem("book-messenger-theme-" + me.id) || "cream");
+  }, [me?.id]);
 
   const contactsQuery = useQuery({
     queryKey: ["messages", "contacts", me?.id], enabled: !!me?.id,
@@ -178,9 +178,17 @@ function MessengerPage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "messenger_presence" }, () => {
         qc.invalidateQueries({ queryKey: ["messages", "presence"] });
+      })
+      .on("broadcast", { event: "nudge" }, (event) => {
+        const payload = event.payload as { sender_id?: string };
+        if (payload.sender_id && payload.sender_id !== me.id) {
+          setAttention(true);
+          window.setTimeout(() => setAttention(false), 1100);
+          if (soundOn) playWinkSound("surprise");
+        }
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [me?.id, qc]);
+  }, [me?.id, qc, soundOn]);
 
   const contact = contacts.find((c) => c.id === selected);
   const messages = messagesQuery.data ?? [];
@@ -220,13 +228,31 @@ function MessengerPage() {
   }
   function chooseTheme(theme: string) {
     setChatTheme(theme);
-    window.localStorage.setItem("book-messenger-theme-" + selected, theme);
+    if (me?.id) window.localStorage.setItem("book-messenger-theme-" + me.id, theme);
     setBackgroundOpen(false);
   }
   async function callAttention() {
-    if (!selected) return;
-    setAttention(true); window.setTimeout(() => setAttention(false), 1100);
-    await sendContent("[NUDGE] chamou sua atenção!");
+    if (!selected || !me?.id) return;
+    const rateKey = "book-messenger-nudge-" + me.id + "-" + selected;
+    const lastSent = Number(window.localStorage.getItem(rateKey) || "0");
+    if (Date.now() - lastSent < 5000) return;
+    window.localStorage.setItem(rateKey, String(Date.now()));
+    setAttention(true);
+    window.setTimeout(() => setAttention(false), 1100);
+    const channel = supabase.channel("book-messenger-" + selected);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        channel.subscribe((status) => {
+          if (status === "SUBSCRIBED") resolve();
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") reject(new Error("Não foi possível chamar a atenção."));
+        });
+      });
+      await channel.send({ type: "broadcast", event: "nudge", payload: { sender_id: me.id, sender_name: displayName, sent_at: Date.now() } });
+    } catch (error) {
+      console.error("Não foi possível enviar o alerta:", error);
+    } finally {
+      await supabase.removeChannel(channel);
+    }
   }
 
   useEffect(() => {
@@ -394,7 +420,7 @@ function MessengerPage() {
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[440px] grid-cols-1 lg:grid-cols-[minmax(165px,17%)_minmax(0,1fr)_minmax(120px,12%)]">
+      <div className="grid min-h-[560px] grid-cols-1 lg:grid-cols-[minmax(220px,28%)_minmax(0,1fr)]">
         <aside className="border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:border-b-0 lg:border-r-2">
           <div className="flex items-center gap-3 border-b border-[#d9b49b] p-3">
             {avatar(myAvatar, displayName, "h-9 w-9", "max-h-9 max-w-9")}
@@ -469,7 +495,7 @@ function MessengerPage() {
                   <div className={`max-w-[80%] rounded-[20px] border border-[#d9a78d] bg-[#fff4e5] px-4 py-2 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{clean}</p><p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
                   </div>
-                  {mine && avatar(myAvatar, displayName, "h-12 w-12")}
+                  {mine && avatar(myAvatar, displayName, "h-7 w-7")}
                 </div>;
               })}
               {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#9c6d60]">Diga oi e comece uma conversa!</p>}
@@ -490,7 +516,7 @@ function MessengerPage() {
                 {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
                 {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
                 {backgroundOpen && <div className="absolute bottom-12 right-2 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">
-                  {[["cream","Creme","#fff8ed"],["rose","Rosa suave","#f8e5e1"],["mint","Verde menta","#e5f1e9"],["lilac","Lavanda","#eee8f7"],["night","Noite","#34252b"]].map(([id,label,color]) => <button key={id} onClick={() => chooseTheme(id)} className="flex items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="h-5 w-5 rounded-full border border-[#b78c79]" style={{backgroundColor:color}} />{label}</button>)}
+                  {[["cream","Creme","#fff8ed"],["rose","Rosa suave","#f8e5e1"],["mint","Verde menta","#e5f1e9"],["wine","Vinho","#6f1724"],["night","Noite","#34252b"]].map(([id,label,color]) => <button key={id} onClick={() => chooseTheme(id)} className="flex items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="h-5 w-5 rounded-full border border-[#b78c79]" style={{backgroundColor:color}} />{label}</button>)}
                 </div>}
               </div>
               <div className="flex items-center gap-3 rounded-lg border border-[#d9a78d] bg-[#fffaf3] p-1">
@@ -505,24 +531,7 @@ function MessengerPage() {
           </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-xl font-semibold">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#9c6d60]">Adicione amigos ou conecte-se com leitores para começar a conversar.</p></div></div>}
         </main>
 
-        <aside className="border-t border-[#d9b49b] bg-[#f4e5d1] p-2 lg:border-l lg:border-t-0">
-          <div className="flex flex-row items-center justify-around gap-3 lg:flex-col lg:justify-start">
-            <div className="flex flex-col items-center gap-2 text-center">
-              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-9 w-9")}
-              <p className="text-xs font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={13} /></p>
-            </div>
-            <div className="my-3 hidden w-full border-t border-[#d9b49b] lg:block" />
-            <div className="flex flex-col items-center gap-2 text-center">
-              {avatar(myAvatar, displayName, "h-9 w-9")}
-              <p className="text-xs font-bold">{displayName}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{phrase}” <Heart className="inline" size={13} /></p>
-            </div>
-          </div>
-          <div className="mt-3 rounded-lg border border-[#d9b49b] bg-[#fff8ed] p-2 text-center">
-            <p className="text-sm font-bold"><Music2 className="mr-1 inline" size={15} /> Spotify</p>
-            {contactPresence?.spotify_track_name ? <div className="mt-2 flex items-center gap-2 text-left">{contactPresence.spotify_album_image && <img src={contactPresence.spotify_album_image} alt="" className="h-10 w-10 rounded object-cover" />}<div className="min-w-0"><p className="truncate text-xs font-semibold">{contactPresence.spotify_track_name}</p><p className="truncate text-[10px]">{contactPresence.spotify_artist}</p><p className="text-[9px] text-[#258a43]">{contactPresence.spotify_is_playing ? "● Ouvindo agora" : "Pausado"}</p></div></div> : <p className="mt-1 text-[10px] text-[#8c5b51]">Quando essa pessoa conectar o Spotify, a música aparecerá aqui.</p>}
-          </div>
-        </aside>
-      </div>
+        </div>
 
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
@@ -531,7 +540,7 @@ function MessengerPage() {
         .messenger-chat-area { background-color:#fff8ed; transition:background-color .2s ease; }
         .messenger-theme-rose { background-color:#f8e5e1; }
         .messenger-theme-mint { background-color:#e5f1e9; }
-        .messenger-theme-lilac { background-color:#eee8f7; }
+         .messenger-theme-wine { background-color:#f1dfe0; }
         .messenger-theme-night { background-color:#34252b; color:#fff2e6; }
         .messenger-theme-night .rounded-\\[24px\\] { background-color:#513942; color:#fff2e6; border-color:#8d6670; }
         .wink-message { width:min(310px,65vw); padding:3px 8px; }
