@@ -165,6 +165,13 @@ export async function updateCommunity(
 }
 
 export async function deleteCommunity(communityId: string) {
+  const me = await getMyId();
+  // Remove the owner's uploaded cover/avatar objects before deleting the row.
+  const folder = `${me}/communities/${communityId}`;
+  const { data: objects, error: listError } = await supabase.storage.from("media").list(folder, { limit: 1000 });
+  check(listError);
+  const paths = (objects ?? []).filter((item) => item.name).map((item) => `${folder}/${item.name}`);
+  if (paths.length) check((await supabase.storage.from("media").remove(paths)).error);
   check((await supabase.rpc("delete_community", { _community: communityId })).error);
 }
 
