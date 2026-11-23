@@ -278,11 +278,12 @@ function ReadBooks() {
   const { data: shelf = [], isLoading } = useShelf(me?.id);
   const readBooks = shelf.filter((item) => item.status === "read" && item.book);
   const lookedUp = useRef(new Set<string>());
+  const invalidate = useInvalidate();
 
   // Livros importados do Goodreads podem não ter capa. Tenta encontrá-la pelo título/autor.
   useEffect(() => {
-    let cancelled = false;
     async function fillMissingCovers() {
+      let updatedAnyCover = false;
       for (const item of shelf.filter((entry) => entry.status === "read" && entry.book)) {
         const book = item.book;
         if (!book || book.cover_url || lookedUp.current.has(book.id)) continue;
@@ -294,18 +295,24 @@ function ReadBooks() {
           if (!response.ok) continue;
           const result = await response.json();
           const coverId = result.docs?.[0]?.cover_i;
-          if (!coverId || cancelled) continue;
+          if (!coverId) continue;
           const coverUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
           const { error } = await supabase.from("books").update({ cover_url: coverUrl }).eq("id", book.id);
-          if (error) console.error("Não foi possível salvar a capa do livro:", error);
+          if (error) {
+            lookedUp.current.delete(book.id);
+            console.error("Não foi possível salvar a capa do livro:", error);
+          } else {
+            updatedAnyCover = true;
+          }
         } catch (error) {
+          lookedUp.current.delete(book.id);
           console.error("Não foi possível buscar a capa do livro:", error);
         }
       }
+      if (updatedAnyCover) await invalidate("shelf");
     }
     if (!isLoading && readBooks.length) void fillMissingCovers();
-    return () => { cancelled = true; };
-  }, [isLoading, shelf]);
+  }, [isLoading, shelf, invalidate]);
 
   return (
     <section className="space-y-4">
