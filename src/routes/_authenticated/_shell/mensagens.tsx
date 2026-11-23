@@ -394,13 +394,13 @@ function MessengerPage() {
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[620px] grid-cols-1 lg:grid-cols-[minmax(220px,22%)_minmax(0,1fr)_minmax(165px,15%)]">
+      <div className="grid min-h-[440px] grid-cols-1 lg:grid-cols-[minmax(165px,17%)_minmax(0,1fr)_minmax(120px,12%)]">
         <aside className="border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:border-b-0 lg:border-r-2">
           <div className="flex items-center gap-3 border-b border-[#d9b49b] p-3">
-            {avatar(myAvatar, displayName, "h-14 w-14", "max-h-14 max-w-14")}
+            {avatar(myAvatar, displayName, "h-9 w-9", "max-h-9 max-w-9")}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold">{displayName} <ChevronDown className="inline" size={16} /></p>
-              <p className="mt-1 text-xs text-[#258a43]">● Online</p>
+              <p className="truncate text-xs font-bold">{displayName} <ChevronDown className="inline" size={16} /></p>
+              <p className="mt-1 text-[10px] text-[#258a43]">● Online</p>
               {editingPhrase ? <div className="mt-2 flex gap-1"><input value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 w-full rounded border border-[#d9b49b] bg-[#fffaf1] px-2 py-1 text-xs" /><button onClick={savePhrase} className="text-xs font-bold">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="mt-1 text-left text-xs italic">“{phrase}” <Pencil className="inline" size={13} /></button>}
               <div className="mt-2 flex items-center gap-2">
                 {spotifyTrack?.image ? <img src={spotifyTrack.image} alt="" className="h-7 w-7 rounded-md object-cover" /> : <span className="grid h-7 w-7 place-items-center rounded-full bg-[#1db954] text-base text-white">♫</span>}
@@ -413,42 +413,42 @@ function MessengerPage() {
           </div>
 
           <div className="flex items-center justify-around border-b border-[#d9b49b] py-2">
-            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Convidar"><UserPlus size={20} /></button>
-            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Grupos"><Users size={20} /></button>
-            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Calendário"><CalendarDays size={20} /></button>
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Convidar"><UserPlus size={16} /></button>
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Grupos"><Users size={16} /></button>
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Calendário"><CalendarDays size={16} /></button>
           </div>
-          <div className="p-3">
+          <div className="p-2">
             <div className="flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#fff8ed] px-3 py-1.5"><Search size={16} /><input placeholder="Pesquisar contatos..." className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-[#b78c79]" onChange={(e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll("[data-contact-name]").forEach((el) => { (el as HTMLElement).style.display = (el.getAttribute("data-contact-name") ?? "").includes(q) ? "" : "none"; }); }} /></div>
           </div>
-          <div className="px-3 pb-1 text-sm font-bold">🟢 Online ({contacts.length})</div>
+          <div className="px-2 pb-1 text-xs font-bold">🟢 Online ({contacts.length})</div>
           <div className="max-h-[360px] overflow-y-auto px-2 pb-2">
             {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
             {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar os contatos.</p>}
             {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém ou aceitar uma amizade.</p>}
             {contacts.map((c) => <button key={c.id} data-contact-name={c.name.toLowerCase()} onClick={() => setSelected(c.id)} className={`mb-1 flex w-full items-center gap-2 rounded-lg border p-1.5 text-left transition ${selected === c.id ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}>
-              {avatar(c.avatar, c.name, "h-9 w-9")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
+              {avatar(c.avatar, c.name, "h-7 w-7")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
             </button>)}
           </div>
           <div className="flex items-center gap-5 border-t border-[#d9b49b] px-4 py-2"><Settings size={18} /><Shirt size={18} /><Bell size={18} /></div>
         </aside>
 
-        <main className={`flex min-h-[620px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
+        <main className={`flex min-h-[440px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
           {contact ? <>
-            <div className="flex items-center gap-3 border-b border-[#d9b49b] bg-[#fff2df] px-3 py-2">
-              {avatar(contact.avatar, contact.name, "h-12 w-12")}
-              <div className="min-w-0"><p className="text-base font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="mt-0.5 text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={15} /></p></div>
+            <div className="flex items-center gap-2 border-b border-[#d9b49b] bg-[#fff2df] px-2 py-1.5">
+              {avatar(contact.avatar, contact.name, "h-8 w-8")}
+              <div className="min-w-0"><p className="text-sm font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-[10px] italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={15} /></p></div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 border-b border-[#d9b49b] bg-[#f8ead7] px-2 py-1.5">
-              <button className="toolbar-btn"><UserPlus size={19} />Convidar</button>
-              <button className="toolbar-btn"><Folder size={19} />Enviar arquivos</button>
-              <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="toolbar-btn"><Smile size={20} />Emoticons <ChevronDown size={13} /></button>
+            <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-1">
+              <button className="toolbar-btn"><UserPlus size={15} />Convidar</button>
+              <button className="toolbar-btn"><Folder size={15} />Enviar arquivos</button>
+              <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="toolbar-btn"><Smile size={15} />Emoticons <ChevronDown size={13} /></button>
               <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
-              <button className="toolbar-btn"><Camera size={19} />Enviar fotos</button>
-              <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={19} />Planos de fundo <ChevronDown size={13} /></button>
+              <button className="toolbar-btn"><Camera size={15} />Enviar fotos</button>
+              <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={15} />Planos de fundo <ChevronDown size={13} /></button>
             </div>
             <div className="mx-2 mt-1.5 flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#ffefe1] px-3 py-1.5 text-xs"><span className="text-sm">ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><X size={15} /></div>
 
-            <div ref={conversationRef} className={`messenger-chat-area messenger-theme-${chatTheme} flex-1 space-y-2 overflow-y-auto px-3 py-3`}>
+            <div ref={conversationRef} className={`messenger-chat-area messenger-theme-${chatTheme} flex-1 space-y-1 overflow-y-auto px-2 py-2`}>
               {messagesQuery.isLoading && <p className="py-10 text-center text-sm">Carregando mensagens…</p>}
               {messages.map((m) => {
                 const mine = m.sender_id === me?.id;
@@ -456,16 +456,16 @@ function MessengerPage() {
                 const isNudge = m.content.startsWith("[NUDGE]");
                 const clean = winkKind ? (winks.find((w) => w.kind === winkKind)?.caption ?? m.content.replace(/^\[WINK[^\]]*\]/, "")) : m.content.replace(/^\[NUDGE\]/, "🔔 ");
                 if (winkKind) return <div key={m.id} className={`flex items-center gap-3 py-2 ${mine ? "justify-end" : "justify-start"}`}>
-                  {!mine && avatar(contact.avatar, contact.name, "h-12 w-12")}
+                  {!mine && avatar(contact.avatar, contact.name, "h-7 w-7")}
                   <div className="wink-message">
                     <WinkArtwork kind={winkKind} />
                     <p className="text-center text-xs font-semibold">{clean}</p>
                     <p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}</p>
                   </div>
-                  {mine && avatar(myAvatar, displayName, "h-12 w-12")}
+                  {mine && avatar(myAvatar, displayName, "h-7 w-7")}
                 </div>;
                 return <div key={m.id} className={`flex items-end gap-2 py-1 ${mine ? "justify-end" : "justify-start"}`}>
-                  {!mine && avatar(contact.avatar, contact.name, "h-10 w-10")}
+                  {!mine && avatar(contact.avatar, contact.name, "h-7 w-7")}
                   <div className={`max-w-[80%] rounded-[20px] border border-[#d9a78d] bg-[#fff4e5] px-4 py-2 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{clean}</p><p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
                   </div>
@@ -475,27 +475,27 @@ function MessengerPage() {
               {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#9c6d60]">Diga oi e comece uma conversa!</p>}
             </div>
 
-            <div className="border-t border-[#d9a78d] bg-[#fff2df] p-2">
-              <div className="relative mb-2 flex flex-wrap items-center gap-1.5 border-b border-[#d9b49b] pb-1.5">
-                <button className="rounded-md px-2 py-1 text-xl font-bold hover:bg-[#f0dfcb]" title="Fonte">A</button>
-                <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md p-1.5 hover:bg-[#f0dfcb]" title="Emoticons"><Smile size={20} /></button>
-                <button className="rounded-md p-1.5 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={20} /></button>
-                <button className="rounded-md p-1.5 hover:bg-[#f0dfcb]" title="Presentes"><Gift size={20} /></button>
+            <div className="border-t border-[#d9a78d] bg-[#fff2df] p-1">
+              <div className="relative mb-1 flex flex-wrap items-center gap-1 border-b border-[#d9b49b] pb-1">
+                <button className="rounded-md px-1.5 py-0.5 text-lg font-bold hover:bg-[#f0dfcb]" title="Fonte">A</button>
+                <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Emoticons"><Smile size={16} /></button>
+                <button className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={16} /></button>
+                <button className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Presentes"><Gift size={16} /></button>
                 <button onClick={() => void sendWink(winks[0])} className="rounded-md p-1.5 text-lg hover:bg-[#f0dfcb]" title="Porquinho dançante">🐷</button>
                 <button onClick={() => void sendWink(winks[1])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Coração">❤️</button>
                 <button onClick={() => void sendWink(winks[2])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Beijo">💋</button>
                 <button onClick={() => void sendWink(winks[3])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Dança">♫</button>
                 <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="ml-auto rounded-md px-2 py-1.5 text-xs font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-1 inline" size={15} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
-                <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-2 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
+                <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-1 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
                 {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
                 {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
                 {backgroundOpen && <div className="absolute bottom-12 right-2 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">
                   {[["cream","Creme","#fff8ed"],["rose","Rosa suave","#f8e5e1"],["mint","Verde menta","#e5f1e9"],["lilac","Lavanda","#eee8f7"],["night","Noite","#34252b"]].map(([id,label,color]) => <button key={id} onClick={() => chooseTheme(id)} className="flex items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="h-5 w-5 rounded-full border border-[#b78c79]" style={{backgroundColor:color}} />{label}</button>)}
                 </div>}
               </div>
-              <div className="flex items-center gap-3 rounded-xl border border-[#d9a78d] bg-[#fffaf3] p-1.5">
-                <textarea rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-xs text-[#981d27] outline-none placeholder:text-[#b78c79]" />
-                <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="flex items-center gap-2 rounded-lg bg-gradient-to-b from-[#a71c29] to-[#780d19] px-4 py-2.5 text-sm font-bold text-white shadow hover:brightness-110 disabled:opacity-40"><Send size={16} />Enviar</button>
+              <div className="flex items-center gap-3 rounded-lg border border-[#d9a78d] bg-[#fffaf3] p-1">
+                <textarea rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-1.5 py-1 text-[11px] text-[#981d27] outline-none placeholder:text-[#b78c79]" />
+                <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="flex items-center gap-2 rounded-lg bg-gradient-to-b from-[#a71c29] to-[#780d19] px-4 py-2.5 text-sm font-bold text-white shadow hover:brightness-110 disabled:opacity-40"><Send size={14} />Enviar</button>
               </div>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <button onClick={callAttention} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-semibold hover:bg-[#f0dfcb]"><Bell size={18} />Chamar atenção <ChevronDown size={15} /></button>
@@ -505,16 +505,16 @@ function MessengerPage() {
           </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-xl font-semibold">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#9c6d60]">Adicione amigos ou conecte-se com leitores para começar a conversar.</p></div></div>}
         </main>
 
-        <aside className="border-t border-[#d9b49b] bg-[#f4e5d1] p-3 lg:border-l lg:border-t-0">
+        <aside className="border-t border-[#d9b49b] bg-[#f4e5d1] p-2 lg:border-l lg:border-t-0">
           <div className="flex flex-row items-center justify-around gap-3 lg:flex-col lg:justify-start">
             <div className="flex flex-col items-center gap-2 text-center">
-              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-16 w-16")}
-              <p className="text-sm font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={13} /></p>
+              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-9 w-9")}
+              <p className="text-xs font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={13} /></p>
             </div>
             <div className="my-3 hidden w-full border-t border-[#d9b49b] lg:block" />
             <div className="flex flex-col items-center gap-2 text-center">
-              {avatar(myAvatar, displayName, "h-16 w-16")}
-              <p className="text-sm font-bold">{displayName}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{phrase}” <Heart className="inline" size={13} /></p>
+              {avatar(myAvatar, displayName, "h-9 w-9")}
+              <p className="text-xs font-bold">{displayName}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{phrase}” <Heart className="inline" size={13} /></p>
             </div>
           </div>
           <div className="mt-3 rounded-lg border border-[#d9b49b] bg-[#fff8ed] p-2 text-center">
@@ -526,7 +526,7 @@ function MessengerPage() {
 
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
-        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:7px; border-radius:999px; border:1px solid #c98f79; background:linear-gradient(180deg,#a91d2b,#790d19); color:#fff8ed; padding:9px 13px; font-size:12px; font-weight:700; white-space:nowrap; box-shadow:0 2px 3px #7c172422; }
+        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:4px; border-radius:999px; border:1px solid #c98f79; background:linear-gradient(180deg,#a91d2b,#790d19); color:#fff8ed; padding:4px 6px; font-size:10px; font-weight:700; white-space:nowrap; box-shadow:0 1px 2px #7c172422; }
         .bs-messenger .toolbar-btn:hover { filter:brightness(1.12); }
         .messenger-chat-area { background-color:#fff8ed; transition:background-color .2s ease; }
         .messenger-theme-rose { background-color:#f8e5e1; }
@@ -535,8 +535,8 @@ function MessengerPage() {
         .messenger-theme-night { background-color:#34252b; color:#fff2e6; }
         .messenger-theme-night .rounded-\\[24px\\] { background-color:#513942; color:#fff2e6; border-color:#8d6670; }
         .wink-message { width:min(310px,65vw); padding:3px 8px; }
-        .wink-stage { position:relative; display:grid; place-items:center; min-height:185px; overflow:visible; }
-        .wink-main { display:block; font-size:clamp(100px,13vw,168px); line-height:1; filter:drop-shadow(0 7px 2px #7b263522); animation:wink-bounce 1.05s ease-in-out infinite alternate; }
+        .wink-stage { position:relative; display:grid; place-items:center; min-height:125px; overflow:visible; }
+        .wink-main { display:block; font-size:clamp(72px,9vw,120px); line-height:1; filter:drop-shadow(0 7px 2px #7b263522); animation:wink-bounce 1.05s ease-in-out infinite alternate; }
         .wink-spark { position:absolute; font-size:clamp(26px,4vw,44px); animation:wink-float 1.4s ease-in-out infinite alternate; }
         .spark-0 { left:4%; top:10%; }.spark-1 { right:4%; top:4%; animation-delay:.25s; }.spark-2 { left:8%; bottom:10%; animation-delay:.5s; }.spark-3 { right:9%; bottom:7%; animation-delay:.75s; }
         .wink-note { position:absolute; bottom:3px; left:22%; font-size:28px; letter-spacing:12px; animation:wink-float .7s ease-in-out infinite alternate; }
@@ -557,7 +557,7 @@ function MessengerPage() {
         @keyframes messenger-attention { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
         .messenger-attention { animation:messenger-attention .12s ease-in-out 8; }
         @media (prefers-reduced-motion: reduce) { .wink-main,.wink-spark,.wink-note,.messenger-attention { animation:none !important; } }
-        @media (max-width: 1023px) { .bs-messenger .toolbar-btn { padding:8px 10px; } .wink-main { font-size:112px; } }
+        @media (max-width: 1023px) { .bs-messenger .toolbar-btn { padding:4px 6px; } .wink-main { font-size:88px; } }
       `}</style>
     </section>
   );
