@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,8 @@ function MessengerPage() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const [selected, setSelected] = useState("");
-  const [phrase, setPhrase] = useState(() => localStorage.getItem("book-messenger-phrase") || "perdida em um bom livro ♡");
+  const [phrase, setPhrase] = useState("perdida em um bom livro ♡");
+  useEffect(() => { const saved = window.localStorage.getItem("book-messenger-phrase"); if (saved) { setPhrase(saved); setDraftPhrase(saved); } }, []);
   const [editingPhrase, setEditingPhrase] = useState(false);
   const [draftPhrase, setDraftPhrase] = useState(phrase);
   const [draft, setDraft] = useState("");
@@ -92,7 +93,7 @@ function MessengerPage() {
 
   function savePhrase() {
     setPhrase(draftPhrase);
-    localStorage.setItem("book-messenger-phrase", draftPhrase);
+    window.localStorage.setItem("book-messenger-phrase", draftPhrase);
     setEditingPhrase(false);
   }
 
