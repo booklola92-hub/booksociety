@@ -33,17 +33,26 @@ grant select on public.messenger_groups to authenticated;
 grant select on public.messenger_group_members to authenticated;
 grant select, insert on public.messenger_group_messages to authenticated;
 
+create or replace function public.is_messenger_group_member(_group_id uuid, _user_id uuid)
+returns boolean
+language sql stable security definer
+set search_path = ''
+as $
+  select exists (
+    select 1 from public.messenger_group_members m
+    where m.group_id = _group_id and m.user_id = _user_id
+  );
+$;
+revoke all on function public.is_messenger_group_member(uuid, uuid) from public;
+grant execute on function public.is_messenger_group_member(uuid, uuid) to authenticated;
+
 drop policy if exists "Members read their messenger groups" on public.messenger_groups;
 create policy "Members read their messenger groups" on public.messenger_groups
-  for select to authenticated using (
-    exists (select 1 from public.messenger_group_members m where m.group_id = id and m.user_id = auth.uid())
-  );
+  for select to authenticated using (public.is_messenger_group_member(id, auth.uid()));
 
 drop policy if exists "Members read messenger group membership" on public.messenger_group_members;
 create policy "Members read messenger group membership" on public.messenger_group_members
-  for select to authenticated using (
-    exists (select 1 from public.messenger_group_members mine where mine.group_id = group_id and mine.user_id = auth.uid())
-  );
+  for select to authenticated using (public.is_messenger_group_member(messenger_group_members.group_id, auth.uid()));
 
 drop policy if exists "Members read group messages" on public.messenger_group_messages;
 create policy "Members read group messages" on public.messenger_group_messages
