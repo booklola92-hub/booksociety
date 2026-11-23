@@ -1,50 +1,104 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BookOpen, UserPlus, Users, CalendarDays, Search, Folder, Camera, Image as ImageIcon, Smile, Bell, Send, Palette, Music2, Heart, Gift, Settings, Shirt, Volume2, VolumeX, Pencil, X, ChevronDown, Radio, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/lib/social";
 
 type Contact = { id: string; name: string; handle: string; avatar: string | null };
 type ChatMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; read_at: string | null };
-
+type WinkKind = "pig" | "heart" | "kiss" | "dance" | "laugh" | "surprise" | "rainbow";
+type Wink = { kind: WinkKind; label: string; icon: string; caption: string };
+type SpotifyTrack = { name: string; artist: string; album: string; image: string | null; url: string | null; isPlaying: boolean };
 const stamp = (value: string) => new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-const emojis = ["😀", "😂", "😍", "🥰", "😘", "😉", "😮", "😎", "🥳", "❤️", "💋", "📚", "✨", "🙈"];
-const winks = [
-  { label: "Porquinho dançante", icon: "🐷", message: "🐷 [WINK] Porquinho dançante!" },
-  { label: "Coração", icon: "💗", message: "💗 [WINK] Um coração para você!" },
-  { label: "Beijo", icon: "💋", message: "💋 [WINK] Um beijo!" },
-  { label: "Dança", icon: "💃", message: "💃 [WINK] Vamos dançar!" },
-  { label: "Gargalhada", icon: "🤣", message: "🤣 [WINK] Caindo de rir!" },
-  { label: "Surpresa", icon: "😲", message: "😲 [WINK] Surpresa!" },
-  { label: "Arco-íris", icon: "🌈", message: "🌈 [WINK] Um arco-íris para alegrar seu dia!" },
+const emojis = ["😀", "😂", "😍", "🥰", "😘", "😉", "😮", "😎", "🥳", "❤️", "💋", "📚", "✨", "🙈", "👏", "🤍", "🤣", "🌹", "🐷", "🌈"];
+const winks: Wink[] = [
+  { kind: "pig", label: "Porquinho dançante", icon: "🐷", caption: "Olha quem veio dançar!" },
+  { kind: "heart", label: "Coração", icon: "🐱", caption: "Um coração para você!" },
+  { kind: "kiss", label: "Beijo", icon: "💋", caption: "Mil beijos!" },
+  { kind: "dance", label: "Dança", icon: "💃", caption: "Vamos dançar!" },
+  { kind: "laugh", label: "Gargalhada", icon: "🤣", caption: "Não consigo parar de rir!" },
+  { kind: "surprise", label: "Surpresa", icon: "😲", caption: "Surpresaaa!" },
+  { kind: "rainbow", label: "Arco-íris", icon: "🌈", caption: "Um dia colorido para você!" },
 ];
+const spotifyClientId = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_SPOTIFY_CLIENT_ID;
+const spotifyScopes = "user-read-currently-playing user-read-playback-state";
+
+function base64Url(bytes: Uint8Array) {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+async function spotifyChallenge(verifier: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  return base64Url(new Uint8Array(digest));
+}
+function playWinkSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(660, ctx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(990, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+    oscillator.connect(gain); gain.connect(ctx.destination);
+    oscillator.start(); oscillator.stop(ctx.currentTime + 0.3);
+    oscillator.onended = () => { void ctx.close(); };
+  } catch { /* áudio pode estar bloqueado pelo navegador */ }
+}
+
+function WinkArtwork({ kind }: { kind: WinkKind }) {
+  const art: Record<WinkKind, { main: string; extra: string[]; className: string }> = {
+    pig: { main: "🐷", extra: ["🎵", "🎧", "♫", "♪"], className: "wink-pig" },
+    heart: { main: "🐱", extra: ["❤️", "💗", "💕", "❤️"], className: "wink-heart" },
+    kiss: { main: "😘", extra: ["💋", "💋", "💞"], className: "wink-kiss" },
+    dance: { main: "💃", extra: ["♪", "♫", "✨"], className: "wink-dance" },
+    laugh: { main: "🤣", extra: ["😂", "！", "🤣"], className: "wink-laugh" },
+    surprise: { main: "😲", extra: ["✨", "❗", "😮"], className: "wink-surprise" },
+    rainbow: { main: "🌈", extra: ["☁️", "⭐", "✨"], className: "wink-rainbow" },
+  };
+  const item = art[kind];
+  return <div className={`wink-stage ${item.className}`} aria-label={winks.find((w) => w.kind === kind)?.label}>
+    {item.extra.map((e, i) => <span key={i} className={`wink-spark spark-${i}`}>{e}</span>)}
+    <span className="wink-main">{item.main}</span>
+    {kind === "pig" && <span className="wink-note">♪ ♫ ♪</span>}
+  </div>;
+}
 
 function MessengerPage() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const [selected, setSelected] = useState("");
-  const [phrase, setPhrase] = useState("perdida em um bom livro ♡");
+  const [phrase, setPhrase] = useState("Sonhe, leia, converse...");
   const [draftPhrase, setDraftPhrase] = useState(phrase);
   const [editingPhrase, setEditingPhrase] = useState(false);
   const [draft, setDraft] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [winksOpen, setWinksOpen] = useState(false);
   const [attention, setAttention] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [spotifyTrack, setSpotifyTrack] = useState<SpotifyTrack | null>(null);
+  const [spotifyConnected, setSpotifyConnected] = useState(false);
+  const [spotifyError, setSpotifyError] = useState("");
+  const lastIncomingRef = useRef<string | null>(null);
+  const conversationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("book-messenger-phrase");
     if (saved) { setPhrase(saved); setDraftPhrase(saved); }
+    setSoundOn(window.localStorage.getItem("book-messenger-sound") !== "off");
   }, []);
 
   const contactsQuery = useQuery({
-    queryKey: ["messages", "contacts", me?.id],
-    enabled: !!me?.id,
+    queryKey: ["messages", "contacts", me?.id], enabled: !!me?.id,
     queryFn: async () => {
       const [following, followers, friendships] = await Promise.all([
         supabase.from("follows").select("following_id").eq("follower_id", me!.id),
         supabase.from("follows").select("follower_id").eq("following_id", me!.id),
-        supabase.from("friend_requests").select("requester_id, addressee_id").eq("status", "accepted")
-          .or(`requester_id.eq.${me!.id},addressee_id.eq.${me!.id}`),
+        supabase.from("friend_requests").select("requester_id, addressee_id").eq("status", "accepted").or(`requester_id.eq.${me!.id},addressee_id.eq.${me!.id}`),
       ]);
       if (following.error) throw following.error;
       if (followers.error) throw followers.error;
@@ -57,7 +111,6 @@ function MessengerPage() {
       return (data ?? []).map((p) => ({ id: p.id, name: p.display_name || p.username, handle: "@" + p.username, avatar: p.avatar_url }));
     },
   });
-
   const contacts = contactsQuery.data ?? [];
   useEffect(() => {
     if (!selected && contacts.length) setSelected(contacts[0].id);
@@ -65,8 +118,7 @@ function MessengerPage() {
   }, [contacts, selected]);
 
   const messagesQuery = useQuery({
-    queryKey: ["messages", "conversation", me?.id, selected],
-    enabled: !!me?.id && !!selected,
+    queryKey: ["messages", "conversation", me?.id, selected], enabled: !!me?.id && !!selected,
     queryFn: async () => {
       const { data, error } = await supabase.from("messages").select("id, sender_id, recipient_id, content, created_at, read_at")
         .or(`and(sender_id.eq.${me!.id},recipient_id.eq.${selected}),and(sender_id.eq.${selected},recipient_id.eq.${me!.id})`)
@@ -99,6 +151,9 @@ function MessengerPage() {
   const messages = messagesQuery.data ?? [];
   const displayName = me?.display_name || me?.username || "Leitora";
   const myAvatar = me?.avatar_url || null;
+  const avatar = (url: string | null, name: string, size = "h-10 w-10", extra = "") => url
+    ? <img src={url} alt={name} className={`${size} shrink-0 rounded-full border-2 border-[#c98f79] object-cover ${extra}`} />
+    : <div className={`${size} grid shrink-0 place-items-center rounded-full border-2 border-[#c98f79] bg-[#ead9c8] font-semibold text-[#a71925] ${extra}`}>{name.slice(0, 1).toUpperCase()}</div>;
 
   async function sendContent(value: string) {
     if (!value.trim() || !me?.id || !selected) return;
@@ -106,124 +161,278 @@ function MessengerPage() {
     if (error) { console.error("Erro ao enviar mensagem:", error); return; }
     await qc.invalidateQueries({ queryKey: ["messages", "conversation", me.id, selected] });
   }
-
   async function sendMessage() {
-    const text = draft.trim();
-    if (!text) return;
-    setDraft("");
-    await sendContent(text);
+    const text = draft.trim(); if (!text) return;
+    setDraft(""); await sendContent(text);
   }
-
+  async function sendWink(wink: Wink) {
+    await sendContent(`[WINK:${wink.kind}]${wink.caption}`);
+    setWinksOpen(false);
+    if (soundOn) playWinkSound();
+  }
   function savePhrase() {
-    setPhrase(draftPhrase);
-    window.localStorage.setItem("book-messenger-phrase", draftPhrase);
-    setEditingPhrase(false);
+    setPhrase(draftPhrase); window.localStorage.setItem("book-messenger-phrase", draftPhrase); setEditingPhrase(false);
   }
-
   async function callAttention() {
     if (!selected) return;
-    setAttention(true);
-    window.setTimeout(() => setAttention(false), 1100);
-    await sendContent("📣 [NUDGE] chamou sua atenção!");
+    setAttention(true); window.setTimeout(() => setAttention(false), 1100);
+    await sendContent("[NUDGE] chamou sua atenção!");
   }
 
-  const avatar = (url: string | null, name: string, size = "h-10 w-10") => url
-    ? <img src={url} alt={name} className={`${size} shrink-0 rounded-full border-2 border-[#7b2635]/25 object-cover`} />
-    : <div className={`${size} grid shrink-0 place-items-center rounded-full border-2 border-[#7b2635]/20 bg-[#ead9c8] font-semibold text-[#b3262e]`}>{name.slice(0, 1).toUpperCase()}</div>;
+  useEffect(() => {
+    if (!messages.length) return;
+    const latest = messages[messages.length - 1];
+    if (lastIncomingRef.current && latest.id !== lastIncomingRef.current && latest.sender_id !== me?.id && latest.content.startsWith("[WINK:") && soundOn) playWinkSound();
+    lastIncomingRef.current = latest.id;
+  }, [messages, me?.id, soundOn]);
+
+  useEffect(() => {
+    conversationRef.current?.scrollTo({ top: conversationRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages.length, selected]);
+
+  async function refreshSpotify(token: string) {
+    const response = await fetch("https://api.spotify.com/v1/me/player/currently-playing", { headers: { Authorization: `Bearer ${token}` } });
+    if (response.status === 204) { setSpotifyTrack(null); return; }
+    if (response.status === 401) {
+      localStorage.removeItem("book-spotify-token"); setSpotifyConnected(false); setSpotifyError("Conecte novamente sua conta Spotify."); return;
+    }
+    if (!response.ok) throw new Error("Não foi possível consultar o Spotify.");
+    const data = await response.json();
+    if (!data.item) { setSpotifyTrack(null); return; }
+    setSpotifyTrack({
+      name: data.item.name,
+      artist: data.item.artists?.map((a: { name: string }) => a.name).join(", ") ?? "Artista",
+      album: data.item.album?.name ?? "",
+      image: data.item.album?.images?.[0]?.url ?? null,
+      url: data.item.external_urls?.spotify ?? null,
+      isPlaying: !!data.is_playing,
+    });
+  }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    const savedState = localStorage.getItem("book-spotify-state");
+    const verifier = localStorage.getItem("book-spotify-verifier");
+    if (code && state && savedState && state === savedState && verifier && spotifyClientId) {
+      const redirectUri = window.location.origin + window.location.pathname;
+      void (async () => {
+        try {
+          const body = new URLSearchParams({ client_id: spotifyClientId, grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: verifier });
+          const response = await fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+          if (!response.ok) throw new Error("O Spotify não autorizou a conexão.");
+          const tokens = await response.json();
+          localStorage.setItem("book-spotify-token", tokens.access_token);
+          if (tokens.refresh_token) localStorage.setItem("book-spotify-refresh", tokens.refresh_token);
+          localStorage.setItem("book-spotify-expires", String(Date.now() + tokens.expires_in * 1000));
+          setSpotifyConnected(true); setSpotifyError("");
+          localStorage.removeItem("book-spotify-state"); localStorage.removeItem("book-spotify-verifier");
+          window.history.replaceState({}, "", redirectUri);
+          await refreshSpotify(tokens.access_token);
+        } catch (error) { setSpotifyError(error instanceof Error ? error.message : "Erro ao conectar ao Spotify."); }
+      })();
+    }
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("book-spotify-token");
+    if (!token) return;
+    setSpotifyConnected(true);
+    void refreshSpotify(token).catch(() => setSpotifyError("Não foi possível carregar a música atual."));
+    const timer = window.setInterval(() => {
+      const currentToken = localStorage.getItem("book-spotify-token");
+      if (currentToken) void refreshSpotify(currentToken).catch(() => undefined);
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function connectSpotify() {
+    if (!spotifyClientId) { setSpotifyError("Para ativar, configure VITE_SPOTIFY_CLIENT_ID nas variáveis do projeto e cadastre a URL desta página no Spotify Developer Dashboard."); return; }
+    const verifier = base64Url(crypto.getRandomValues(new Uint8Array(64)));
+    const challenge = await spotifyChallenge(verifier);
+    const state = base64Url(crypto.getRandomValues(new Uint8Array(16)));
+    localStorage.setItem("book-spotify-verifier", verifier); localStorage.setItem("book-spotify-state", state);
+    const redirectUri = window.location.origin + window.location.pathname;
+    const params = new URLSearchParams({ client_id: spotifyClientId, response_type: "code", redirect_uri: redirectUri, code_challenge_method: "S256", code_challenge: challenge, state, scope: spotifyScopes });
+    window.location.assign("https://accounts.spotify.com/authorize?" + params.toString());
+  }
+  function disconnectSpotify() {
+    ["book-spotify-token", "book-spotify-refresh", "book-spotify-expires"].forEach((key) => localStorage.removeItem(key));
+    setSpotifyConnected(false); setSpotifyTrack(null); setSpotifyError("");
+  }
+
+  const winkFromContent = (value: string): WinkKind | null => {
+    const match = value.match(/^\[WINK:(pig|heart|kiss|dance|laugh|surprise|rainbow)\]/);
+    if (match) return match[1] as WinkKind;
+    if (value.includes("[WINK]")) return "pig";
+    return null;
+  };
 
   return (
-    <section className="mx-auto max-w-[1500px] space-y-4 text-[#b3262e]">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-xs font-bold uppercase tracking-[.2em] text-[#9b6b55]">Book Society</p><h1 className="text-3xl font-semibold text-[#b3262e]">Mensagens</h1></div>
-        <span className="rounded-full border border-[#d9c6ae] bg-[#fffaf1] px-4 py-2 text-xs font-medium text-[#7b2635]">● {contacts.length} contatos</span>
-      </header>
-
-      <div className="overflow-hidden rounded-xl border-2 border-[#7b2635] bg-[#f8efe2] shadow-[0_12px_35px_-20px_rgba(75,25,30,.45)]">
-        <div className="flex items-center justify-between gap-3 border-b-2 border-[#7b2635] bg-[#7b2635] px-4 py-3 text-[#fff8ed]">
-          <div className="flex items-center gap-3"><span className="text-2xl">📖</span><div><p className="text-lg font-semibold leading-tight">Book Society Messenger</p><p className="text-[10px] tracking-widest text-[#f4dfcf]">CONVERSAS ENTRE LEITORES</p></div></div>
-          <span className="hidden rounded border border-white/30 px-2 py-1 text-[10px] sm:inline">● Conectado</span>
-        </div>
-
-        <div className="grid min-h-[650px] md:grid-cols-[245px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_210px]">
-          <aside className="border-b border-[#d9c6ae] bg-[#f2e6d5] md:border-b-0 md:border-r">
-            <div className="p-4">
-              <div className="flex items-center gap-3">{avatar(myAvatar, displayName, "h-12 w-12")}<div className="min-w-0"><p className="truncate text-sm font-bold">{displayName}</p><p className="text-xs text-[#a3292f]">● Online</p></div></div>
-              <div className="mt-3 rounded-md border border-[#d9c6ae] bg-[#fffaf1] p-2">
-                {editingPhrase ? <div className="flex gap-1"><input autoFocus value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 flex-1 bg-transparent text-xs outline-none" /><button onClick={savePhrase} className="font-bold">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="w-full text-left text-xs">“{phrase}” <span className="float-right">✎</span></button>}
-              </div>
-              <div className="mt-2 rounded-md border border-[#d9c6ae] bg-[#fffaf1] p-2 text-[11px]"><span className="font-bold">♫ Spotify</span><p className="mt-1 text-[#8c5b51]">Compartilhe o que está ouvindo</p><span className="text-[10px] text-[#a3292f]">Conecte sua música pelo seu perfil</span></div>
-            </div>
-            <div className="border-y border-[#d9c6ae] px-4 py-2 text-[11px] font-bold uppercase tracking-widest">Contatos <span className="float-right">{contacts.length}</span></div>
-            <div className="max-h-[430px] overflow-y-auto p-2">
-              {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
-              {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar seus contatos.</p>}
-              {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs leading-relaxed text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém, receber seguidores ou aceitar uma amizade.</p>}
-              {contacts.map((c) => <button key={c.id} onClick={() => setSelected(c.id)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-2 py-3 text-left transition ${selected === c.id ? "border-[#7b2635] bg-[#ead9c8]" : "border-transparent hover:border-[#d9c6ae] hover:bg-[#fffaf1]"}`}>
-                {avatar(c.avatar, c.name, "h-10 w-10")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-[10px] text-[#a3292f]">●</span>
-              </button>)}
-            </div>
-          </aside>
-
-          <main className={`flex min-h-[650px] min-w-0 flex-col bg-[#fffaf1] ${attention ? "animate-[messengerShake_.12s_ease-in-out_8]" : ""}`}>
-            {contact ? <>
-              <div className="flex items-center justify-between border-b border-[#d9c6ae] bg-[#f4e8d9] px-4 py-3">
-                <div className="flex min-w-0 items-center gap-3">{avatar(contact.avatar, contact.name)}<div className="min-w-0"><p className="truncate font-bold">{contact.name}</p><p className="text-xs">● <span className="text-[#a3292f]">Online</span></p></div></div>
-                <button onClick={callAttention} className="rounded-md border border-[#7b2635] bg-[#7b2635] px-3 py-2 text-xs font-semibold text-[#fff8ed] hover:bg-[#5e1c29]">🔔 Chamar atenção</button>
-              </div>
-
-              <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
-                <div className="mx-auto w-fit rounded-full border border-[#e3d3c0] bg-[#f5eadb] px-3 py-1 text-[10px]">— conversa —</div>
-                {messagesQuery.isLoading && <p className="py-10 text-center text-sm">Carregando mensagens…</p>}
-                {messages.map((m) => {
-                  const mine = m.sender_id === me?.id;
-                  const isWink = m.content.includes("[WINK]");
-                  const isNudge = m.content.includes("[NUDGE]");
-                  const clean = m.content.replace(" [WINK]", "").replace(" [NUDGE]", "");
-                  return <div key={m.id} className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
-                    {!mine && avatar(contact.avatar, contact.name, "h-8 w-8")}
-                    <div className={`max-w-[82%] rounded-2xl border border-[#e5d5c3] bg-[#f4e6d4] px-4 py-3 text-[#b3262e] shadow-sm ${mine ? "rounded-br-sm" : "rounded-bl-sm"} ${isWink ? "text-center text-2xl font-semibold animate-bounce" : ""} ${isNudge ? "font-bold" : ""}`}>
-                      <p className={`whitespace-pre-wrap leading-relaxed ${isWink ? "text-xl" : "text-sm"}`}>{clean}</p><p className="mt-1 text-right text-[9px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
-                    </div>
-                    {mine && avatar(myAvatar, displayName, "h-8 w-8")}
-                  </div>;
-                })}
-                {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#9c6d60]">Diga oi e comece uma conversa!</p>}
-              </div>
-
-              <div className="border-t border-[#d9c6ae] bg-[#f4e8d9] p-3 sm:p-4">
-                <div className="relative mb-2 flex flex-wrap items-center gap-1 border-b border-[#d9c6ae] pb-2">
-                  <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md px-3 py-1 text-lg hover:bg-[#ead9c8]" title="Emoticons">😊 <span className="text-xs font-semibold">Emoticons</span></button>
-                  <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="rounded-md px-3 py-1 text-lg hover:bg-[#ead9c8]" title="Winks">✨ <span className="text-xs font-semibold">Winks</span></button>
-                  <span className="ml-auto text-[10px] text-[#8c5b51]">Personalize sua conversa</span>
-                  {emojiOpen && <div className="absolute bottom-11 left-0 z-20 grid grid-cols-7 gap-1 rounded-lg border border-[#7b2635] bg-[#fffaf1] p-2 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
-                  {winksOpen && <div className="absolute bottom-11 left-0 z-20 grid grid-cols-2 gap-1 rounded-lg border border-[#7b2635] bg-[#fffaf1] p-2 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.label} onClick={() => { void sendContent(wink.message); setWinksOpen(false); }} className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-2xl">{wink.icon}</span>{wink.label}</button>)}</div>}
-                </div>
-                <div className="flex items-end gap-2 rounded-lg border border-[#cdb8a2] bg-[#fffdf8] p-2 focus-within:border-[#7b2635]">
-                  <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1 text-sm text-[#b3262e] outline-none placeholder:text-[#b79b87]" />
-                  <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="rounded-md bg-[#7b2635] px-5 py-3 text-sm font-bold text-[#fff8ed] hover:bg-[#5e1c29] disabled:opacity-40">➤ Enviar</button>
-                </div>
-                <p className="mt-2 text-[10px] text-[#9c6d60]">Enter para enviar · Shift + Enter para pular linha</p>
-              </div>
-            </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-xl font-semibold">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#9c6d60]">Adicione amigos ou conecte-se com leitores para começar a conversar.</p></div></div>}
-          </main>
-
-          <aside className="hidden border-l border-[#d9c6ae] bg-[#f2e6d5] p-4 xl:block">
-            <p className="mb-4 text-center text-[11px] font-bold uppercase tracking-widest">Nesta conversa</p>
-            <div className="flex flex-col items-center gap-2 rounded-lg border border-[#d9c6ae] bg-[#fffaf1] p-3 text-center">
-              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-24 w-24")}
-              <p className="text-sm font-bold">{contact?.name ?? "Contato"}</p><p className="text-xs">● Online</p><p className="text-[10px] text-[#8c5b51]">{contact?.handle ?? ""}</p>
-            </div>
-            <div className="my-4 border-t border-[#d9c6ae]" />
-            <div className="flex flex-col items-center gap-2 rounded-lg border border-[#d9c6ae] bg-[#fffaf1] p-3 text-center">
-              {avatar(myAvatar, displayName, "h-24 w-24")}
-              <p className="text-sm font-bold">Você</p><p className="text-xs">● Online</p><p className="text-[10px] text-[#8c5b51]">{phrase}</p>
-            </div>
-            <div className="mt-4 rounded-lg border border-[#d9c6ae] bg-[#fffaf1] p-3 text-center"><p className="text-xs font-bold">♫ Spotify</p><p className="mt-1 text-[10px] text-[#8c5b51]">Mostre aos amigos o que você está ouvindo quando conectar sua conta.</p></div>
-          </aside>
-        </div>
+    <section className="bs-messenger mx-auto max-w-[1600px] overflow-hidden rounded-[22px] border-2 border-[#c98f79] bg-[#fff4e5] text-[#981d27] shadow-[0_14px_38px_rgba(90,25,25,.13)]">
+      <div className="flex items-center gap-3 bg-gradient-to-r from-[#790d19] to-[#a51b28] px-5 py-3 text-[#fff8ed]">
+        <BookOpen size={34} strokeWidth={2.2} />
+        <span className="text-xl font-semibold tracking-tight">Book Society Messenger</span>
+        <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
-      <p className="text-center text-xs text-[#9c6d60]">Mensagens sincronizadas pela sua conta · atualização em tempo real pelo Supabase.</p>
-      <style>{`@keyframes messengerShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }`}</style>
+
+      <div className="grid min-h-[780px] grid-cols-1 lg:grid-cols-[minmax(285px,25%)_minmax(0,1fr)_minmax(205px,17%)]">
+        <aside className="border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:border-b-0 lg:border-r-2">
+          <div className="flex items-center gap-4 border-b border-[#d9b49b] p-4">
+            {avatar(myAvatar, displayName, "h-32 w-32", "max-h-32 max-w-32")}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xl font-bold">{displayName} <ChevronDown className="inline" size={16} /></p>
+              <p className="mt-1 text-sm text-[#258a43]">● Online</p>
+              {editingPhrase ? <div className="mt-2 flex gap-1"><input value={draftPhrase} onChange={(e) => setDraftPhrase(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePhrase()} className="min-w-0 w-full rounded border border-[#d9b49b] bg-[#fffaf1] px-2 py-1 text-xs" /><button onClick={savePhrase} className="text-xs font-bold">OK</button></div> : <button onClick={() => { setDraftPhrase(phrase); setEditingPhrase(true); }} className="mt-2 text-left text-sm italic">“{phrase}” <Pencil className="inline" size={13} /></button>}
+              <div className="mt-3 flex items-center gap-2">
+                {spotifyTrack?.image ? <img src={spotifyTrack.image} alt="" className="h-9 w-9 rounded-md object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full bg-[#1db954] text-xl text-white">♫</span>}
+                <div className="min-w-0 text-[11px] leading-tight"><p className="font-semibold">Você está ouvindo:</p>{spotifyTrack ? <a href={spotifyTrack.url ?? "#"} target="_blank" rel="noreferrer" className="block truncate underline">{spotifyTrack.name} — {spotifyTrack.artist}</a> : <p className="text-[#8c5b51]">Conecte seu Spotify</p>}</div>
+                <Music2 className="ml-auto shrink-0" size={20} />
+              </div>
+              <button onClick={spotifyConnected ? disconnectSpotify : connectSpotify} className="mt-2 rounded-full bg-[#168b45] px-3 py-1 text-[10px] font-bold text-white">{spotifyConnected ? "Desconectar Spotify" : "Conectar Spotify"}</button>
+              {spotifyError && <p className="mt-1 text-[10px] leading-tight text-[#a71925]">{spotifyError}</p>}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-around border-b border-[#d9b49b] py-4">
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Convidar"><UserPlus size={27} /></button>
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Grupos"><Users size={27} /></button>
+            <button className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Calendário"><CalendarDays size={27} /></button>
+          </div>
+          <div className="p-3">
+            <div className="flex items-center gap-2 rounded-full border-2 border-[#d9a78d] bg-[#fff8ed] px-3 py-2"><Search size={20} /><input placeholder="Pesquisar contatos..." className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-[#b78c79]" onChange={(e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll("[data-contact-name]").forEach((el) => { (el as HTMLElement).style.display = (el.getAttribute("data-contact-name") ?? "").includes(q) ? "" : "none"; }); }} /></div>
+          </div>
+          <div className="px-4 pb-2 text-lg font-bold">🟢 Online ({contacts.length})</div>
+          <div className="max-h-[450px] overflow-y-auto px-2 pb-3">
+            {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
+            {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar os contatos.</p>}
+            {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém ou aceitar uma amizade.</p>}
+            {contacts.map((c) => <button key={c.id} data-contact-name={c.name.toLowerCase()} onClick={() => setSelected(c.id)} className={`mb-1 flex w-full items-center gap-3 rounded-xl border-2 p-2 text-left transition ${selected === c.id ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}>
+              {avatar(c.avatar, c.name, "h-14 w-14")}<span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{c.name}</span><span className="block truncate text-[11px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
+            </button>)}
+          </div>
+          <div className="flex items-center gap-6 border-t border-[#d9b49b] px-5 py-4"><Settings size={23} /><Shirt size={23} /><Bell size={23} /></div>
+        </aside>
+
+        <main className={`flex min-h-[780px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
+          {contact ? <>
+            <div className="flex items-center gap-4 border-b border-[#d9b49b] bg-[#fff2df] px-4 py-3">
+              {avatar(contact.avatar, contact.name, "h-24 w-24")}
+              <div className="min-w-0"><p className="text-2xl font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="mt-1 text-sm italic">“Sonhe, leia, converse...” <Heart className="inline" size={15} /> <Pencil className="inline" size={13} /></p></div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-b border-[#d9b49b] bg-[#f8ead7] px-3 py-2">
+              <button className="toolbar-btn"><UserPlus size={19} />Convidar</button>
+              <button className="toolbar-btn"><Folder size={19} />Enviar arquivos</button>
+              <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="toolbar-btn"><Smile size={20} />Emoticons <ChevronDown size={13} /></button>
+              <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
+              <button className="toolbar-btn"><Camera size={19} />Enviar fotos</button>
+              <button className="toolbar-btn"><ImageIcon size={19} />Planos de fundo <ChevronDown size={13} /></button>
+            </div>
+            <div className="mx-3 mt-2 flex items-center gap-3 rounded-full border border-[#d9a78d] bg-[#ffefe1] px-4 py-2 text-sm"><span className="text-lg">ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><X size={19} /></div>
+
+            <div ref={conversationRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+              {messagesQuery.isLoading && <p className="py-10 text-center text-sm">Carregando mensagens…</p>}
+              {messages.map((m) => {
+                const mine = m.sender_id === me?.id;
+                const winkKind = winkFromContent(m.content);
+                const isNudge = m.content.startsWith("[NUDGE]");
+                const clean = winkKind ? (winks.find((w) => w.kind === winkKind)?.caption ?? m.content.replace(/^\[WINK[^\]]*\]/, "")) : m.content.replace(/^\[NUDGE\]/, "🔔 ");
+                if (winkKind) return <div key={m.id} className={`flex items-center gap-3 py-2 ${mine ? "justify-end" : "justify-start"}`}>
+                  {!mine && avatar(contact.avatar, contact.name, "h-12 w-12")}
+                  <div className="wink-message">
+                    <WinkArtwork kind={winkKind} />
+                    <p className="text-center text-xs font-semibold">{clean}</p>
+                    <p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}</p>
+                  </div>
+                  {mine && avatar(myAvatar, displayName, "h-12 w-12")}
+                </div>;
+                return <div key={m.id} className={`flex items-end gap-2 py-1 ${mine ? "justify-end" : "justify-start"}`}>
+                  {!mine && avatar(contact.avatar, contact.name, "h-20 w-20")}
+                  <div className={`max-w-[80%] rounded-[24px] border-2 border-[#d9a78d] bg-[#fff4e5] px-5 py-3 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
+                    <p className="whitespace-pre-wrap text-lg leading-relaxed">{clean}</p><p className="mt-1 text-right text-xs text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
+                  </div>
+                  {mine && avatar(myAvatar, displayName, "h-12 w-12")}
+                </div>;
+              })}
+              {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#9c6d60]">Diga oi e comece uma conversa!</p>}
+            </div>
+
+            <div className="border-t-2 border-[#d9a78d] bg-[#fff2df] p-3 sm:p-4">
+              <div className="relative mb-3 flex flex-wrap items-center gap-2 border-b border-[#d9b49b] pb-2">
+                <button className="rounded-md px-3 py-1 text-3xl font-bold hover:bg-[#f0dfcb]" title="Fonte">A</button>
+                <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md p-2 hover:bg-[#f0dfcb]" title="Emoticons"><Smile size={30} /></button>
+                <button className="rounded-md p-2 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={28} /></button>
+                <button className="rounded-md p-2 hover:bg-[#f0dfcb]" title="Presentes"><Gift size={28} /></button>
+                <button onClick={() => void sendWink(winks[0])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Porquinho dançante">🐷</button>
+                <button onClick={() => void sendWink(winks[1])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Coração">❤️</button>
+                <button onClick={() => void sendWink(winks[2])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Beijo">💋</button>
+                <button onClick={() => void sendWink(winks[3])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Dança">♫</button>
+                <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="ml-auto rounded-md px-3 py-2 text-sm font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-2 inline" size={18} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
+                <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-2 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
+                {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
+                {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl border-2 border-[#d9a78d] bg-[#fffaf3] p-2">
+                <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-lg text-[#981d27] outline-none placeholder:text-[#b78c79]" />
+                <button onClick={() => void sendMessage()} disabled={!draft.trim()} className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#a71c29] to-[#780d19] px-6 py-4 text-base font-bold text-white shadow hover:brightness-110 disabled:opacity-40"><Send size={20} />Enviar</button>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <button onClick={callAttention} className="flex items-center gap-3 rounded-lg px-3 py-2 font-semibold hover:bg-[#f0dfcb]"><Bell size={28} />Chamar atenção <ChevronDown size={15} /></button>
+                <span className="text-[10px] text-[#9c6d60]">Enter para enviar · Shift + Enter para pular linha</span>
+              </div>
+            </div>
+          </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><p className="text-xl font-semibold">Seu cantinho de conversas</p><p className="mt-2 max-w-sm text-sm text-[#9c6d60]">Adicione amigos ou conecte-se com leitores para começar a conversar.</p></div></div>}
+        </main>
+
+        <aside className="border-t-2 border-[#d9b49b] bg-[#f4e5d1] p-4 lg:border-l-2 lg:border-t-0">
+          <div className="flex flex-row items-center justify-around gap-3 lg:flex-col lg:justify-start">
+            <div className="flex flex-col items-center gap-2 text-center">
+              {avatar(contact?.avatar ?? null, contact?.name ?? "Contato", "h-28 w-28 sm:h-36 sm:w-36")}
+              <p className="text-xl font-bold">{contact?.name ?? "Contato"}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“Sonhe, leia, converse...” <Heart className="inline" size={13} /></p>
+            </div>
+            <div className="my-3 hidden w-full border-t border-[#d9b49b] lg:block" />
+            <div className="flex flex-col items-center gap-2 text-center">
+              {avatar(myAvatar, displayName, "h-28 w-28 sm:h-36 sm:w-36")}
+              <p className="text-xl font-bold">{displayName}</p><p className="text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="text-xs italic">“{phrase}” <Heart className="inline" size={13} /></p>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-[#d9b49b] bg-[#fff8ed] p-3 text-center">
+            <p className="text-sm font-bold"><Music2 className="mr-1 inline" size={15} /> Spotify</p>
+            {spotifyTrack ? <div className="mt-2 flex items-center gap-2 text-left">{spotifyTrack.image && <img src={spotifyTrack.image} alt="" className="h-10 w-10 rounded object-cover" />}<div className="min-w-0"><p className="truncate text-xs font-semibold">{spotifyTrack.name}</p><p className="truncate text-[10px]">{spotifyTrack.artist}</p></div></div> : <p className="mt-1 text-[10px] text-[#8c5b51]">Mostre aos amigos o que você está ouvindo.</p>}
+          </div>
+        </aside>
+      </div>
+
+      <style>{`
+        .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
+        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:7px; border-radius:999px; border:1px solid #c98f79; background:linear-gradient(180deg,#a91d2b,#790d19); color:#fff8ed; padding:9px 13px; font-size:12px; font-weight:700; white-space:nowrap; box-shadow:0 2px 3px #7c172422; }
+        .bs-messenger .toolbar-btn:hover { filter:brightness(1.12); }
+        .wink-message { width:min(310px,65vw); padding:3px 8px; }
+        .wink-stage { position:relative; display:grid; place-items:center; min-height:185px; overflow:visible; }
+        .wink-main { display:block; font-size:clamp(100px,13vw,168px); line-height:1; filter:drop-shadow(0 7px 2px #7b263522); animation:wink-bounce 1.05s ease-in-out infinite alternate; }
+        .wink-spark { position:absolute; font-size:clamp(26px,4vw,44px); animation:wink-float 1.4s ease-in-out infinite alternate; }
+        .spark-0 { left:4%; top:10%; }.spark-1 { right:4%; top:4%; animation-delay:.25s; }.spark-2 { left:8%; bottom:10%; animation-delay:.5s; }.spark-3 { right:9%; bottom:7%; animation-delay:.75s; }
+        .wink-note { position:absolute; bottom:3px; left:22%; font-size:28px; letter-spacing:12px; animation:wink-float .7s ease-in-out infinite alternate; }
+        .wink-pig .wink-main { animation:wink-dance .55s ease-in-out infinite alternate; }
+        .wink-heart .wink-main { animation:wink-heartbeat .7s ease-in-out infinite; }
+        .wink-kiss .wink-main { animation:wink-kiss 1s ease-in-out infinite; }
+        .wink-dance .wink-main { animation:wink-dance .45s ease-in-out infinite alternate; }
+        .wink-laugh .wink-main { animation:wink-shake .25s linear infinite; }
+        .wink-surprise .wink-main { animation:wink-pop .7s ease-in-out infinite alternate; }
+        .wink-rainbow .wink-main { animation:wink-float 1.1s ease-in-out infinite alternate; }
+        @keyframes wink-bounce { from { transform:translateY(0) rotate(-3deg) } to { transform:translateY(-12px) rotate(3deg) } }
+        @keyframes wink-dance { from { transform:rotate(-12deg) translateY(2px) } to { transform:rotate(12deg) translateY(-9px) } }
+        @keyframes wink-heartbeat { 0%,100% { transform:scale(1) } 50% { transform:scale(1.16) } }
+        @keyframes wink-kiss { 0%,100% { transform:scale(1) rotate(-5deg) } 50% { transform:scale(1.12) rotate(6deg) } }
+        @keyframes wink-shake { 0%,100% { transform:rotate(-8deg) } 50% { transform:rotate(8deg) } }
+        @keyframes wink-pop { from { transform:scale(.88) } to { transform:scale(1.12) } }
+        @keyframes wink-float { from { transform:translateY(7px) rotate(-7deg) } to { transform:translateY(-9px) rotate(8deg) } }
+        @keyframes messenger-attention { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+        .messenger-attention { animation:messenger-attention .12s ease-in-out 8; }
+        @media (prefers-reduced-motion: reduce) { .wink-main,.wink-spark,.wink-note,.messenger-attention { animation:none !important; } }
+        @media (max-width: 1023px) { .bs-messenger .toolbar-btn { padding:8px 10px; } .wink-main { font-size:112px; } }
+      `}</style>
     </section>
   );
 }
