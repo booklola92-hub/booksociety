@@ -238,7 +238,7 @@ function GoodreadsTransfer() {
       const archive = zipStore(files);
       const url = URL.createObjectURL(archive);
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = "book-society-biblioteca-com-capas.zip"; anchor.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success(`Biblioteca exportada com ${coverCount} capas.${coverCount < manifest.length - 1 ? " Algumas capas não puderam ser baixadas." : ""}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível exportar sua biblioteca.");
