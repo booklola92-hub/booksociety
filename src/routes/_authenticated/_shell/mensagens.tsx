@@ -395,14 +395,14 @@ function MessengerPage() {
   } as React.CSSProperties;
 
   return (
-    <section style={messengerStyle} className="bs-messenger mx-auto max-w-[1040px] overflow-hidden rounded-[14px] border border-[var(--msg-border)] bg-[var(--msg-bg)] text-[var(--msg-text)] shadow-[0_14px_38px_rgba(40,15,15,.22)]">
+    <section style={messengerStyle} className="bs-messenger mx-auto max-w-[900px] overflow-hidden rounded-[14px] border border-[var(--msg-border)] bg-[var(--msg-bg)] text-[var(--msg-text)] shadow-[0_14px_38px_rgba(40,15,15,.22)]">
       <div className="flex items-center gap-2 bg-gradient-to-r from-[#790d19] to-[#a51b28] px-3 py-1.5 text-[#fff8ed]">
         <BookOpen size={25} strokeWidth={2.2} />
-        <span className="text-base font-semibold tracking-tight">Book Society Messenger</span>
+        <span className="text-sm font-semibold tracking-tight">Book Society Messenger</span>
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[340px] grid-cols-1 lg:grid-cols-[minmax(190px,25%)_minmax(0,1fr)]">
+      <div className="grid min-h-[290px] grid-cols-1 lg:grid-cols-[minmax(190px,25%)_minmax(0,1fr)]">
         <aside className="border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:border-b-0 lg:border-r-2">
           <div className="flex items-center gap-3 border-b border-[#d9b49b] p-3">
             {avatar(myAvatar, displayName, "h-9 w-9", "max-h-9 max-w-9")}
@@ -418,7 +418,7 @@ function MessengerPage() {
             <div className="flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#fff8ed] px-3 py-1.5"><Search size={16} /><input placeholder="Pesquisar contatos..." className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-[#b78c79]" onChange={(e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll("[data-contact-name]").forEach((el) => { (el as HTMLElement).style.display = (el.getAttribute("data-contact-name") ?? "").includes(q) ? "" : "none"; }); }} /></div>
           </div>
           <div className="px-2 pb-1 text-xs font-bold">🟢 Online ({contacts.length})</div>
-          <div className="max-h-[190px] overflow-y-auto px-2 pb-2">
+          <div className="max-h-[145px] overflow-y-auto px-2 pb-2">
             {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
             {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar os contatos.</p>}
             {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém ou aceitar uma amizade.</p>}
@@ -431,11 +431,11 @@ function MessengerPage() {
           <div className="flex items-center gap-5 border-t border-[#d9b49b] px-4 py-2"><button onClick={() => { window.location.href = "/configuracoes"; }} title="Configurações"><Settings size={18} /></button><button onClick={() => setBackgroundOpen(true)} title="Personalizar tema"><Shirt size={18} /></button><button onClick={() => { window.location.href = "/notificacoes"; }} title="Notificações"><Bell size={18} /></button></div>
         </aside>
 
-        <main className={`flex min-h-[380px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
+        <main className={`flex min-h-[320px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
           {(contact || activeGroup) ? <>
-            <div className="flex min-h-[64px] items-center gap-2 border-b border-[var(--msg-border)] bg-[var(--msg-panel)] px-3 py-2">
+            <div className="flex min-h-[54px] items-center gap-2 border-b border-[var(--msg-border)] bg-[var(--msg-panel)] px-3 py-2">
               {activeGroup ? <div className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--msg-border)] bg-[var(--msg-received)] text-lg">👥</div> : avatar(contact!.avatar, contact!.name, "h-9 w-9")}
-              <div className="min-w-0 flex-1"><p className="text-base font-bold">{activeGroup?.name || contact?.name} <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-sm text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-1 text-sm italic">“{activeGroup ? "Conversa em grupo" : (contactPresence?.status_text || "Sonhe, leia, converse...")}” <Heart className="inline" size={16} /></p></div>
+              <div className="min-w-0 flex-1"><p className="text-sm font-bold">{activeGroup?.name || contact?.name} <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-xs text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-0.5 text-xs italic">“{activeGroup ? "Conversa em grupo" : (contactPresence?.status_text || "Sonhe, leia, converse...")}” <Heart className="inline" size={16} /></p></div>
               <button onClick={callAttention} className="hidden items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-3 py-2 text-xs font-bold text-white shadow-lg hover:brightness-110 md:flex"><Bell size={18} />Chamar atenção</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-0.5">
@@ -534,7 +534,7 @@ function MessengerPage() {
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
         .bs-messenger .messenger-avatar { border:3px solid #f5fff0; border-radius:17px; box-shadow:0 0 0 2px #8bbd77, 0 0 13px 4px rgba(110,220,90,.72), inset 0 0 0 1px rgba(255,255,255,.85); background:#e9d6c6; }
-        .bs-messenger .messenger-chat-area { min-height:145px; padding:5px 6px; }
+        .bs-messenger .messenger-chat-area { min-height:125px; padding:4px 5px; }
         .bs-messenger .toolbar-btn { min-height:24px; padding:2px 6px; font-size:9px; }
         .bs-messenger .toolbar-btn svg { width:12px; height:12px; }
         .bs-messenger aside { background:var(--msg-sidebar) !important; color:#fff8f1; border-color:var(--msg-border) !important; }
