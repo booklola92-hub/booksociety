@@ -161,6 +161,8 @@ function MessengerPage() {
   const groupsQuery = useQuery({ queryKey: ["messages", "groups", me?.id], enabled: !!me?.id, queryFn: async () => { const { data, error } = await (supabase as any).from("messenger_group_members").select("group_id, messenger_groups!inner(id,name,created_at)").eq("user_id", me!.id); if (error) throw error; return (data ?? []).map((row: any) => row.messenger_groups as MessengerGroup); } });
   const groups = groupsQuery.data ?? [];
   const activeGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
+  const groupMembersQuery = useQuery({ queryKey: ["messages", "group-members", selectedGroupId], enabled: !!selectedGroupId, queryFn: async () => { const { data, error } = await (supabase as any).from("messenger_group_members").select("user_id").eq("group_id", selectedGroupId); if (error) throw error; return (data ?? []).map((row: { user_id: string }) => row.user_id as string); } });
+  const groupMemberIds = groupMembersQuery.data ?? [];
   useEffect(() => {
     if (!selectedGroupId && !selected && contacts.length) setSelected(contacts[0].id);
     if (!selectedGroupId && selected && contacts.length && !contacts.some((c) => c.id === selected)) setSelected(contacts[0].id);
@@ -253,8 +255,16 @@ function MessengerPage() {
     setInviteIds([]); setInviteOpen(true);
   }
   async function createGroupConversation() {
-    if (!me?.id || !selected || inviteIds.length < 1) return;
+    if (!me?.id || inviteIds.length < 1) return;
     if (inviteIds.length > 3) { toast.error("Você pode convidar até 3 pessoas por vez."); return; }
+    if (selectedGroupId) {
+      const { error } = await (supabase as any).rpc("add_messenger_group_members", { _group_id: selectedGroupId, _participant_ids: inviteIds });
+      if (error) { toast.error(error.message || "Não foi possível adicionar participantes."); return; }
+      await qc.invalidateQueries({ queryKey: ["messages", "group-members", selectedGroupId] });
+      setInviteOpen(false); setInviteIds([]); toast.success("Participantes adicionados à conversa!");
+      return;
+    }
+    if (!selected) return;
     const { data, error } = await (supabase as any).rpc("create_messenger_group", { _participant_ids: [selected, ...inviteIds] });
     if (error) { toast.error(error.message || "Não foi possível criar o grupo."); return; }
     await qc.invalidateQueries({ queryKey: ["messages", "groups", me.id] });
@@ -422,7 +432,7 @@ function MessengerPage() {
               <button onClick={callAttention} className="hidden items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-3 py-2 text-xs font-bold text-white shadow-lg hover:brightness-110 md:flex"><Bell size={18} />Chamar atenção</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-0.5">
-              <button onClick={() => { if (selectedGroupId) toast.info("Novos convites para grupos existentes estarão disponíveis em breve."); else void inviteContact(); }} className="toolbar-btn"><UserPlus size={14} />Convidar</button>
+              <button onClick={() => { void inviteContact(); }} className="toolbar-btn"><UserPlus size={14} />Convidar</button>
               <button onClick={() => fileInputRef.current?.click()} className="toolbar-btn"><Folder size={16} />Enviar arquivos</button>
               <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); setBackgroundOpen(false); }} className="toolbar-btn"><Smile size={15} />Emoticons <ChevronDown size={13} /></button>
               <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); setBackgroundOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
@@ -510,7 +520,7 @@ function MessengerPage() {
         <div className="w-full max-w-sm rounded-2xl border-2 border-[#9a1d29] bg-[#fff4e8] p-4 text-[#351a18] shadow-2xl">
           <div className="mb-3 flex items-center justify-between"><h3 className="text-base font-bold">Convidar pessoas</h3><button onClick={() => setInviteOpen(false)} aria-label="Fechar"><X size={18} /></button></div>
           <p className="mb-3 text-xs">Escolha até 3 pessoas para entrar nesta conversa. O grupo poderá ter no máximo 6 participantes, contando você.</p>
-          <div className="max-h-60 space-y-1 overflow-y-auto">{contacts.filter((c) => c.id !== selected).map((c) => <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-sm hover:bg-[#f0dfcf]"><input type="checkbox" checked={inviteIds.includes(c.id)} disabled={!inviteIds.includes(c.id) && inviteIds.length >= 3} onChange={(e) => setInviteIds((old) => e.target.checked ? [...old, c.id] : old.filter((id) => id !== c.id))} />{avatar(c.avatar,c.name,"h-7 w-7")}<span>{c.name}</span></label>)}</div>
+          <div className="max-h-60 space-y-1 overflow-y-auto">{contacts.filter((c) => c.id !== selected && !groupMemberIds.includes(c.id)).map((c) => <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-sm hover:bg-[#f0dfcf]"><input type="checkbox" checked={inviteIds.includes(c.id)} disabled={!inviteIds.includes(c.id) && inviteIds.length >= 3} onChange={(e) => setInviteIds((old) => e.target.checked ? [...old, c.id] : old.filter((id) => id !== c.id))} />{avatar(c.avatar,c.name,"h-7 w-7")}<span>{c.name}</span></label>)}</div>
           <div className="mt-4 flex items-center justify-between"><span className="text-xs">{inviteIds.length}/3 selecionadas</span><button onClick={() => void createGroupConversation()} disabled={!inviteIds.length} className="rounded-full bg-gradient-to-b from-[#a71c29] to-[#780d19] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Criar conversa</button></div>
         </div>
       </div>}
