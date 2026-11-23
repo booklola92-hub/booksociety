@@ -924,6 +924,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      search_public_profiles: {
+        Args: { _limit?: number; _search: string }
+        Returns: {
+          avatar_url: string | null
+          display_name: string
+          id: string
+          username: string
+        }[]
+      }
       can_view_community: {
         Args: { _community: string; _user: string }
         Returns: boolean
