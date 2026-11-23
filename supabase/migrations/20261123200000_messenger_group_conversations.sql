@@ -37,12 +37,12 @@ create or replace function public.is_messenger_group_member(_group_id uuid, _use
 returns boolean
 language sql stable security definer
 set search_path = ''
-as $
+as $fn$
   select exists (
     select 1 from public.messenger_group_members m
     where m.group_id = _group_id and m.user_id = _user_id
   );
-$;
+$fn$;
 revoke all on function public.is_messenger_group_member(uuid, uuid) from public;
 grant execute on function public.is_messenger_group_member(uuid, uuid) to authenticated;
 
@@ -72,7 +72,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $fn$$
 declare
   _uid uuid := auth.uid();
   _group_id uuid;
@@ -107,7 +107,7 @@ returns integer
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $fn$
 declare
   _uid uuid := auth.uid();
   _current integer;
@@ -127,11 +127,11 @@ begin
     on conflict (group_id, user_id) do nothing;
   return _current + _new;
 end;
-$;
+$fn$;
 revoke all on function public.add_messenger_group_members(uuid, uuid[]) from public;
 grant execute on function public.add_messenger_group_members(uuid, uuid[]) to authenticated;
 
-DO $
+DO $do$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'messenger_group_messages') THEN
@@ -141,6 +141,6 @@ BEGIN
       ALTER PUBLICATION supabase_realtime ADD TABLE public.messenger_group_members;
     END IF;
   END IF;
-END $;
+END $do$;
 
 commit;
