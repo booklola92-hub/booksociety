@@ -85,7 +85,7 @@ function ChatAttachment({ content }: { content: string }) {
   const [path, fileName] = raw.split("|", 2);
   const url = useMediaUrl(path);
   if (!url) return <span className="text-xs opacity-70">Carregando anexo…</span>;
-  return isPhoto ? <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Foto enviada" className="max-h-56 max-w-full rounded-xl object-contain" /></a> : <a href={url} target="_blank" rel="noreferrer" download className="inline-flex items-center gap-2 underline"><Folder size={16} />{fileName || "Abrir arquivo"}</a>;
+  return isPhoto ? <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Foto enviada" className="max-h-40 max-w-full rounded-xl object-contain" /></a> : <a href={url} target="_blank" rel="noreferrer" download className="inline-flex items-center gap-2 underline"><Folder size={16} />{fileName || "Abrir arquivo"}</a>;
 }
 function MessengerPage() {
   const { data: me } = useMe();
@@ -354,14 +354,14 @@ function MessengerPage() {
   } as React.CSSProperties;
 
   return (
-    <section style={messengerStyle} className="bs-messenger mx-auto max-w-[1280px] overflow-hidden rounded-[18px] border border-[var(--msg-border)] bg-[var(--msg-bg)] text-[var(--msg-text)] shadow-[0_14px_38px_rgba(40,15,15,.22)]">
+    <section style={messengerStyle} className="bs-messenger mx-auto max-w-[1040px] overflow-hidden rounded-[14px] border border-[var(--msg-border)] bg-[var(--msg-bg)] text-[var(--msg-text)] shadow-[0_14px_38px_rgba(40,15,15,.22)]">
       <div className="flex items-center gap-2 bg-gradient-to-r from-[#790d19] to-[#a51b28] px-3 py-1.5 text-[#fff8ed]">
         <BookOpen size={25} strokeWidth={2.2} />
         <span className="text-base font-semibold tracking-tight">Book Society Messenger</span>
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[460px] grid-cols-1 lg:grid-cols-[minmax(220px,28%)_minmax(0,1fr)]">
+      <div className="grid min-h-[340px] grid-cols-1 lg:grid-cols-[minmax(190px,25%)_minmax(0,1fr)]">
         <aside className="border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:border-b-0 lg:border-r-2">
           <div className="flex items-center gap-3 border-b border-[#d9b49b] p-3">
             {avatar(myAvatar, displayName, "h-9 w-9", "max-h-9 max-w-9")}
@@ -374,14 +374,12 @@ function MessengerPage() {
 
           <div className="flex items-center justify-around border-b border-[#d9b49b] py-2">
             <button onClick={inviteContact} className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Convidar"><UserPlus size={18} /></button>
-            <button onClick={() => { window.location.href = "/comunidade"; }} className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Grupos e comunidades"><Users size={18} /></button>
-            <button onClick={() => { window.location.href = "/desafios"; }} className="rounded-lg p-2 hover:bg-[#ead5bd]" title="Desafios"><CalendarDays size={18} /></button>
           </div>
           <div className="p-2">
             <div className="flex items-center gap-2 rounded-full border border-[#d9a78d] bg-[#fff8ed] px-3 py-1.5"><Search size={16} /><input placeholder="Pesquisar contatos..." className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-[#b78c79]" onChange={(e) => { const q = e.target.value.toLowerCase(); document.querySelectorAll("[data-contact-name]").forEach((el) => { (el as HTMLElement).style.display = (el.getAttribute("data-contact-name") ?? "").includes(q) ? "" : "none"; }); }} /></div>
           </div>
           <div className="px-2 pb-1 text-xs font-bold">🟢 Online ({contacts.length})</div>
-          <div className="max-h-[280px] overflow-y-auto px-2 pb-2">
+          <div className="max-h-[190px] overflow-y-auto px-2 pb-2">
             {contactsQuery.isLoading && <p className="p-4 text-xs">Carregando contatos…</p>}
             {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar os contatos.</p>}
             {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém ou aceitar uma amizade.</p>}
@@ -394,9 +392,9 @@ function MessengerPage() {
 
         <main className={`flex min-h-[380px] min-w-0 flex-col bg-[#fff8ed] ${attention ? "messenger-attention" : ""}`}>
           {contact ? <>
-            <div className="flex min-h-[84px] items-center gap-3 border-b border-[var(--msg-border)] bg-[var(--msg-panel)] px-3 py-2">
-              {avatar(contact.avatar, contact.name, "h-14 w-14")}
-              <div className="min-w-0 flex-1"><p className="text-lg font-bold">{contact.name} <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-sm text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-1 text-sm italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={16} /></p></div>
+            <div className="flex min-h-[64px] items-center gap-2 border-b border-[var(--msg-border)] bg-[var(--msg-panel)] px-3 py-2">
+              {avatar(contact.avatar, contact.name, "h-11 w-11")}
+              <div className="min-w-0 flex-1"><p className="text-base font-bold">{contact.name} <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-sm text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-1 text-sm italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={16} /></p></div>
               <button onClick={callAttention} className="hidden items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-3 py-2 text-xs font-bold text-white shadow-lg hover:brightness-110 md:flex"><Bell size={18} />Chamar atenção</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-0.5">
@@ -407,6 +405,23 @@ function MessengerPage() {
               <button onClick={() => photoInputRef.current?.click()} className="toolbar-btn"><Camera size={16} />Enviar fotos</button>
               <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={15} />Planos de fundo <ChevronDown size={13} /></button>
             </div>
+            {(emojiOpen || winksOpen || backgroundOpen) && <div className="mx-2 my-2 rounded-xl border border-[var(--msg-border)] bg-[var(--msg-received)] p-2 text-[var(--msg-text)] shadow-md">
+{emojiOpen && <div className="grid grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
+                {winksOpen && <div className="grid grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
+                {backgroundOpen && <div className="w-full max-w-[320px] mx-auto w-[min(340px,90vw)] rounded-2xl border-2 border-[var(--msg-border)] bg-[var(--msg-received)] p-3 text-[var(--msg-text)] shadow-2xl">
+                  <p className="mb-2 text-sm font-bold">Personalizar sua interface</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(Object.entries(messengerPresets) as [keyof typeof messengerPresets, typeof messengerPresets[keyof typeof messengerPresets]][]).map(([id,preset]) => <button key={id} onClick={() => void chooseTheme(id)} className={`flex items-center gap-2 rounded-xl border p-2 text-left text-xs transition hover:brightness-95 ${chatTheme === id ? "border-[var(--msg-accent)] ring-2 ring-[var(--msg-accent)]" : "border-[var(--msg-border)]"}`}><span className="h-7 w-7 shrink-0 rounded-full border" style={{background: `linear-gradient(135deg,${preset.sent} 50%,${preset.received} 50%)`,borderColor:preset.border}} />{preset.label}</button>)}
+                  </div>
+                  <div className="mt-3 border-t border-[var(--msg-border)] pt-3">
+                    <p className="mb-2 text-xs font-semibold">Suas próprias cores</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([{key:"bg",label:"Fundo"},{key:"sidebar",label:"Barra lateral"},{key:"panel",label:"Cabeçalho e ferramentas"},{key:"sent",label:"Balões enviados"},{key:"received",label:"Balões recebidos"},{key:"text",label:"Texto"},{key:"accent",label:"Detalhes e botões"},{key:"border",label:"Bordas"}] as {key:keyof MessengerColors;label:string}[]).map(({key,label}) => <label key={key} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--msg-border)] px-2 py-1.5 text-xs">{label}<input aria-label={label} type="color" value={customColors[key]} onChange={(e) => void updateCustomColor(key,e.target.value)} className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent" /></label>)}
+                    </div>
+                    <p className="mt-2 text-[10px] opacity-70">Essas escolhas aparecem somente na sua conta. Cada pessoa controla o próprio tema.</p>
+                  </div>
+                </div>}
+            </div>}
             {noticeVisible && <div className="mx-2 mt-1.5 flex items-center gap-2 rounded-full border border-[var(--msg-border)] bg-[var(--msg-panel)] px-3 py-1.5 text-xs"><span>ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><button onClick={() => setNoticeVisible(false)} aria-label="Fechar aviso"><X size={15} /></button></div>}
             <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const file=e.target.files?.[0]; if(file) void uploadChatFile(file,false); e.currentTarget.value=""; }} />
             <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file=e.target.files?.[0]; if(file) void uploadChatFile(file,true); e.currentTarget.value=""; }} />
@@ -430,8 +445,8 @@ function MessengerPage() {
                 </div>;
                 return <div key={m.id} className={`flex items-end gap-2 py-1 ${mine ? "justify-end" : "justify-start"}`}>
                   {!mine && avatar(contact.avatar, contact.name, "h-7 w-7")}
-                  <div className={`max-w-[80%] rounded-[20px] border border-[#d9a78d] bg-[#fff4e5] px-3 py-1.5 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
-                    {isAttachment ? <ChatAttachment content={m.content} /> : <p className="whitespace-pre-wrap text-[13px] leading-snug">{clean}</p>}<p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
+                  <div className={`max-w-[80%] rounded-[16px] border border-[#d9a78d] bg-[#fff4e5] px-3 py-1.5 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
+                    {isAttachment ? <ChatAttachment content={m.content} /> : <p className="whitespace-pre-wrap text-xs leading-tight">{clean}</p>}<p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
                   </div>
                   {mine && avatar(myAvatar, displayName, "h-7 w-7")}
                 </div>;
@@ -451,21 +466,7 @@ function MessengerPage() {
                 <button onClick={() => void sendWink(winks[3])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Dança">♫</button>
                 <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="ml-auto rounded-md px-2 py-1.5 text-xs font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-1 inline" size={15} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
                 <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-1 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
-                {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
-                {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
-                {backgroundOpen && <div className="absolute bottom-12 right-2 z-40 w-[min(340px,90vw)] rounded-2xl border-2 border-[var(--msg-border)] bg-[var(--msg-received)] p-3 text-[var(--msg-text)] shadow-2xl">
-                  <p className="mb-2 text-sm font-bold">Personalizar sua interface</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(Object.entries(messengerPresets) as [keyof typeof messengerPresets, typeof messengerPresets[keyof typeof messengerPresets]][]).map(([id,preset]) => <button key={id} onClick={() => void chooseTheme(id)} className={`flex items-center gap-2 rounded-xl border p-2 text-left text-xs transition hover:brightness-95 ${chatTheme === id ? "border-[var(--msg-accent)] ring-2 ring-[var(--msg-accent)]" : "border-[var(--msg-border)]"}`}><span className="h-7 w-7 shrink-0 rounded-full border" style={{background: `linear-gradient(135deg,${preset.sent} 50%,${preset.received} 50%)`,borderColor:preset.border}} />{preset.label}</button>)}
-                  </div>
-                  <div className="mt-3 border-t border-[var(--msg-border)] pt-3">
-                    <p className="mb-2 text-xs font-semibold">Suas próprias cores</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {([{key:"bg",label:"Fundo"},{key:"sidebar",label:"Barra lateral"},{key:"panel",label:"Cabeçalho e ferramentas"},{key:"sent",label:"Balões enviados"},{key:"received",label:"Balões recebidos"},{key:"text",label:"Texto"},{key:"accent",label:"Detalhes e botões"},{key:"border",label:"Bordas"}] as {key:keyof MessengerColors;label:string}[]).map(({key,label}) => <label key={key} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--msg-border)] px-2 py-1.5 text-xs">{label}<input aria-label={label} type="color" value={customColors[key]} onChange={(e) => void updateCustomColor(key,e.target.value)} className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent" /></label>)}
-                    </div>
-                    <p className="mt-2 text-[10px] opacity-70">Essas escolhas aparecem somente na sua conta. Cada pessoa controla o próprio tema.</p>
-                  </div>
-                </div>}
+
               </div>
               <div className="flex items-center gap-3 rounded-lg border border-[#d9a78d] bg-[#fffaf3] p-1">
                 <textarea rows={1} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-1.5 py-1 text-[11px] text-[#981d27] outline-none placeholder:text-[#b78c79]" />
@@ -484,15 +485,15 @@ function MessengerPage() {
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
         .bs-messenger .messenger-avatar { border:3px solid #f5fff0; border-radius:17px; box-shadow:0 0 0 2px #8bbd77, 0 0 13px 4px rgba(110,220,90,.72), inset 0 0 0 1px rgba(255,255,255,.85); background:#e9d6c6; }
-        .bs-messenger .messenger-chat-area { min-height:260px; padding:12px 10px; }
-        .bs-messenger .toolbar-btn { min-height:34px; padding:5px 10px; font-size:11px; }
-        .bs-messenger .toolbar-btn svg { width:15px; height:15px; }
+        .bs-messenger .messenger-chat-area { min-height:175px; padding:7px 7px; }
+        .bs-messenger .toolbar-btn { min-height:28px; padding:3px 7px; font-size:10px; }
+        .bs-messenger .toolbar-btn svg { width:13px; height:13px; }
         .bs-messenger aside { background:var(--msg-sidebar) !important; color:#fff8f1; border-color:var(--msg-border) !important; }
         .bs-messenger aside .border-b, .bs-messenger aside .border-t { border-color:var(--msg-border) !important; }
         .bs-messenger aside input { color:var(--msg-text); }
         .bs-messenger main { background:var(--msg-bg) !important; color:var(--msg-text); }
         .bs-messenger main > div:first-child, .bs-messenger main > div:nth-child(2), .bs-messenger main > div:last-child { background:var(--msg-panel) !important; color:var(--msg-text); border-color:var(--msg-border) !important; }
-        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:6px; border-radius:999px; border:1px solid var(--msg-border); background:linear-gradient(180deg,var(--msg-accent),var(--msg-sent)); color:#fff; padding:5px 9px; font-size:11px; font-weight:700; white-space:nowrap; box-shadow:0 2px 5px #0002; }
+        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:6px; border-radius:999px; border:1px solid var(--msg-border); background:linear-gradient(180deg,var(--msg-accent),var(--msg-sent)); color:#fff; padding:3px 7px; font-size:10px; font-weight:700; white-space:nowrap; box-shadow:0 2px 5px #0002; }
         .bs-messenger .toolbar-btn:hover { filter:brightness(1.12); }
         .bs-messenger .messenger-chat-area { background-color:var(--msg-bg) !important; color:var(--msg-text); transition:background-color .2s ease; }
         .bs-messenger .messenger-chat-area > div > div { border-color:var(--msg-border) !important; }
