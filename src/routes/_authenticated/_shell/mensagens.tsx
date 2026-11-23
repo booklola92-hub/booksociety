@@ -31,22 +31,29 @@ async function spotifyChallenge(verifier: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
   return base64Url(new Uint8Array(digest));
 }
-function playWinkSound() {
+function playWinkSound(kind: WinkKind = "pig") {
   try {
     const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(660, ctx.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(990, ctx.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-    oscillator.connect(gain); gain.connect(ctx.destination);
-    oscillator.start(); oscillator.stop(ctx.currentTime + 0.3);
-    oscillator.onended = () => { void ctx.close(); };
+    const notes: Record<WinkKind, number[]> = {
+      pig: [440, 554, 659, 784], heart: [523, 659, 784], kiss: [880, 1046],
+      dance: [392, 494, 587, 784], laugh: [660, 740, 880, 740],
+      surprise: [330, 880], rainbow: [392, 494, 587, 659, 784],
+    };
+    notes[kind].forEach((frequency, index) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = ctx.currentTime + index * 0.12;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.055, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+      oscillator.connect(gain); gain.connect(ctx.destination);
+      oscillator.start(start); oscillator.stop(start + 0.18);
+      oscillator.onended = () => { if (index === notes[kind].length - 1) void ctx.close(); };
+    });
   } catch { /* áudio pode estar bloqueado pelo navegador */ }
 }
 
@@ -83,6 +90,8 @@ function MessengerPage() {
   const [spotifyTrack, setSpotifyTrack] = useState<SpotifyTrack | null>(null);
   const [spotifyConnected, setSpotifyConnected] = useState(false);
   const [spotifyError, setSpotifyError] = useState("");
+  const [chatTheme, setChatTheme] = useState("cream");
+  const [backgroundOpen, setBackgroundOpen] = useState(false);
   const lastIncomingRef = useRef<string | null>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +100,9 @@ function MessengerPage() {
     if (saved) { setPhrase(saved); setDraftPhrase(saved); }
     setSoundOn(window.localStorage.getItem("book-messenger-sound") !== "off");
   }, []);
+  useEffect(() => {
+    setChatTheme(window.localStorage.getItem("book-messenger-theme-" + selected) || "cream");
+  }, [selected]);
 
   const contactsQuery = useQuery({
     queryKey: ["messages", "contacts", me?.id], enabled: !!me?.id,
@@ -116,6 +128,26 @@ function MessengerPage() {
     if (!selected && contacts.length) setSelected(contacts[0].id);
     if (selected && contacts.length && !contacts.some((c) => c.id === selected)) setSelected(contacts[0].id);
   }, [contacts, selected]);
+
+  const myPresenceQuery = useQuery({
+    queryKey: ["messages", "presence", me?.id],
+    enabled: !!me?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("messenger_presence").select("*").eq("user_id", me!.id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const contactPresenceQuery = useQuery({
+    queryKey: ["messages", "presence", selected],
+    enabled: !!selected,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("messenger_presence").select("*").eq("user_id", selected).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const messagesQuery = useQuery({
     queryKey: ["messages", "conversation", me?.id, selected], enabled: !!me?.id && !!selected,
@@ -143,12 +175,17 @@ function MessengerPage() {
           qc.invalidateQueries({ queryKey: ["messages"] });
           qc.invalidateQueries({ queryKey: ["unread"] });
         }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "messenger_presence" }, () => {
+        qc.invalidateQueries({ queryKey: ["messages", "presence"] });
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [me?.id, qc]);
 
   const contact = contacts.find((c) => c.id === selected);
   const messages = messagesQuery.data ?? [];
+  const myPresence = myPresenceQuery.data;
+  const contactPresence = contactPresenceQuery.data;
   const displayName = me?.display_name || me?.username || "Leitora";
   const myAvatar = me?.avatar_url || null;
   const avatar = (url: string | null, name: string, size = "h-10 w-10", extra = "") => url
@@ -168,10 +205,23 @@ function MessengerPage() {
   async function sendWink(wink: Wink) {
     await sendContent(`[WINK:${wink.kind}]${wink.caption}`);
     setWinksOpen(false);
-    if (soundOn) playWinkSound();
+    if (soundOn) playWinkSound(wink.kind);
   }
-  function savePhrase() {
-    setPhrase(draftPhrase); window.localStorage.setItem("book-messenger-phrase", draftPhrase); setEditingPhrase(false);
+  async function savePhrase() {
+    const next = draftPhrase.trim().slice(0, 80) || "Sonhe, leia, converse...";
+    setPhrase(next);
+    window.localStorage.setItem("book-messenger-phrase", next);
+    setEditingPhrase(false);
+    if (me?.id) {
+      const { error } = await supabase.from("messenger_presence").upsert({ user_id: me.id, status_text: next }, { onConflict: "user_id" });
+      if (error) console.error("Não foi possível salvar seu status:", error);
+      await qc.invalidateQueries({ queryKey: ["messages", "presence", me.id] });
+    }
+  }
+  function chooseTheme(theme: string) {
+    setChatTheme(theme);
+    window.localStorage.setItem("book-messenger-theme-" + selected, theme);
+    setBackgroundOpen(false);
   }
   async function callAttention() {
     if (!selected) return;
@@ -182,7 +232,15 @@ function MessengerPage() {
   useEffect(() => {
     if (!messages.length) return;
     const latest = messages[messages.length - 1];
-    if (lastIncomingRef.current && latest.id !== lastIncomingRef.current && latest.sender_id !== me?.id && latest.content.startsWith("[WINK:") && soundOn) playWinkSound();
+    if (lastIncomingRef.current && latest.id !== lastIncomingRef.current && latest.sender_id !== me?.id) {
+      const wink = winkFromContent(latest.content);
+      if (wink && soundOn) playWinkSound(wink);
+      if (latest.content.startsWith("[NUDGE]")) {
+        setAttention(true);
+        window.setTimeout(() => setAttention(false), 1100);
+        if (soundOn) playWinkSound("surprise");
+      }
+    }
     lastIncomingRef.current = latest.id;
   }, [messages, me?.id, soundOn]);
 
@@ -190,11 +248,48 @@ function MessengerPage() {
     conversationRef.current?.scrollTo({ top: conversationRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length, selected]);
 
-  async function refreshSpotify(token: string) {
+  async function getSpotifyAccessToken() {
+    let token = localStorage.getItem("book-spotify-token");
+    const expiresAt = Number(localStorage.getItem("book-spotify-expires") || "0");
+    if (token && expiresAt > Date.now() + 60000) return token;
+    const refreshToken = localStorage.getItem("book-spotify-refresh");
+    if (!refreshToken || !spotifyClientId) return token;
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id: spotifyClientId, grant_type: "refresh_token", refresh_token: refreshToken }),
+    });
+    if (!response.ok) {
+      localStorage.removeItem("book-spotify-token");
+      setSpotifyConnected(false);
+      setSpotifyError("Sua sessão do Spotify expirou. Conecte novamente.");
+      return null;
+    }
+    const tokens = await response.json();
+    token = tokens.access_token as string;
+    localStorage.setItem("book-spotify-token", token);
+    localStorage.setItem("book-spotify-expires", String(Date.now() + Number(tokens.expires_in) * 1000));
+    if (tokens.refresh_token) localStorage.setItem("book-spotify-refresh", tokens.refresh_token as string);
+    return token;
+  }
+
+  async function refreshSpotify() {
+    const token = await getSpotifyAccessToken();
+    if (!token) return;
     const response = await fetch("https://api.spotify.com/v1/me/player/currently-playing", { headers: { Authorization: `Bearer ${token}` } });
     if (response.status === 204) { setSpotifyTrack(null); return; }
     if (response.status === 401) {
-      localStorage.removeItem("book-spotify-token"); setSpotifyConnected(false); setSpotifyError("Conecte novamente sua conta Spotify."); return;
+      localStorage.removeItem("book-spotify-token");
+      localStorage.removeItem("book-spotify-expires");
+      const renewed = await getSpotifyAccessToken();
+      if (!renewed) return;
+      const retry = await fetch("https://api.spotify.com/v1/me/player/currently-playing", { headers: { Authorization: `Bearer ${renewed}` } });
+      if (retry.status === 204) { setSpotifyTrack(null); return; }
+      if (!retry.ok) throw new Error("Não foi possível consultar o Spotify.");
+      const retryData = await retry.json();
+      if (!retryData.item) { setSpotifyTrack(null); return; }
+      setSpotifyTrack({ name: retryData.item.name, artist: retryData.item.artists?.map((a: { name: string }) => a.name).join(", ") ?? "Artista", album: retryData.item.album?.name ?? "", image: retryData.item.album?.images?.[0]?.url ?? null, url: retryData.item.external_urls?.spotify ?? null, isPlaying: !!retryData.is_playing });
+      return;
     }
     if (!response.ok) throw new Error("Não foi possível consultar o Spotify.");
     const data = await response.json();
@@ -237,13 +332,10 @@ function MessengerPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("book-spotify-token");
-    if (!token) return;
+    if (!token && !localStorage.getItem("book-spotify-refresh")) return;
     setSpotifyConnected(true);
-    void refreshSpotify(token).catch(() => setSpotifyError("Não foi possível carregar a música atual."));
-    const timer = window.setInterval(() => {
-      const currentToken = localStorage.getItem("book-spotify-token");
-      if (currentToken) void refreshSpotify(currentToken).catch(() => undefined);
-    }, 30000);
+    void refreshSpotify().catch(() => setSpotifyError("Não foi possível carregar a música atual."));
+    const timer = window.setInterval(() => { void refreshSpotify().catch(() => undefined); }, 30000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -260,7 +352,30 @@ function MessengerPage() {
   function disconnectSpotify() {
     ["book-spotify-token", "book-spotify-refresh", "book-spotify-expires"].forEach((key) => localStorage.removeItem(key));
     setSpotifyConnected(false); setSpotifyTrack(null); setSpotifyError("");
+    if (me?.id) void supabase.from("messenger_presence").upsert({ user_id: me.id, spotify_track_name: null, spotify_artist: null, spotify_album_image: null, spotify_url: null, spotify_is_playing: false }, { onConflict: "user_id" });
   }
+
+  useEffect(() => {
+    if (!me?.id || !spotifyConnected) return;
+    void supabase.from("messenger_presence").upsert({
+      user_id: me.id,
+      spotify_track_name: spotifyTrack?.name ?? null,
+      spotify_artist: spotifyTrack?.artist ?? null,
+      spotify_album_image: spotifyTrack?.image ?? null,
+      spotify_url: spotifyTrack?.url ?? null,
+      spotify_is_playing: spotifyTrack?.isPlaying ?? false,
+    }, { onConflict: "user_id" }).then(({ error }) => {
+      if (error) console.error("Não foi possível compartilhar sua música:", error);
+      else void qc.invalidateQueries({ queryKey: ["messages", "presence", me.id] });
+    });
+  }, [me?.id, spotifyConnected, spotifyTrack, qc]);
+
+  useEffect(() => {
+    if (myPresence?.status_text) {
+      setPhrase(myPresence.status_text);
+      setDraftPhrase(myPresence.status_text);
+    }
+  }, [myPresence?.status_text]);
 
   const winkFromContent = (value: string): WinkKind | null => {
     const match = value.match(/^\[WINK:(pig|heart|kiss|dance|laugh|surprise|rainbow)\]/);
@@ -327,11 +442,11 @@ function MessengerPage() {
               <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="toolbar-btn"><Smile size={20} />Emoticons <ChevronDown size={13} /></button>
               <button onClick={() => { setWinksOpen(!winksOpen); setEmojiOpen(false); }} className="toolbar-btn"><span className="text-lg">✦</span>Winks <ChevronDown size={13} /></button>
               <button className="toolbar-btn"><Camera size={19} />Enviar fotos</button>
-              <button className="toolbar-btn"><ImageIcon size={19} />Planos de fundo <ChevronDown size={13} /></button>
+              <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="toolbar-btn"><ImageIcon size={19} />Planos de fundo <ChevronDown size={13} /></button>
             </div>
             <div className="mx-3 mt-2 flex items-center gap-3 rounded-full border border-[#d9a78d] bg-[#ffefe1] px-4 py-2 text-sm"><span className="text-lg">ⓘ</span><span className="flex-1">Nunca compartilhe sua senha ou dados pessoais com ninguém.</span><X size={19} /></div>
 
-            <div ref={conversationRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+            <div ref={conversationRef} className={`messenger-chat-area messenger-theme-${chatTheme} flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5`}>
               {messagesQuery.isLoading && <p className="py-10 text-center text-sm">Carregando mensagens…</p>}
               {messages.map((m) => {
                 const mine = m.sender_id === me?.id;
@@ -372,6 +487,9 @@ function MessengerPage() {
                 <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-2 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
                 {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
                 {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
+                {backgroundOpen && <div className="absolute bottom-12 right-2 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">
+                  {[["cream","Creme","#fff8ed"],["rose","Rosa suave","#f8e5e1"],["mint","Verde menta","#e5f1e9"],["lilac","Lavanda","#eee8f7"],["night","Noite","#34252b"]].map(([id,label,color]) => <button key={id} onClick={() => chooseTheme(id)} className="flex items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="h-5 w-5 rounded-full border border-[#b78c79]" style={{backgroundColor:color}} />{label}</button>)}
+                </div>}
               </div>
               <div className="flex items-center gap-3 rounded-2xl border-2 border-[#d9a78d] bg-[#fffaf3] p-2">
                 <textarea rows={2} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} placeholder="Digite sua mensagem..." className="min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-lg text-[#981d27] outline-none placeholder:text-[#b78c79]" />
@@ -399,7 +517,7 @@ function MessengerPage() {
           </div>
           <div className="mt-4 rounded-xl border border-[#d9b49b] bg-[#fff8ed] p-3 text-center">
             <p className="text-sm font-bold"><Music2 className="mr-1 inline" size={15} /> Spotify</p>
-            {spotifyTrack ? <div className="mt-2 flex items-center gap-2 text-left">{spotifyTrack.image && <img src={spotifyTrack.image} alt="" className="h-10 w-10 rounded object-cover" />}<div className="min-w-0"><p className="truncate text-xs font-semibold">{spotifyTrack.name}</p><p className="truncate text-[10px]">{spotifyTrack.artist}</p></div></div> : <p className="mt-1 text-[10px] text-[#8c5b51]">Mostre aos amigos o que você está ouvindo.</p>}
+            {contactPresence?.spotify_track_name ? <div className="mt-2 flex items-center gap-2 text-left">{contactPresence.spotify_album_image && <img src={contactPresence.spotify_album_image} alt="" className="h-10 w-10 rounded object-cover" />}<div className="min-w-0"><p className="truncate text-xs font-semibold">{contactPresence.spotify_track_name}</p><p className="truncate text-[10px]">{contactPresence.spotify_artist}</p><p className="text-[9px] text-[#258a43]">{contactPresence.spotify_is_playing ? "● Ouvindo agora" : "Pausado"}</p></div></div> : <p className="mt-1 text-[10px] text-[#8c5b51]">Quando essa pessoa conectar o Spotify, a música aparecerá aqui.</p>}
           </div>
         </aside>
       </div>
@@ -408,6 +526,12 @@ function MessengerPage() {
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
         .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:7px; border-radius:999px; border:1px solid #c98f79; background:linear-gradient(180deg,#a91d2b,#790d19); color:#fff8ed; padding:9px 13px; font-size:12px; font-weight:700; white-space:nowrap; box-shadow:0 2px 3px #7c172422; }
         .bs-messenger .toolbar-btn:hover { filter:brightness(1.12); }
+        .messenger-chat-area { background-color:#fff8ed; transition:background-color .2s ease; }
+        .messenger-theme-rose { background-color:#f8e5e1; }
+        .messenger-theme-mint { background-color:#e5f1e9; }
+        .messenger-theme-lilac { background-color:#eee8f7; }
+        .messenger-theme-night { background-color:#34252b; color:#fff2e6; }
+        .messenger-theme-night .rounded-\\[24px\\] { background-color:#513942; color:#fff2e6; border-color:#8d6670; }
         .wink-message { width:min(310px,65vw); padding:3px 8px; }
         .wink-stage { position:relative; display:grid; place-items:center; min-height:185px; overflow:visible; }
         .wink-main { display:block; font-size:clamp(100px,13vw,168px); line-height:1; filter:drop-shadow(0 7px 2px #7b263522); animation:wink-bounce 1.05s ease-in-out infinite alternate; }
