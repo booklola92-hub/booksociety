@@ -33,6 +33,14 @@ export function useRealtimeInbox(userId: string | undefined) {
           qc.invalidateQueries({ queryKey: ["unread"] });
           qc.invalidateQueries({ queryKey: ["messages"] });
           qc.invalidateQueries({ queryKey: ["conversations"] });
+          const row = payload.new as { sender_id?: string; content?: string };
+          const preview = (row.content ?? "").trim();
+          if (row.sender_id && row.sender_id !== userId) {
+            toast.info("Você recebeu uma nova mensagem 💌", {
+              description: preview.length > 90 ? preview.slice(0, 87) + "…" : preview || "Abra suas mensagens para responder.",
+              action: { label: "Ver mensagens", onClick: () => { window.location.href = "/mensagens"; } },
+            });
+          }
         },
       )
       .subscribe();
