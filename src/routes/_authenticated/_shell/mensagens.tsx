@@ -21,7 +21,7 @@ const winks: Wink[] = [
   { kind: "surprise", label: "Surpresa", icon: "😲", caption: "Surpresaaa!" },
   { kind: "rainbow", label: "Arco-íris", icon: "🌈", caption: "Um dia colorido para você!" },
 ];
-const spotifyClientId = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_SPOTIFY_CLIENT_ID;
+const spotifyClientId = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_SPOTIFY_CLIENT_ID || (typeof window !== "undefined" ? localStorage.getItem("book-spotify-client-id") || undefined : undefined);
 const spotifyScopes = "user-read-currently-playing user-read-playback-state";
 
 function base64Url(bytes: Uint8Array) {
@@ -340,13 +340,15 @@ function MessengerPage() {
   }, []);
 
   async function connectSpotify() {
-    if (!spotifyClientId) { setSpotifyError("Para ativar, configure VITE_SPOTIFY_CLIENT_ID nas variáveis do projeto e cadastre a URL desta página no Spotify Developer Dashboard."); return; }
+    const clientId = spotifyClientId || window.prompt("Cole o Client ID do seu aplicativo Spotify Developer. Não informe o Client Secret.")?.trim();
+    if (!clientId) { setSpotifyError("Informe o Client ID do Spotify para continuar."); return; }
+    if (!spotifyClientId) localStorage.setItem("book-spotify-client-id", clientId);
     const verifier = base64Url(crypto.getRandomValues(new Uint8Array(64)));
     const challenge = await spotifyChallenge(verifier);
     const state = base64Url(crypto.getRandomValues(new Uint8Array(16)));
     localStorage.setItem("book-spotify-verifier", verifier); localStorage.setItem("book-spotify-state", state);
     const redirectUri = window.location.origin + window.location.pathname;
-    const params = new URLSearchParams({ client_id: spotifyClientId, response_type: "code", redirect_uri: redirectUri, code_challenge_method: "S256", code_challenge: challenge, state, scope: spotifyScopes });
+    const params = new URLSearchParams({ client_id: clientId, response_type: "code", redirect_uri: redirectUri, code_challenge_method: "S256", code_challenge: challenge, state, scope: spotifyScopes });
     window.location.assign("https://accounts.spotify.com/authorize?" + params.toString());
   }
   function disconnectSpotify() {
