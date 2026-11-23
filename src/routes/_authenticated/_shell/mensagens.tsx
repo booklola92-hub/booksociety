@@ -118,7 +118,7 @@ function MessengerPage() {
       const friendIds = (friendships.data ?? []).map((r) => r.requester_id === me!.id ? r.addressee_id : r.requester_id);
       const ids = [...new Set([...(following.data ?? []).map((r) => r.following_id), ...(followers.data ?? []).map((r) => r.follower_id), ...friendIds])];
       if (!ids.length) return [] as Contact[];
-      const { data, error } = await supabase.from("profiles").select("id, username, display_name, avatar_url").in("id", ids).order("display_name");
+      const { data, error } = await supabase.rpc("list_visible_profiles", { _ids: ids });
       if (error) throw error;
       return (data ?? []).map((p) => ({ id: p.id, name: p.display_name || p.username, handle: "@" + p.username, avatar: p.avatar_url }));
     },
