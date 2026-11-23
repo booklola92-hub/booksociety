@@ -12,6 +12,57 @@ import { getMyId, useInvalidate, useMe, useShelf } from "@/lib/social";
 
 type CsvRow = Record<string, string>;
 
+function zipStore(files: Array<{ name: string; data: Uint8Array }>): Blob {
+  const encoder = new TextEncoder();
+  const crcTable = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let value = n;
+    for (let k = 0; k < 8; k += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    crcTable[n] = value >>> 0;
+  }
+  const crc32 = (data: Uint8Array) => {
+    let crc = 0xffffffff;
+    for (const byte of data) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  };
+  const chunks: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+  const dosDate = ((Math.max(1980, now.getFullYear()) - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  for (const file of files) {
+    const name = encoder.encode(file.name);
+    const crc = crc32(file.data);
+    const local = new Uint8Array(30 + name.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true);
+    lv.setUint16(8, 0, true); lv.setUint16(10, dosTime, true); lv.setUint16(12, dosDate, true);
+    lv.setUint32(14, crc, true); lv.setUint32(18, file.data.length, true); lv.setUint32(22, file.data.length, true);
+    lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true); local.set(name, 30);
+    chunks.push(local, file.data);
+    const directory = new Uint8Array(46 + name.length);
+    const dv = new DataView(directory.buffer);
+    dv.setUint32(0, 0x02014b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 20, true);
+    dv.setUint16(8, 0x0800, true); dv.setUint16(10, 0, true); dv.setUint16(12, dosTime, true);
+    dv.setUint16(14, dosDate, true); dv.setUint32(16, crc, true); dv.setUint32(20, file.data.length, true);
+    dv.setUint32(24, file.data.length, true); dv.setUint16(28, name.length, true); dv.setUint16(30, 0, true);
+    dv.setUint16(32, 0, true); dv.setUint16(34, 0, true); dv.setUint16(36, 0, true);
+    dv.setUint32(38, 0, true); dv.setUint32(42, offset, true); directory.set(name, 46);
+    central.push(directory); offset += local.length + file.data.length;
+  }
+  const centralSize = central.reduce((sum, part) => sum + part.length, 0);
+  const end = new Uint8Array(22); const ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true); ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+  ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true); ev.setUint16(20, 0, true);
+  return new Blob([...chunks, ...central, end], { type: "application/zip" });
+}
+function safeFileName(value: string): string {
+  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "livro";
+}
+
+
 function parseCsv(text: string): CsvRow[] {
   const lines: string[][] = [];
   let row: string[] = [];
@@ -146,36 +197,52 @@ function GoodreadsTransfer() {
     setBusy(true);
     try {
       const userId = await getMyId();
-      const { data, error } = await supabase
-        .from("shelf_items")
-        .select("status,rating,review,started_at,finished_at,created_at,books(title,author,pages)")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("shelf_items")
+        .select("status,rating,review,started_at,finished_at,created_at,books(title,author,pages,cover_url)")
+        .eq("user_id", userId).order("created_at", { ascending: true });
       if (error) throw error;
-      const headers = ["Title", "Author", "ISBN", "ISBN13", "My Rating", "Average Rating", "Publisher", "Binding", "Number of Pages", "Year Published", "Original Publication Year", "Date Read", "Date Added", "Bookshelves", "Exclusive Shelf", "My Review"];
+      const headers = ["Title", "Author", "ISBN", "ISBN13", "My Rating", "Average Rating", "Publisher", "Binding", "Number of Pages", "Year Published", "Original Publication Year", "Date Read", "Date Added", "Bookshelves", "Exclusive Shelf", "My Review", "Cover File"];
       const lines = [headers.map(csvCell).join(",")];
+      const files: Array<{ name: string; data: Uint8Array }> = [];
+      const manifest = [["Title", "Author", "Cover File"]];
+      let coverCount = 0;
       for (const item of data ?? []) {
-        const book = item.books as unknown as { title: string; author: string; pages: number | null } | null;
+        const book = item.books as unknown as { title: string; author: string; pages: number | null; cover_url: string | null } | null;
         if (!book) continue;
         const shelfName = item.status === "reading" ? "currently-reading" : item.status === "read" ? "read" : "to-read";
-        lines.push([
-          book.title, book.author, "", "", item.rating ?? "", "", "", "", book.pages ?? "", "", "",
-          csvDate(item.finished_at), csvDate(item.created_at), shelfName, shelfName, item.review,
-        ].map(csvCell).join(","));
+        let coverFile = "";
+        if (book.cover_url) {
+          try {
+            let coverUrl = book.cover_url;
+            if (!/^https?:\/\//i.test(coverUrl)) {
+              const { data: signed, error: signedError } = await supabase.storage.from("media").createSignedUrl(coverUrl, 3600);
+              if (signedError) throw signedError;
+              coverUrl = signed.signedUrl;
+            }
+            const response = await fetch(coverUrl);
+            if (!response.ok) throw new Error("Falha ao baixar a capa");
+            const blob = await response.blob();
+            const extension = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : blob.type.includes("gif") ? "gif" : "jpg";
+            coverFile = `capas/${String(coverCount + 1).padStart(4, "0")}-${safeFileName(book.title)}.${extension}`;
+            files.push({ name: coverFile, data: new Uint8Array(await blob.arrayBuffer()) });
+            coverCount += 1;
+          } catch (coverError) { console.warn(`Não foi possível exportar a capa de "${book.title}":`, coverError); }
+        }
+        lines.push([book.title, book.author, "", "", item.rating ?? "", "", "", "", book.pages ?? "", "", "", csvDate(item.finished_at), csvDate(item.created_at), shelfName, shelfName, item.review, coverFile].map(csvCell).join(","));
+        manifest.push([book.title, book.author, coverFile]);
       }
-      const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "book-society-goodreads.csv";
-      anchor.click();
-      URL.revokeObjectURL(url);
-      toast.success("Sua biblioteca foi exportada em CSV.");
+      const encoder = new TextEncoder();
+      files.unshift({ name: "book-society-goodreads.csv", data: encoder.encode("\uFEFF" + lines.join("\r\n")) });
+      files.push({ name: "indice-das-capas.csv", data: encoder.encode("\uFEFF" + manifest.map((row) => row.map(csvCell).join(",")).join("\r\n")) });
+      files.push({ name: "LEIA-ME.txt", data: encoder.encode("Sua biblioteca Book Society\n\nO CSV contém os dados dos livros. A pasta capas contém as imagens disponíveis. A coluna Cover File e o indice-das-capas.csv relacionam cada imagem ao livro.\n\nAlguns serviços não importam capas pelo CSV; mantenha a pasta capas como cópia de segurança.\n") });
+      const archive = zipStore(files);
+      const url = URL.createObjectURL(archive);
+      const anchor = document.createElement("a"); anchor.href = url; anchor.download = "book-society-biblioteca-com-capas.zip"; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`Biblioteca exportada com ${coverCount} capas.${coverCount < manifest.length - 1 ? " Algumas capas não puderam ser baixadas." : ""}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível exportar sua biblioteca.");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   return (
@@ -197,8 +264,8 @@ function GoodreadsTransfer() {
         </div>
         <div className="space-y-3 rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 font-semibold"><Download className="h-4 w-4 text-primary" /> Exportar do Book Society</div>
-          <p className="text-sm leading-relaxed text-muted-foreground">Baixe seus livros em CSV compatível com a planilha de importação do Goodreads. O arquivo inclui status, notas, datas e resenhas disponíveis.</p>
-          <Button variant="outline" className="w-full" disabled={busy} onClick={() => void exportGoodreads()}><Download className="h-4 w-4" /> Baixar minha biblioteca</Button>
+          <p className="text-sm leading-relaxed text-muted-foreground">Baixe um ZIP com a planilha CSV, as capas disponíveis e um índice que relaciona cada imagem ao livro.</p>
+          <Button variant="outline" className="w-full" disabled={busy} onClick={() => void exportGoodreads()}><Download className="h-4 w-4" /> Baixar livros + capas (ZIP)</Button>
         </div>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">A importação apenas acrescenta livros que ainda não estão na sua biblioteca; ela não apaga nem substitui seus registros atuais. O Book Society não acessa sua conta ou senha do Goodreads.</p>
