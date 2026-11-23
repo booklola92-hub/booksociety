@@ -131,4 +131,16 @@ $;
 revoke all on function public.add_messenger_group_members(uuid, uuid[]) from public;
 grant execute on function public.add_messenger_group_members(uuid, uuid[]) to authenticated;
 
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'messenger_group_messages') THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.messenger_group_messages;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'messenger_group_members') THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.messenger_group_members;
+    END IF;
+  END IF;
+END $;
+
 commit;
