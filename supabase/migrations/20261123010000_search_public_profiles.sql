@@ -27,7 +27,8 @@ AS $$
       strpos(lower(p.display_name), lower(left(trim(_search), 80))) > 0
       OR strpos(lower(p.username), lower(left(trim(_search), 80))) > 0
     )
-  ORDER BY lower(p.display_name), lower(p.username)
+  ORDER BY (lower(p.username) = lower(left(trim(_search), 80))) DESC,
+           lower(p.display_name), lower(p.username)
   LIMIT least(greatest(coalesce(_limit, 30), 1), 30);
 $$;
 
