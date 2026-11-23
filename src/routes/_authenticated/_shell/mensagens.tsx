@@ -324,7 +324,7 @@ function MessengerPage() {
           setSpotifyConnected(true); setSpotifyError("");
           localStorage.removeItem("book-spotify-state"); localStorage.removeItem("book-spotify-verifier");
           window.history.replaceState({}, "", redirectUri);
-          await refreshSpotify(tokens.access_token);
+          await refreshSpotify();
         } catch (error) { setSpotifyError(error instanceof Error ? error.message : "Erro ao conectar ao Spotify."); }
       })();
     }
@@ -434,7 +434,7 @@ function MessengerPage() {
           {contact ? <>
             <div className="flex items-center gap-4 border-b border-[#d9b49b] bg-[#fff2df] px-4 py-3">
               {avatar(contact.avatar, contact.name, "h-24 w-24")}
-              <div className="min-w-0"><p className="text-2xl font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="mt-1 text-sm italic">“Sonhe, leia, converse...” <Heart className="inline" size={15} /> <Pencil className="inline" size={13} /></p></div>
+              <div className="min-w-0"><p className="text-2xl font-bold">{contact.name} <ChevronDown className="inline" size={17} /></p><p className="mt-1 text-sm text-[#258a43]">● <span className="text-[#351c17]">Online</span></p><p className="mt-1 text-sm italic">“{contactPresence?.status_text || "Sonhe, leia, converse..."}” <Heart className="inline" size={15} /></p></div>
             </div>
             <div className="flex flex-wrap items-center gap-2 border-b border-[#d9b49b] bg-[#f8ead7] px-3 py-2">
               <button className="toolbar-btn"><UserPlus size={19} />Convidar</button>
