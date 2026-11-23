@@ -72,7 +72,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = ''
-as $fn$$
+as $fn$
 declare
   _uid uuid := auth.uid();
   _group_id uuid;
@@ -97,7 +97,7 @@ begin
     from (select distinct x from unnest(_participant_ids) x where x is not null and x <> _uid) distinct_ids;
   return _group_id;
 end;
-$$;
+$fn$;
 
 revoke all on function public.create_messenger_group(uuid[]) from public;
 grant execute on function public.create_messenger_group(uuid[]) to authenticated;
