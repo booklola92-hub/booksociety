@@ -7,7 +7,7 @@ ALTER TABLE public.community_members ADD CONSTRAINT community_members_role_check
 -- Role helpers (security definer to avoid recursive RLS)
 CREATE OR REPLACE FUNCTION public.community_role(_community uuid, _user uuid)
 RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT role FROM public.community_members WHERE community_id = _community AND user_id = _user
+  SELECT role FROM public.community_members WHERE community_id = _community AND user_id = auth.uid() AND _user = auth.uid()
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_community_admin(_community uuid, _user uuid)
@@ -110,15 +110,16 @@ RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF _role NOT IN ('admin','member') THEN RAISE EXCEPTION 'Papel inválido.'; END IF;
   IF public.community_role(_community, auth.uid()) IS DISTINCT FROM 'owner' THEN RAISE EXCEPTION 'Somente o dono pode nomear administradores.'; END IF;
-  IF public.community_role(_community, _user) IS NULL OR public.community_role(_community, _user) = 'owner' THEN RAISE EXCEPTION 'Membro inválido.'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.community_members WHERE community_id = _community AND user_id = _user AND role <> 'owner') THEN RAISE EXCEPTION 'Membro inválido.'; END IF;
   UPDATE public.community_members SET role = _role WHERE community_id = _community AND user_id = _user;
 END $$;
 
 CREATE OR REPLACE FUNCTION public.remove_community_member(_community uuid, _user uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE my_role text := public.community_role(_community, auth.uid());
-        their_role text := public.community_role(_community, _user);
+        their_role text;
 BEGIN
+  SELECT role INTO their_role FROM public.community_members WHERE community_id = _community AND user_id = _user;
   IF their_role IS NULL THEN RETURN; END IF;
   IF their_role = 'owner' THEN RAISE EXCEPTION 'O dono não pode ser removido.'; END IF;
   IF my_role = 'owner' OR (my_role = 'admin' AND their_role = 'member') THEN
