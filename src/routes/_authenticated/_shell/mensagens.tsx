@@ -21,7 +21,7 @@ const winks: Wink[] = [
   { kind: "surprise", label: "Surpresa", icon: "😲", caption: "Surpresaaa!" },
   { kind: "rainbow", label: "Arco-íris", icon: "🌈", caption: "Um dia colorido para você!" },
 ];
-const spotifyClientId = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_SPOTIFY_CLIENT_ID || (typeof window !== "undefined" ? localStorage.getItem("book-spotify-client-id") || undefined : undefined);
+const spotifyClientId = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env.VITE_SPOTIFY_CLIENT_ID || "6e85fcfa359647fc83b03995dc17e035" || (typeof window !== "undefined" ? localStorage.getItem("book-spotify-client-id") || undefined : undefined);
 const spotifyScopes = "user-read-currently-playing user-read-playback-state";
 
 function base64Url(bytes: Uint8Array) {
