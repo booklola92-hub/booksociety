@@ -4,7 +4,7 @@ BEGIN;
 -- Prevent direct RPC probing of another reader's role. Internal SECURITY DEFINER
 -- routines still use this helper as its owner; ordinary callers can query only themselves.
 CREATE OR REPLACE FUNCTION public.community_role(_community uuid, _user uuid)
-RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
+RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT CASE
     WHEN _user = auth.uid() THEN (
       SELECT role FROM public.community_members
@@ -12,7 +12,7 @@ RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
     )
     ELSE NULL
   END
-$;
+$$;
 REVOKE ALL ON FUNCTION public.community_role(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.community_role(uuid, uuid) TO authenticated;
 
