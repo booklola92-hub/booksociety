@@ -1,10 +1,11 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
 import { BookOpen, Download, FileUp, Library, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PageTitle } from "@/components/empty-state";
+import { BookCover } from "@/components/book-cover";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyId, useInvalidate, useMe, useShelf } from "@/lib/social";
@@ -209,6 +210,35 @@ function ReadBooks() {
   const { data: me } = useMe();
   const { data: shelf = [], isLoading } = useShelf(me?.id);
   const readBooks = shelf.filter((item) => item.status === "read" && item.book);
+  const lookedUp = useRef(new Set<string>());
+
+  // Livros importados do Goodreads podem não ter capa. Tenta encontrá-la pelo título/autor.
+  useEffect(() => {
+    let cancelled = false;
+    async function fillMissingCovers() {
+      for (const item of readBooks) {
+        const book = item.book;
+        if (!book || book.cover_url || lookedUp.current.has(book.id)) continue;
+        lookedUp.current.add(book.id);
+        try {
+          const params = new URLSearchParams({ title: book.title, fields: "cover_i", limit: "1" });
+          if (book.author) params.set("author", book.author);
+          const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
+          if (!response.ok) continue;
+          const result = await response.json();
+          const coverId = result.docs?.[0]?.cover_i;
+          if (!coverId || cancelled) continue;
+          const coverUrl = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+          const { error } = await supabase.from("books").update({ cover_url: coverUrl }).eq("id", book.id);
+          if (error) console.error("Não foi possível salvar a capa do livro:", error);
+        } catch (error) {
+          console.error("Não foi possível buscar a capa do livro:", error);
+        }
+      }
+    }
+    if (!isLoading && readBooks.length) void fillMissingCovers();
+    return () => { cancelled = true; };
+  }, [isLoading, shelf]);
 
   return (
     <section className="space-y-4">
@@ -233,19 +263,7 @@ function ReadBooks() {
           {readBooks.map((item) => (
             <article key={item.id} className="min-w-0 space-y-2">
               <div className="aspect-[2/3] overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
-                {item.book.cover_url ? (
-                  <img
-                    src={item.book.cover_url}
-                    alt={`Capa de ${item.book.title}`}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
-                    <BookOpen className="h-8 w-8" />
-                    <span className="text-xs">Capa não disponível</span>
-                  </div>
-                )}
+                <BookCover book={item.book} className="h-full w-full rounded-none object-cover" />
               </div>
               <div>
                 <h3 className="line-clamp-2 text-sm font-medium leading-snug">{item.book.title}</h3>
