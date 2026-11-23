@@ -53,14 +53,18 @@ function NotificationsPage() {
         .from("notifications")
         .select(`
           id, user_id, actor_id, type, post_id, read, created_at,
-          actor:profiles!notifications_actor_id_fkey(id, username, display_name, avatar_url),
           post:posts!notifications_post_id_fkey(id, content)
         `)
         .eq("user_id", me)
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return (data ?? []) as unknown as NotificationRow[];
+      const rows = (data ?? []) as unknown as Omit<NotificationRow, "actor">[];
+      const actorIds = [...new Set(rows.map((row) => row.actor_id).filter(Boolean))];
+      const { data: actors, error: actorError } = await supabase.rpc("list_visible_profiles", { _ids: actorIds });
+      if (actorError) throw actorError;
+      const byId = new Map((actors ?? []).map((actor) => [actor.id, actor]));
+      return rows.map((row) => ({ ...row, actor: byId.get(row.actor_id) ?? null })) as NotificationRow[];
     },
   });
 
