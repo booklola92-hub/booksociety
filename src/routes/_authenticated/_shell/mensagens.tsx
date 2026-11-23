@@ -12,6 +12,15 @@ type Wink = { kind: WinkKind; label: string; icon: string; caption: string };
 type SpotifyTrack = { name: string; artist: string; album: string; image: string | null; url: string | null; isPlaying: boolean };
 const stamp = (value: string) => new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const emojis = ["😀", "😂", "😍", "🥰", "😘", "😉", "😮", "😎", "🥳", "❤️", "💋", "📚", "✨", "🙈", "👏", "🤍", "🤣", "🌹", "🐷", "🌈"];
+const messengerPresets = {
+  winecream: { label: "Vinho e creme", bg: "#f8e9df", sidebar: "#261514", panel: "#f2d9ca", sent: "#741b2b", received: "#fff4e9", text: "#351a18", accent: "#a52c40", border: "#c58e7a" },
+  blackwhite: { label: "Preto e branco", bg: "#eeeeee", sidebar: "#171717", panel: "#ffffff", sent: "#222222", received: "#ffffff", text: "#171717", accent: "#444444", border: "#999999" },
+  pinkwhite: { label: "Rosa e branco", bg: "#fff0f4", sidebar: "#4b202e", panel: "#ffe0e9", sent: "#bd5477", received: "#ffffff", text: "#482333", accent: "#d46b91", border: "#e4a5b8" },
+  bluewhite: { label: "Azul e branco", bg: "#edf5ff", sidebar: "#142b49", panel: "#dcecff", sent: "#245b9a", received: "#ffffff", text: "#172d48", accent: "#3979bd", border: "#9bbce0" },
+  greencream: { label: "Verde e creme", bg: "#edf3e7", sidebar: "#243a2c", panel: "#e0ead8", sent: "#386447", received: "#fffdf3", text: "#23372a", accent: "#54845c", border: "#a8bea0" },
+} as const;
+type MessengerColors = { bg: string; sidebar: string; panel: string; sent: string; received: string; text: string; accent: string; border: string };
+const defaultCustomColors: MessengerColors = { bg: "#f8e9df", sidebar: "#261514", panel: "#f2d9ca", sent: "#741b2b", received: "#fff4e9", text: "#351a18", accent: "#a52c40", border: "#c58e7a" };
 const winks: Wink[] = [
   { kind: "pig", label: "Porquinho dançante", icon: "🐷", caption: "Olha quem veio dançar!" },
   { kind: "heart", label: "Coração", icon: "🐱", caption: "Um coração para você!" },
@@ -90,7 +99,8 @@ function MessengerPage() {
   const [spotifyTrack, setSpotifyTrack] = useState<SpotifyTrack | null>(null);
   const [spotifyConnected, setSpotifyConnected] = useState(false);
   const [spotifyError, setSpotifyError] = useState("");
-  const [chatTheme, setChatTheme] = useState("cream");
+  const [chatTheme, setChatTheme] = useState("winecream");
+  const [customColors, setCustomColors] = useState<MessengerColors>(defaultCustomColors);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
   const lastIncomingRef = useRef<string | null>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
@@ -101,7 +111,24 @@ function MessengerPage() {
     setSoundOn(window.localStorage.getItem("book-messenger-sound") !== "off");
   }, []);
   useEffect(() => {
-    if (me?.id) setChatTheme(window.localStorage.getItem("book-messenger-theme-" + me.id) || "cream");
+    if (!me?.id) return;
+    let active = true;
+    void (async () => {
+      const savedTheme = window.localStorage.getItem("book-messenger-theme-" + me.id);
+      const savedColors = window.localStorage.getItem("book-messenger-custom-colors-" + me.id);
+      if (savedTheme && active) setChatTheme(savedTheme);
+      if (savedColors && active) {
+        try { setCustomColors({ ...defaultCustomColors, ...JSON.parse(savedColors) }); } catch { /* ignora preferência local inválida */ }
+      }
+      const { data } = await supabase.auth.getUser();
+      const metadata = data.user?.user_metadata ?? {};
+      if (!active) return;
+      if (typeof metadata.messenger_theme === "string") setChatTheme(metadata.messenger_theme);
+      if (metadata.messenger_custom_colors && typeof metadata.messenger_custom_colors === "object") {
+        setCustomColors({ ...defaultCustomColors, ...metadata.messenger_custom_colors });
+      }
+    })();
+    return () => { active = false; };
   }, [me?.id]);
 
   const contactsQuery = useQuery({
@@ -226,10 +253,25 @@ function MessengerPage() {
       await qc.invalidateQueries({ queryKey: ["messages", "presence", me.id] });
     }
   }
-  function chooseTheme(theme: string) {
+  async function chooseTheme(theme: string) {
     setChatTheme(theme);
-    if (me?.id) window.localStorage.setItem("book-messenger-theme-" + me.id, theme);
+    if (me?.id) {
+      window.localStorage.setItem("book-messenger-theme-" + me.id, theme);
+      const { error } = await supabase.auth.updateUser({ data: { messenger_theme: theme, messenger_custom_colors: customColors } });
+      if (error) console.error("Não foi possível sincronizar o tema da conta:", error);
+    }
     setBackgroundOpen(false);
+  }
+  async function updateCustomColor(key: keyof MessengerColors, value: string) {
+    const next = { ...customColors, [key]: value };
+    setCustomColors(next);
+    if (me?.id) {
+      window.localStorage.setItem("book-messenger-custom-colors-" + me.id, JSON.stringify(next));
+      const { error } = await supabase.auth.updateUser({ data: { messenger_theme: "custom", messenger_custom_colors: next } });
+      if (error) console.error("Não foi possível salvar as cores personalizadas:", error);
+      setChatTheme("custom");
+      window.localStorage.setItem("book-messenger-theme-" + me.id, "custom");
+    }
   }
   async function callAttention() {
     if (!selected || !me?.id) return;
@@ -421,8 +463,15 @@ function MessengerPage() {
     return null;
   };
 
+  const activeColors: MessengerColors = chatTheme === "custom" ? customColors : (messengerPresets[chatTheme as keyof typeof messengerPresets] ?? messengerPresets.winecream);
+  const messengerStyle = {
+    "--msg-bg": activeColors.bg, "--msg-sidebar": activeColors.sidebar, "--msg-panel": activeColors.panel,
+    "--msg-sent": activeColors.sent, "--msg-received": activeColors.received, "--msg-text": activeColors.text,
+    "--msg-accent": activeColors.accent, "--msg-border": activeColors.border,
+  } as React.CSSProperties;
+
   return (
-    <section className="bs-messenger mx-auto max-w-[1600px] overflow-hidden rounded-[22px] border-2 border-[#c98f79] bg-[#fff4e5] text-[#981d27] shadow-[0_14px_38px_rgba(90,25,25,.13)]">
+    <section style={messengerStyle} className="bs-messenger mx-auto max-w-[1600px] overflow-hidden rounded-[22px] border-2 border-[var(--msg-border)] bg-[var(--msg-bg)] text-[var(--msg-text)] shadow-[0_14px_38px_rgba(40,15,15,.22)]">
       <div className="flex items-center gap-2 bg-gradient-to-r from-[#790d19] to-[#a51b28] px-4 py-2 text-[#fff8ed]">
         <BookOpen size={25} strokeWidth={2.2} />
         <span className="text-base font-semibold tracking-tight">Book Society Messenger</span>
@@ -524,8 +573,18 @@ function MessengerPage() {
                 <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-1 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
                 {emojiOpen && <div className="absolute bottom-12 left-8 z-30 grid grid-cols-8 gap-1 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">{emojis.map((emoji) => <button key={emoji} onClick={() => { setDraft((v) => v + emoji); setEmojiOpen(false); }} className="rounded p-1 text-2xl hover:bg-[#f0dfcf]">{emoji}</button>)}</div>}
                 {winksOpen && <div className="absolute bottom-12 left-1/3 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl sm:grid-cols-3">{winks.map((wink) => <button key={wink.kind} onClick={() => void sendWink(wink)} className="flex min-w-28 items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="text-3xl">{wink.icon}</span><span>{wink.label}</span></button>)}</div>}
-                {backgroundOpen && <div className="absolute bottom-12 right-2 z-30 grid grid-cols-2 gap-2 rounded-xl border-2 border-[#9a1d29] bg-[#fffaf1] p-3 shadow-xl">
-                  {[["cream","Creme","#fff8ed"],["rose","Rosa suave","#f8e5e1"],["mint","Verde menta","#e5f1e9"],["wine","Vinho","#6f1724"],["night","Noite","#34252b"]].map(([id,label,color]) => <button key={id} onClick={() => chooseTheme(id)} className="flex items-center gap-2 rounded-lg p-2 text-left text-xs hover:bg-[#f0dfcf]"><span className="h-5 w-5 rounded-full border border-[#b78c79]" style={{backgroundColor:color}} />{label}</button>)}
+                {backgroundOpen && <div className="absolute bottom-12 right-2 z-40 w-[min(340px,90vw)] rounded-2xl border-2 border-[var(--msg-border)] bg-[var(--msg-received)] p-3 text-[var(--msg-text)] shadow-2xl">
+                  <p className="mb-2 text-sm font-bold">Personalizar sua interface</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(Object.entries(messengerPresets) as [keyof typeof messengerPresets, typeof messengerPresets[keyof typeof messengerPresets]][]).map(([id,preset]) => <button key={id} onClick={() => void chooseTheme(id)} className={`flex items-center gap-2 rounded-xl border p-2 text-left text-xs transition hover:brightness-95 ${chatTheme === id ? "border-[var(--msg-accent)] ring-2 ring-[var(--msg-accent)]" : "border-[var(--msg-border)]"}`}><span className="h-7 w-7 shrink-0 rounded-full border" style={{background: `linear-gradient(135deg,${preset.sent} 50%,${preset.received} 50%)`,borderColor:preset.border}} />{preset.label}</button>)}
+                  </div>
+                  <div className="mt-3 border-t border-[var(--msg-border)] pt-3">
+                    <p className="mb-2 text-xs font-semibold">Suas próprias cores</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([{key:"bg",label:"Fundo"},{key:"sidebar",label:"Barra lateral"},{key:"panel",label:"Cabeçalho e ferramentas"},{key:"sent",label:"Balões enviados"},{key:"received",label:"Balões recebidos"},{key:"text",label:"Texto"},{key:"accent",label:"Detalhes e botões"},{key:"border",label:"Bordas"}] as {key:keyof MessengerColors;label:string}[]).map(({key,label}) => <label key={key} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--msg-border)] px-2 py-1.5 text-xs">{label}<input aria-label={label} type="color" value={customColors[key]} onChange={(e) => void updateCustomColor(key,e.target.value)} className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent" /></label>)}
+                    </div>
+                    <p className="mt-2 text-[10px] opacity-70">Essas escolhas aparecem somente na sua conta. Cada pessoa controla o próprio tema.</p>
+                  </div>
                 </div>}
               </div>
               <div className="flex items-center gap-3 rounded-lg border border-[#d9a78d] bg-[#fffaf3] p-1">
@@ -544,14 +603,21 @@ function MessengerPage() {
 
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
-        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:4px; border-radius:999px; border:1px solid #c98f79; background:linear-gradient(180deg,#a91d2b,#790d19); color:#fff8ed; padding:4px 6px; font-size:10px; font-weight:700; white-space:nowrap; box-shadow:0 1px 2px #7c172422; }
+        .bs-messenger aside { background:var(--msg-sidebar) !important; color:#fff8f1; border-color:var(--msg-border) !important; }
+        .bs-messenger aside .border-b, .bs-messenger aside .border-t { border-color:var(--msg-border) !important; }
+        .bs-messenger aside input { color:var(--msg-text); }
+        .bs-messenger main { background:var(--msg-bg) !important; color:var(--msg-text); }
+        .bs-messenger main > div:first-child, .bs-messenger main > div:nth-child(2), .bs-messenger main > div:last-child { background:var(--msg-panel) !important; color:var(--msg-text); border-color:var(--msg-border) !important; }
+        .bs-messenger .toolbar-btn { display:flex; align-items:center; gap:6px; border-radius:999px; border:1px solid var(--msg-border); background:linear-gradient(180deg,var(--msg-accent),var(--msg-sent)); color:#fff; padding:7px 11px; font-size:12px; font-weight:700; white-space:nowrap; box-shadow:0 2px 5px #0002; }
         .bs-messenger .toolbar-btn:hover { filter:brightness(1.12); }
-        .messenger-chat-area { background-color:#fff8ed; transition:background-color .2s ease; }
-        .messenger-theme-rose { background-color:#f8e5e1; }
-        .messenger-theme-mint { background-color:#e5f1e9; }
-         .messenger-theme-wine { background-color:#f1dfe0; }
-        .messenger-theme-night { background-color:#34252b; color:#fff2e6; }
-        .messenger-theme-night .rounded-\\[24px\\] { background-color:#513942; color:#fff2e6; border-color:#8d6670; }
+        .bs-messenger .messenger-chat-area { background-color:var(--msg-bg) !important; color:var(--msg-text); transition:background-color .2s ease; }
+        .bs-messenger .messenger-chat-area > div > div { border-color:var(--msg-border) !important; }
+        .bs-messenger .messenger-chat-area > div > div[class*="bg-"] { background:var(--msg-received) !important; color:var(--msg-text) !important; }
+        .bs-messenger .messenger-chat-area > div > div[class*="justify-end"] { background:transparent !important; }
+        .bs-messenger .messenger-chat-area .rounded-\\[20px\\] { background:var(--msg-received) !important; color:var(--msg-text) !important; border-color:var(--msg-border) !important; }
+        .bs-messenger .messenger-chat-area .rounded-br-md { background:var(--msg-sent) !important; color:#fff !important; border-color:var(--msg-accent) !important; }
+        .bs-messenger textarea { color:var(--msg-text) !important; }
+        .bs-messenger .border-t { border-color:var(--msg-border) !important; }
         .wink-message { width:min(310px,65vw); padding:3px 8px; }
         .wink-stage { position:relative; display:grid; place-items:center; min-height:125px; overflow:visible; }
         .wink-main { display:block; font-size:clamp(72px,9vw,120px); line-height:1; filter:drop-shadow(0 7px 2px #7b263522); animation:wink-bounce 1.05s ease-in-out infinite alternate; }
