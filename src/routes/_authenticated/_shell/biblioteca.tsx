@@ -315,11 +315,11 @@ function ReadBooks() {
     }
   }
 
-  // Livros importados do Goodreads podem não ter capa. Tenta encontrá-la pelo título/autor.
+  // Livros sem capa em qualquer estante (lidos, lendo ou quero ler) recebem uma busca automática pelo título/autor.
   useEffect(() => {
     async function fillMissingCovers() {
       let updatedAnyCover = false;
-      for (const item of shelf.filter((entry) => entry.status === "read" && entry.book)) {
+      for (const item of shelf.filter((entry) => entry.book)) {
         const book = item.book;
         if (!book || book.cover_url || lookedUp.current.has(book.id)) continue;
         lookedUp.current.add(book.id);
