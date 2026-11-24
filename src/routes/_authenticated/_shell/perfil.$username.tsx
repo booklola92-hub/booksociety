@@ -53,6 +53,8 @@ function PublicProfilePage() {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
   const [busy, setBusy] = useState<"follow" | "friend" | null>(null);
+  const [editingGenres, setEditingGenres] = useState(false);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
 
   const profile = useQuery({
     queryKey: ["public-profile", username],
@@ -135,6 +137,37 @@ function PublicProfilePage() {
       return { kind: "none", request: row };
     },
   });
+
+  const availableGenres = [
+    "Romance", "Romance Dark", "Fantasia", "Sobrenatural", "Mistério",
+    "Terror", "Suspense", "Ficção científica", "Aventura", "Drama",
+    "Clássicos", "Distopia", "Contemporâneo", "Histórico", "Policial",
+  ];
+
+  function startGenreEditing() {
+    setSelectedGenres((genresQuery.data ?? []).map((item) => item.genre));
+    setEditingGenres(true);
+  }
+
+  async function saveGenres() {
+    if (!profileId || !isOwnProfile) return;
+    try {
+      const { error: deleteError } = await (supabase as any)
+        .from("profile_genres").delete().eq("user_id", profileId);
+      if (deleteError) throw deleteError;
+      if (selectedGenres.length) {
+        const { error: insertError } = await (supabase as any)
+          .from("profile_genres")
+          .insert(selectedGenres.map((genre) => ({ user_id: profileId, genre })));
+        if (insertError) throw insertError;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["profile-genres", profileId] });
+      setEditingGenres(false);
+      toast.success("Seus gêneros favoritos foram atualizados!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar seus gêneros.");
+    }
+  }
 
   async function toggleFollow() {
     if (!profileId || !followStats.data) return;
@@ -268,6 +301,21 @@ function PublicProfilePage() {
           <div className="flex flex-wrap gap-2">
             {genresQuery.isLoading ? <span className="text-xs text-muted-foreground">Carregando gêneros...</span> : genresQuery.data?.length ? genresQuery.data.map(({ id, genre }) => <span key={id} className="rounded-full border border-primary/10 bg-secondary px-3 py-2 text-xs font-medium text-secondary-foreground">{genre}</span>) : <span className="text-xs text-muted-foreground">Nenhum gênero favorito cadastrado ainda.</span>}
           </div>
+          {isOwnProfile && <div className="mt-3">
+            {!editingGenres ? <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={startGenreEditing}>Editar gêneros favoritos</Button> : <div className="space-y-3 rounded-xl border border-primary/15 bg-secondary/30 p-3">
+              <p className="text-xs text-muted-foreground">Escolha os gêneros que combinam com suas leituras (até 8).</p>
+              <div className="flex flex-wrap gap-2">
+                {availableGenres.map((genre) => {
+                  const checked = selectedGenres.includes(genre);
+                  return <button key={genre} type="button" onClick={() => setSelectedGenres((current) => checked ? current.filter((item) => item !== genre) : current.length < 8 ? [...current, genre] : current)} className={`rounded-full border px-3 py-2 text-xs transition-colors ${checked ? "border-primary bg-primary text-primary-foreground" : "border-primary/15 bg-card text-foreground hover:bg-secondary"}`} aria-pressed={checked}>{genre}</button>;
+                })}
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" className="rounded-full" onClick={saveGenres}>Salvar gêneros</Button>
+                <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={() => setEditingGenres(false)}>Cancelar</Button>
+              </div>
+            </div>}
+          </div>}
         </div>
         <div className="border-t border-primary/20 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
           <p className="mb-3 text-sm font-medium text-foreground">Meus livros favoritos:</p>
