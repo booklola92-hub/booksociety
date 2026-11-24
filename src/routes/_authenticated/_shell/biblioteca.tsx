@@ -283,18 +283,15 @@ function GoodreadsTransfer() {
       }
       let found = 0;
       let processed = 0;
-      // Pesquisa automaticamente toda a estante em lotes de até 100, sem exigir cliques ou reaberturas.
-      for (let offset = 0; offset < missing.length; offset += 100) {
-        const batch = missing.slice(offset, offset + 100);
-        for (const book of batch) {
-          const cover = await findPublicCover(book.title, book.author ?? "", "", "");
-          if (cover) {
-            const { error: updateError } = await supabase.from("books").update({ cover_url: cover }).eq("id", book.id);
-            if (!updateError) found += 1;
-          }
-          processed += 1;
-          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      // Percorre todos os livros sem capa, sem limite de quantidade ou lotes que exijam nova abertura.
+      for (const book of missing) {
+        const cover = await findPublicCover(book.title, book.author ?? "", "", "");
+        if (cover) {
+          const { error: updateError } = await supabase.from("books").update({ cover_url: cover }).eq("id", book.id);
+          if (!updateError) found += 1;
         }
+        processed += 1;
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
       }
       await invalidate("shelf");
       await invalidate("books");
