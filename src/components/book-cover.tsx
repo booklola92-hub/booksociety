@@ -11,7 +11,9 @@ export function BookCover({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const url = useMediaUrl(book.cover_url);
+  const storedCover = book.cover_url?.trim() || null;
+  const normalizedCover = storedCover?.startsWith("//") ? `https:${storedCover}` : storedCover?.startsWith("http://") ? storedCover.replace(/^http:\/\//i, "https://") : storedCover;
+  const url = useMediaUrl(normalizedCover);
   if (!url || failed) {
     return (
       <div
