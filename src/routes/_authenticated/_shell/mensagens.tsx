@@ -396,14 +396,14 @@ function MessengerPage() {
   } as React.CSSProperties;
 
   return (
-    <section style={messengerStyle} className="bs-messenger mx-auto max-w-[760px] overflow-hidden rounded-[14px] border border-[var(--msg-border)] bg-[var(--msg-bg)] text-[var(--msg-text)] shadow-[0_14px_38px_rgba(40,15,15,.22)]">
+    <section style={messengerStyle} className="bs-messenger mx-auto max-w-[860px] overflow-hidden rounded-[14px] border border-[var(--msg-border)] bg-[var(--msg-bg)] text-[var(--msg-text)] shadow-[0_14px_38px_rgba(40,15,15,.22)]">
       <div className="flex items-center gap-2 bg-gradient-to-r from-[#790d19] to-[#a51b28] px-3 py-1.5 text-[#fff8ed]">
         <BookOpen size={25} strokeWidth={2.2} />
         <span className="text-sm font-semibold tracking-tight">Book Society Messenger</span>
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[240px] grid-cols-1 lg:h-[900px] lg:min-h-0 lg:grid-cols-[190px_minmax(0,1fr)]">
+      <div className="grid min-h-[240px] grid-cols-1 lg:h-[860px] lg:min-h-0 lg:grid-cols-[190px_minmax(0,1fr)]">
         <aside className="min-h-0 border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:overflow-hidden lg:border-b-0 lg:border-r-2">
           <div className="flex items-center gap-2 border-b border-[#d9b49b] p-2">
             {avatar(myAvatar, displayName, "h-8 w-8", "max-h-8 max-w-8")}
