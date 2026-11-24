@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Flag, Plus, Target, Trash2, Trophy } from "lucide-react";
+import { CalendarDays, Plus, Target, Trash2, Trophy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
