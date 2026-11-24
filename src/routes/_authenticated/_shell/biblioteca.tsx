@@ -281,7 +281,7 @@ function GoodreadsTransfer() {
         toast.success("Todos os livros da sua estante já têm uma capa cadastrada.");
         return;
       }
-      const batch = missing.slice(0, 20);
+      const batch = missing.slice(0, 100);
       let found = 0;
       for (const book of batch) {
         const cover = await findPublicCover(book.title, book.author ?? "", "", "");
@@ -293,7 +293,7 @@ function GoodreadsTransfer() {
       }
       await invalidate("shelf");
       await invalidate("books");
-      toast.success(`Pesquisa concluída: ${found} capas encontradas em ${batch.length} livros. ${Math.max(0, missing.length - batch.length)} ainda aguardam pesquisa; clique novamente para continuar.`);
+      toast.success(`Pesquisa concluída: ${found} capas encontradas em ${batch.length} livros. ${Math.max(0, missing.length - batch.length)} ainda aguardam pesquisa; serão pesquisados ao abrir a Biblioteca novamente.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível pesquisar as capas.");
     } finally { setCoverBusy(false); }
