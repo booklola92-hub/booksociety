@@ -403,7 +403,7 @@ function MessengerPage() {
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[240px] grid-cols-1 lg:h-[730px] lg:min-h-0 lg:grid-cols-[190px_minmax(0,1fr)]">
+      <div className="grid min-h-[240px] grid-cols-1 lg:h-[680px] lg:min-h-0 lg:grid-cols-[190px_minmax(0,1fr)]">
         <aside className="min-h-0 border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:overflow-hidden lg:border-b-0 lg:border-r-2">
           <div className="flex items-center gap-2 border-b border-[#d9b49b] p-2">
             {avatar(myAvatar, displayName, "h-8 w-8", "max-h-8 max-w-8")}
