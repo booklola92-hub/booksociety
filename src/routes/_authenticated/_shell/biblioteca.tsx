@@ -128,7 +128,7 @@ function GoodreadsTransfer() {
       const csvFile = selectedFiles.find((file) => file.name.toLowerCase().endsWith(".csv"));
       if (!csvFile) throw new Error("Selecione o CSV do Goodreads junto com as imagens das capas.");
       const coverFiles = selectedFiles.filter((file) => file !== csvFile && file.type.startsWith("image/"));
-      const coversByBookId = new Map(coverFiles.map((file) => [file.name.replace(/\\.[^.]+$/, "").trim(), file]));
+      const coversByBookId = new Map(coverFiles.map((file) => [file.name.replace(/\.[^.]+$/, "").trim(), file]));
       const rows = parseCsv(await csvFile.text());
       if (!rows[0] || !("title" in rows[0])) throw new Error("Esse arquivo não parece ser uma exportação CSV do Goodreads.");
       const userId = await getMyId();
