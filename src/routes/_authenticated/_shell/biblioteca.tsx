@@ -322,7 +322,9 @@ function GoodreadsTransfer() {
       }
       let found = 0;
       let processed = 0;
-      // Percorre todos os livros sem capa, sem limite de quantidade ou lotes que exijam nova abertura.
+      toast.info(`Pesquisando capas para ${missing.length} livros sem imagem. As capas aparecerão conforme forem encontradas.`);
+      // Percorre todos os livros sem capa. Atualiza a biblioteca a cada 5 livros processados,
+      // para que as capas encontradas apareçam sem esperar a pesquisa inteira terminar.
       for (const book of missing) {
         const cover = await findPublicCover(book.title, book.author ?? "", "", "");
         if (cover) {
@@ -330,7 +332,11 @@ function GoodreadsTransfer() {
           if (!updateError) found += 1;
         }
         processed += 1;
-        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        if (processed % 5 === 0) {
+          await invalidate("shelf");
+          await invalidate("books");
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
       }
       await invalidate("shelf");
       await invalidate("books");
