@@ -120,17 +120,34 @@ function parseDate(value: string): string | null {
 async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
-  const normalizedTitle = normalize(title);
+  // Goodreads frequentemente acrescenta a série e o número do volume entre parênteses.
+  // Os catálogos públicos normalmente guardam apenas o título principal.
+  const catalogTitle = (value: string) =>
+    normalize(value.replace(/\\s*\\([^)]*\\)\\s*$/, "")).replace(/[^a-z0-9]+/g, " ").trim();
+  const normalizedTitle = catalogTitle(title);
   const normalizedAuthor = normalize(author);
-  const matchesBook = (candidateTitle: string, candidateAuthors: string[]) =>
-    normalize(candidateTitle) === normalizedTitle &&
-    (!normalizedAuthor || candidateAuthors.some((name) => normalize(name).includes(normalizedAuthor) || normalizedAuthor.includes(normalize(name))));
+  const matchesBook = (candidateTitle: string, candidateAuthors: string[]) => {
+    const candidate = catalogTitle(candidateTitle);
+    const titleMatches = candidate === normalizedTitle;
+    const authorMatches =
+      !normalizedAuthor ||
+      candidateAuthors.length === 0 ||
+      candidateAuthors.some((name) => {
+        const normalized = normalize(name);
+        return normalized && (normalized.includes(normalizedAuthor) || normalizedAuthor.includes(normalized));
+      });
+    return titleMatches && authorMatches;
+  };
 
   // 1) Google Books
   try {
-    const query = isbn ? `isbn:${isbn}` : `intitle:${title}${author ? `+inauthor:${author}` : ""}`;
-    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=10`);
-    if (response.ok) {
+    const searchTitle = title.replace(/\\s*\\([^)]*\\)\\s*$/, "").trim();
+    const queries = isbn
+      ? [`isbn:${isbn}`]
+      : [`intitle:${searchTitle}${author ? `+inauthor:${author}` : ""}`, `intitle:${searchTitle}`];
+    for (const query of queries) {
+      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20`);
+      if (!response.ok) continue;
       const payload = await response.json();
       const items = Array.isArray(payload.items) ? payload.items : [];
       const match = items.find((item: any) => {
@@ -147,8 +164,8 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   try {
     const params = new URLSearchParams();
     if (isbn) params.set("isbn", isbn);
-    else { params.set("title", title); if (author) params.set("author", author); }
-    params.set("limit", "10");
+    else { params.set("title", title.replace(/\\s*\\([^)]*\\)\\s*$/, "").trim()); if (author) params.set("author", author); }
+    params.set("limit", "20");
     const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
     if (response.ok) {
       const payload = await response.json();
