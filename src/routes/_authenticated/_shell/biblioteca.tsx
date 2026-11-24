@@ -132,7 +132,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
         const info = item.volumeInfo ?? {};
         return normalize(String(info.title ?? "")).includes(normalizedTitle) &&
           (!normalizedAuthor || (info.authors ?? []).some((name: string) => normalize(name).includes(normalizedAuthor)));
-      }) ?? items[0];
+      });
       const image = match?.volumeInfo?.imageLinks?.extraLarge ?? match?.volumeInfo?.imageLinks?.large ??
         match?.volumeInfo?.imageLinks?.medium ?? match?.volumeInfo?.imageLinks?.thumbnail;
       if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
