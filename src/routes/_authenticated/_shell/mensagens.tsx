@@ -332,23 +332,56 @@ function MessengerPage() {
   }
   async function callAttention() {
     if ((!selected && !selectedGroupId) || !me?.id) return;
-    const rateKey = "book-messenger-nudge-" + me.id + "-" + selected;
+    const conversationId = selectedGroupId || selected;
+    const rateKey = "book-messenger-nudge-" + me.id + "-" + conversationId;
     const lastSent = Number(window.localStorage.getItem(rateKey) || "0");
-    if (Date.now() - lastSent < 5000) return;
+    const remaining = 30000 - (Date.now() - lastSent);
+    if (remaining > 0) {
+      toast.info(`Aguarde ${Math.ceil(remaining / 1000)} segundos para chamar a atenção novamente.`);
+      return;
+    }
+
+    const nudgeText = `[NUDGE]✨ ${displayName} está chamando sua atenção!`;
+    if (selectedGroupId) {
+      const { error } = await (supabase as any).from("messenger_group_messages").insert({
+        group_id: selectedGroupId,
+        sender_id: me.id,
+        content: nudgeText,
+      });
+      if (error) {
+        toast.error(error.message || "Não foi possível enviar o chamado.");
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("messages").insert({
+        sender_id: me.id,
+        recipient_id: selected,
+        content: nudgeText,
+      });
+      if (error) {
+        toast.error(error.message || "Não foi possível enviar o chamado.");
+        return;
+      }
+    }
+
     window.localStorage.setItem(rateKey, String(Date.now()));
     setAttention(true);
     window.setTimeout(() => setAttention(false), 1100);
+    await qc.invalidateQueries({ queryKey: ["messages"] });
+    await qc.invalidateQueries({ queryKey: ["unread"] });
+    toast.success("Chamado de atenção enviado!");
+
     const channel = supabase.channel(selectedGroupId ? "book-messenger-group-" + selectedGroupId : "book-messenger-" + selected);
     try {
       await new Promise<void>((resolve, reject) => {
         channel.subscribe((status) => {
           if (status === "SUBSCRIBED") resolve();
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") reject(new Error("Não foi possível chamar a atenção."));
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") reject(new Error("O aviso foi salvo, mas a animação instantânea não pôde ser enviada."));
         });
       });
       await channel.send({ type: "broadcast", event: "nudge", payload: { sender_id: me.id, sender_name: displayName, sent_at: Date.now() } });
     } catch (error) {
-      console.error("Não foi possível enviar o alerta:", error);
+      console.warn("O chamado foi salvo na conversa; o alerta instantâneo não foi enviado:", error);
     } finally {
       await supabase.removeChannel(channel);
     }
