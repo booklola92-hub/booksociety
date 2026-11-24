@@ -116,6 +116,48 @@ function parseDate(value: string): string | null {
 }
 
 
+
+async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
+  const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
+  const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
+  const googleQuery = isbn ? `isbn:${isbn}` : `intitle:${title}+${author ? `+inauthor:${author}` : ""}`;
+  try {
+    const google = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(googleQuery)}&maxResults=5`);
+    if (google.ok) {
+      const payload = await google.json();
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      const normalizedTitle = normalize(title);
+      const normalizedAuthor = normalize(author);
+      const match = items.find((item: any) => {
+        const info = item.volumeInfo ?? {};
+        return normalize(String(info.title ?? "")).includes(normalizedTitle) &&
+          (!normalizedAuthor || (info.authors ?? []).some((name: string) => normalize(name).includes(normalizedAuthor)));
+      }) ?? items[0];
+      const image = match?.volumeInfo?.imageLinks?.extraLarge ?? match?.volumeInfo?.imageLinks?.large ??
+        match?.volumeInfo?.imageLinks?.medium ?? match?.volumeInfo?.imageLinks?.thumbnail;
+      if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
+    }
+  } catch (error) { console.warn("Google Books não respondeu:", error); }
+
+  try {
+    const params = new URLSearchParams();
+    if (isbn) params.set("isbn", isbn);
+    else { params.set("title", title); if (author) params.set("author", author); }
+    params.set("limit", "5");
+    const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
+    if (response.ok) {
+      const payload = await response.json();
+      const docs = Array.isArray(payload.docs) ? payload.docs : [];
+      const normalizedTitle = normalize(title);
+      const normalizedAuthor = normalize(author);
+      const match = docs.find((doc: any) => normalize(String(doc.title ?? "")) === normalizedTitle &&
+        (!normalizedAuthor || (doc.author_name ?? []).some((name: string) => normalize(name) === normalizedAuthor))) ?? docs[0];
+      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg?default=false`;
+    }
+  } catch (error) { console.warn("Open Library não respondeu:", error); }
+  return null;
+}
+
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -222,6 +264,39 @@ function GoodreadsTransfer() {
     }
   }
 
+
+  async function findMissingCovers() {
+    setCoverBusy(true);
+    try {
+      const userId = await getMyId();
+      const { data, error } = await supabase.from("shelf_items")
+        .select("book_id,books(id,title,author,cover_url)")
+        .eq("user_id", userId).order("created_at", { ascending: true }).limit(10000);
+      if (error) throw error;
+      const missing = (data ?? []).map((item) => item.books as unknown as { id: string; title: string; author: string | null; cover_url: string | null } | null)
+        .filter((book): book is { id: string; title: string; author: string | null; cover_url: string | null } => !!book && !book.cover_url);
+      if (!missing.length) {
+        toast.success("Todos os livros da sua estante já têm uma capa cadastrada.");
+        return;
+      }
+      const batch = missing.slice(0, 20);
+      let found = 0;
+      for (const book of batch) {
+        const cover = await findPublicCover(book.title, book.author ?? "", "", "");
+        if (cover) {
+          const { error: updateError } = await supabase.from("books").update({ cover_url: cover }).eq("id", book.id);
+          if (!updateError) found += 1;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      }
+      await invalidate("shelf");
+      await invalidate("books");
+      toast.success(`Pesquisa concluída: ${found} capas encontradas em ${batch.length} livros. ${Math.max(0, missing.length - batch.length)} ainda aguardam pesquisa; clique novamente para continuar.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível pesquisar as capas.");
+    } finally { setCoverBusy(false); }
+  }
+
   async function exportGoodreads() {
     setBusy(true);
     try {
@@ -283,6 +358,13 @@ function GoodreadsTransfer() {
           <h2 className="font-display text-2xl font-semibold">Importar e exportar</h2>
           <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
         </div>
+      </div>
+      <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2">
+        <div className="font-semibold">Buscar capas automaticamente</div>
+        <p className="text-sm text-muted-foreground">Procura capas de livros, novels, mangás e manhwas por título e autor nos catálogos públicos Google Books e Open Library. A busca roda em lotes de até 20 livros para respeitar os limites dos serviços. Não substitui capas que já existem.</p>
+        <Button type="button" variant="outline" className="w-full" disabled={busy || coverBusy} onClick={() => void findMissingCovers()}>
+          <BookOpen className="h-4 w-4" /> {coverBusy ? "Pesquisando capas..." : "Pesquisar próximas 20 capas"}
+        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
