@@ -1,14 +1,14 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
 import { BookOpen, Download, FileUp, Library, Trash2, Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PageTitle } from "@/components/empty-state";
 import { BookCover } from "@/components/book-cover";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchPrivateObject } from "@/lib/media";
+import { fetchPrivateObject, uploadMedia } from "@/lib/media";
 import { getMyId, useInvalidate, useMe, useShelf } from "@/lib/social";
 
 type CsvRow = Record<string, string>;
@@ -116,54 +116,20 @@ function parseDate(value: string): string | null {
 }
 
 
-async function findBookCover(title: string, author: string): Promise<string | null> {
-  const targetTitle = normalize(title);
-  const targetAuthor = normalize(author);
-  try {
-    const terms = [`intitle:${title}`, author ? `inauthor:${author}` : ""].filter(Boolean).join(" ");
-    const query = new URLSearchParams({ q: terms, maxResults: "10", printType: "books" });
-    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?${query.toString()}`);
-    if (response.ok) {
-      const result = await response.json();
-      const match = (result.items ?? []).find((entry: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }) => {
-        const info = entry.volumeInfo;
-        if (!info?.title || (!info.imageLinks?.thumbnail && !info.imageLinks?.smallThumbnail)) return false;
-        const candidate = normalize(info.title);
-        const titleMatches = candidate === targetTitle || candidate.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidate} `);
-        const authors = normalize((info.authors ?? []).join(" "));
-        return titleMatches && (!targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors));
-      });
-      const image = match?.volumeInfo?.imageLinks?.thumbnail ?? match?.volumeInfo?.imageLinks?.smallThumbnail;
-      if (image) return image.replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
-    }
-  } catch (error) { console.warn("Google Books não encontrou a capa:", error); }
-  try {
-    const params = new URLSearchParams({ title, fields: "cover_i,title,author_name", limit: "10" });
-    if (author) params.set("author", author);
-    const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
-    if (response.ok) {
-      const result = await response.json();
-      const match = (result.docs ?? []).find((doc: { title?: string; author_name?: string[]; cover_i?: number }) => {
-        const candidate = normalize(doc.title ?? "");
-        const titleMatches = candidate === targetTitle || candidate.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidate} `);
-        const authors = normalize((doc.author_name ?? []).join(" "));
-        return titleMatches && (!targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors)) && !!doc.cover_i;
-      });
-      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
-    }
-  } catch (error) { console.warn("Open Library não encontrou a capa:", error); }
-  return null;
-}
-
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const invalidate = useInvalidate();
 
-  async function importGoodreads(file: File) {
+  async function importGoodreads(files: FileList) {
     setBusy(true);
     try {
-      const rows = parseCsv(await file.text());
+      const selectedFiles = Array.from(files);
+      const csvFile = selectedFiles.find((file) => file.name.toLowerCase().endsWith(".csv"));
+      if (!csvFile) throw new Error("Selecione o CSV do Goodreads junto com as imagens das capas.");
+      const coverFiles = selectedFiles.filter((file) => file !== csvFile && file.type.startsWith("image/"));
+      const coversByBookId = new Map(coverFiles.map((file) => [file.name.replace(/\\.[^.]+$/, "").trim(), file]));
+      const rows = parseCsv(await csvFile.text());
       if (!rows[0] || !("title" in rows[0])) throw new Error("Esse arquivo não parece ser uma exportação CSV do Goodreads.");
       const userId = await getMyId();
       const [{ data: allBooks, error: booksError }, { data: shelf, error: shelfError }] = await Promise.all([
@@ -195,21 +161,25 @@ function GoodreadsTransfer() {
         for (const book of data ?? []) bookMap.set(`${normalize(book.title)}|${normalize(book.author ?? "")}`, book.id);
       }
 
-      // Busca capas para os livros novos importados do Goodreads.
-      const importedForCovers = new Map<string, { id: string; title: string; author: string }>();
+      // Associa somente as capas fornecidas pelo usuário, usando o Goodreads Book Id no nome do arquivo.
+      let importedCoverCount = 0;
+      const processedBooks = new Set<string>();
       for (const row of rows) {
         const title = row["title"]?.trim();
-        if (!title) continue;
+        const goodreadsId = row["book id"]?.trim();
+        if (!title || !goodreadsId) continue;
         const author = row["author"]?.trim() ?? "";
-        const key = `${normalize(title)}|${normalize(author)}`;
-        const id = bookMap.get(key);
-        if (id && pendingKeys.has(key)) importedForCovers.set(key, { id, title, author });
-      }
-      for (const book of importedForCovers.values()) {
-        const coverUrl = await findBookCover(book.title, book.author);
-        if (coverUrl) {
-          const { error } = await supabase.from("books").update({ cover_url: coverUrl }).eq("id", book.id);
-          if (error) console.warn(`Não foi possível salvar a capa de "${book.title}":`, error);
+        const bookId = bookMap.get(`${normalize(title)}|${normalize(author)}`);
+        const coverFile = coversByBookId.get(goodreadsId);
+        if (!bookId || !coverFile || processedBooks.has(bookId)) continue;
+        try {
+          const coverPath = await uploadMedia(userId, coverFile, "book-covers");
+          const { error } = await supabase.from("books").update({ cover_url: coverPath }).eq("id", bookId);
+          if (error) throw error;
+          processedBooks.add(bookId);
+          importedCoverCount += 1;
+        } catch (coverError) {
+          console.warn(`Não foi possível importar a capa de "${title}":`, coverError);
         }
       }
 
@@ -243,7 +213,7 @@ function GoodreadsTransfer() {
       }
       await invalidate("shelf");
       await invalidate("books");
-      toast.success(`Importação concluída: ${shelfRows.length} livros adicionados à sua biblioteca.`);
+      toast.success(`Importação concluída: ${shelfRows.length} livros adicionados e ${importedCoverCount} capas importadas.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível importar o arquivo.");
     } finally {
@@ -317,9 +287,9 @@ function GoodreadsTransfer() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 font-semibold"><Upload className="h-4 w-4 text-primary" /> Importar do Goodreads</div>
-          <p className="text-sm leading-relaxed text-muted-foreground">Baixe sua planilha no Goodreads e envie o arquivo CSV aqui. Títulos, autores, status de leitura, avaliações e resenhas serão adicionados à sua biblioteca. Livros que já estão nela serão ignorados.</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">Selecione o CSV do Goodreads e, junto com ele, as imagens originais das capas. Nomeie cada imagem com o Goodreads Book Id (por exemplo: 260068020.jpg). Os livros, avaliações e resenhas serão importados; capas fornecidas serão associadas pelo ID.</p>
           <Button className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}><FileUp className="h-4 w-4" /> {busy ? "Processando..." : "Escolher arquivo CSV"}</Button>
-          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importGoodreads(file); }} />
+          <input ref={fileRef} type="file" accept=".csv,text/csv,image/*" multiple className="hidden" onChange={(event) => { const files = event.target.files; if (files?.length) void importGoodreads(files); }} />
           <a className="text-sm text-primary underline underline-offset-4" href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer">Abrir exportação do Goodreads</a>
         </div>
         <div className="space-y-3 rounded-2xl border border-border p-4">
@@ -337,7 +307,6 @@ function ReadBooks() {
   const { data: me } = useMe();
   const { data: shelf = [], isLoading } = useShelf(me?.id);
   const readBooks = shelf.filter((item) => item.status === "read" && item.book);
-  const lookedUp = useRef(new Set<string>());
   const invalidate = useInvalidate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
@@ -373,74 +342,6 @@ function ReadBooks() {
     }
   }
 
-  // Livros sem capa em qualquer estante (lidos, lendo ou quero ler) recebem uma busca automática pelo título/autor.
-  useEffect(() => {
-    async function fillMissingCovers() {
-      let updatedAnyCover = false;
-      for (const item of shelf.filter((entry) => entry.book)) {
-        const book = item.book;
-        if (!book || book.cover_url || lookedUp.current.has(book.id)) continue;
-        lookedUp.current.add(book.id);
-        try {
-          let coverUrl: string | null = null;
-
-          // Google Books primeiro: busca por título e autor e confere a correspondência.
-          const googleTerms = [`intitle:${book.title}`, book.author ? `inauthor:${book.author}` : ""].filter(Boolean).join(" ");
-          const googleQuery = new URLSearchParams({ q: googleTerms, maxResults: "10", printType: "books" });
-          const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?${googleQuery.toString()}`);
-          if (googleResponse.ok) {
-            const googleResult = await googleResponse.json();
-            const targetTitle = normalize(book.title);
-            const targetAuthor = normalize(book.author ?? "");
-            const match = (googleResult.items ?? []).find((entry: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }) => {
-              const info = entry.volumeInfo;
-              if (!info?.title || !info.imageLinks?.thumbnail && !info.imageLinks?.smallThumbnail) return false;
-              const candidateTitle = normalize(info.title);
-              const titleMatches = candidateTitle === targetTitle || candidateTitle.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidateTitle} `);
-              const authors = normalize((info.authors ?? []).join(" "));
-              const authorMatches = !targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors);
-              return titleMatches && authorMatches;
-            });
-            const image = match?.volumeInfo?.imageLinks?.thumbnail ?? match?.volumeInfo?.imageLinks?.smallThumbnail;
-            if (image) coverUrl = image.replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
-          }
-
-          // Open Library fica como segunda fonte se o Google Books não encontrar.
-          if (!coverUrl) {
-            const params = new URLSearchParams({ title: book.title, fields: "cover_i,title,author_name", limit: "10" });
-            if (book.author) params.set("author", book.author);
-            const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
-            if (response.ok) {
-              const result = await response.json();
-              const targetTitle = normalize(book.title);
-              const targetAuthor = normalize(book.author ?? "");
-              const match = (result.docs ?? []).find((doc: { title?: string; author_name?: string[]; cover_i?: number }) => {
-                const candidateTitle = normalize(doc.title ?? "");
-                const titleMatches = candidateTitle === targetTitle || candidateTitle.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidateTitle} `);
-                const authors = normalize((doc.author_name ?? []).join(" "));
-                const authorMatches = !targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors);
-                return titleMatches && authorMatches && doc.cover_i;
-              });
-              if (match?.cover_i) coverUrl = `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
-            }
-          }
-          if (!coverUrl) continue;
-          const { error } = await supabase.from("books").update({ cover_url: coverUrl }).eq("id", book.id);
-          if (error) {
-            lookedUp.current.delete(book.id);
-            console.error("Não foi possível salvar a capa do livro:", error);
-          } else {
-            updatedAnyCover = true;
-          }
-        } catch (error) {
-          lookedUp.current.delete(book.id);
-          console.error("Não foi possível buscar a capa do livro:", error);
-        }
-      }
-      if (updatedAnyCover) await invalidate("shelf");
-    }
-    if (!isLoading && shelf.some((item) => item.book && !item.book.cover_url)) void fillMissingCovers();
-  }, [isLoading, shelf, invalidate]);
 
   return (
     <section className="space-y-4">
