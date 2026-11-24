@@ -8,6 +8,7 @@ import { PageTitle } from "@/components/empty-state";
 import { BookCover } from "@/components/book-cover";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPrivateObject } from "@/lib/media";
 import { getMyId, useInvalidate, useMe, useShelf } from "@/lib/social";
 
 type CsvRow = Record<string, string>;
@@ -22,7 +23,7 @@ function zipStore(files: Array<{ name: string; data: Uint8Array }>): Blob {
   }
   const crc32 = (data: Uint8Array) => {
     let crc = 0xffffffff;
-    for (const byte of data) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    for (const byte of data) crc = (crcTable[(crc ^ byte) & 0xff] ?? 0) ^ (crc >>> 8);
     return (crc ^ 0xffffffff) >>> 0;
   };
   const chunks: Uint8Array[] = [];
@@ -56,7 +57,7 @@ function zipStore(files: Array<{ name: string; data: Uint8Array }>): Blob {
   ev.setUint32(0, 0x06054b50, true); ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
   ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
   ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true); ev.setUint16(20, 0, true);
-  return new Blob([...chunks, ...central, end], { type: "application/zip" });
+  return new Blob([...chunks, ...central, end] as BlobPart[], { type: "application/zip" });
 }
 function safeFileName(value: string): string {
   return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || "livro";
@@ -123,7 +124,7 @@ function GoodreadsTransfer() {
     setBusy(true);
     try {
       const rows = parseCsv(await file.text());
-      if (!rows.length || !("title" in rows[0])) throw new Error("Esse arquivo não parece ser uma exportação CSV do Goodreads.");
+      if (!rows[0] || !("title" in rows[0])) throw new Error("Esse arquivo não parece ser uma exportação CSV do Goodreads.");
       const userId = await getMyId();
       const [{ data: allBooks, error: booksError }, { data: shelf, error: shelfError }] = await Promise.all([
         supabase.from("books").select("id,title,author").limit(10000),
@@ -137,9 +138,9 @@ function GoodreadsTransfer() {
       const pending: Array<{ title: string; author: string; pages: number | null; cover_url: null; created_by: string }> = [];
       const pendingKeys = new Set<string>();
       for (const row of rows) {
-        const title = row.title?.trim();
+        const title = row["title"]?.trim();
         if (!title) continue;
-        const author = row.author?.trim() ?? "";
+        const author = row["author"]?.trim() ?? "";
         const key = `${normalize(title)}|${normalize(author)}`;
         if (!bookMap.has(key) && !pendingKeys.has(key)) {
           const pages = Number(row["number of pages"]);
@@ -156,12 +157,12 @@ function GoodreadsTransfer() {
 
       const shelfRows: Array<Record<string, unknown>> = [];
       for (const row of rows) {
-        const title = row.title?.trim();
+        const title = row["title"]?.trim();
         if (!title) continue;
-        const author = row.author?.trim() ?? "";
+        const author = row["author"]?.trim() ?? "";
         const bookId = bookMap.get(`${normalize(title)}|${normalize(author)}`);
         if (!bookId || shelfIds.has(bookId)) continue;
-        const shelves = `${row["exclusive shelf"] ?? ""} ${row.bookshelves ?? ""}`.toLowerCase();
+        const shelves = `${row["exclusive shelf"] ?? ""} ${row["bookshelves"] ?? ""}`.toLowerCase();
         const status = shelves.includes("currently-reading") ? "reading" : shelves.includes("read") || row["date read"] ? "read" : "want";
         const rating = Number(row["my rating"]);
         const startedAt = parseDate(row["date started"] ?? "");
@@ -213,15 +214,16 @@ function GoodreadsTransfer() {
         let coverFile = "";
         if (book.cover_url) {
           try {
-            let coverUrl = book.cover_url;
-            if (!/^https?:\/\//i.test(coverUrl)) {
-              const { data: signed, error: signedError } = await supabase.storage.from("media").createSignedUrl(coverUrl, 60);
-              if (signedError) throw signedError;
-              coverUrl = signed.signedUrl;
+            let blob: Blob;
+            if (!/^https?:\/\//i.test(book.cover_url)) {
+              const privateBlob = await fetchPrivateObject("media", book.cover_url);
+              if (!privateBlob) throw new Error("Sem acesso à capa");
+              blob = privateBlob;
+            } else {
+              const response = await fetch(book.cover_url);
+              if (!response.ok) throw new Error("Falha ao baixar a capa");
+              blob = await response.blob();
             }
-            const response = await fetch(coverUrl);
-            if (!response.ok) throw new Error("Falha ao baixar a capa");
-            const blob = await response.blob();
             const extension = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : blob.type.includes("gif") ? "gif" : "jpg";
             coverFile = `capas/${String(coverCount + 1).padStart(4, "0")}-${safeFileName(book.title)}.${extension}`;
             files.push({ name: coverFile, data: new Uint8Array(await blob.arrayBuffer()) });

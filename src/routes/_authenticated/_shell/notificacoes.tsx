@@ -157,8 +157,9 @@ function NotificationsPage() {
           Tente novamente em alguns instantes.
         </EmptyState>
       ) : rows.length === 0 ? (
-        <EmptyState title="Você está em dia!" description="Quando alguém curtir, comentar ou enviar um pedido de amizade, a notificação aparecerá aqui.">
-          <Bell className="mx-auto h-8 w-8 text-muted-foreground" />
+        <EmptyState title="Você está em dia!">
+          <Bell className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+          Quando alguém curtir, comentar ou enviar um pedido de amizade, a notificação aparecerá aqui.
         </EmptyState>
       ) : (
         <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">

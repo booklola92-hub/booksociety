@@ -1,3 +1,5 @@
+-- NOTE: this file is not registered in meta/_journal.json, so the migrator never runs it.
+-- Its rules are applied by 0013_privacy_media_and_community_authority.sql. Kept for history only.
 -- Community settings and deletion are owner-only, enforced by the database.
 DROP POLICY IF EXISTS "Owner and admins update communities" ON public.communities;
 DROP POLICY IF EXISTS "Creators update communities" ON public.communities;

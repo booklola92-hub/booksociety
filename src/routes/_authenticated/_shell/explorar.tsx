@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Search, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PageTitle } from "@/components/empty-state";
 import { UserAvatar } from "@/components/user-avatar";
@@ -27,12 +27,16 @@ async function searchPeople(term: string): Promise<PublicProfile[]> {
 
 function ExplorePage() {
   const [query, setQuery] = useState("");
-  const term = query.trim();
+  const [term, setTerm] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(query.trim()), 350);
+    return () => clearTimeout(t);
+  }, [query]);
 
   const people = useQuery({
     queryKey: ["public-profile-search", term],
     queryFn: () => searchPeople(term),
-    enabled: term.length >= 2,
+    enabled: term.replace(/^@/, "").length >= 3,
     staleTime: 30_000,
   });
   const peopleResults = people.data ?? [];
@@ -62,12 +66,12 @@ function ExplorePage() {
           />
         </div>
 
-        {term.length < 2 ? (
+        {term.replace(/^@/, "").length < 3 ? (
           <div className="rounded-2xl border border-dashed border-border bg-background/60 px-6 py-10 text-center">
             <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
             <p className="font-medium text-foreground">Encontre sua comunidade</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Digite pelo menos 2 caracteres para procurar pessoas cadastradas.
+              Digite pelo menos 3 letras do nome ou do @usuário. Só aparecem leitores que escolheram aparecer na busca.
             </p>
           </div>
         ) : people.isLoading ? (
@@ -77,14 +81,16 @@ function ExplorePage() {
           </div>
         ) : people.isError ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
-            Não foi possível pesquisar pessoas agora. Tente novamente.
+            {String((people.error as { message?: string } | null)?.message ?? "").includes("Muitas buscas")
+              ? String((people.error as { message?: string }).message)
+              : "Não foi possível pesquisar pessoas agora. Tente novamente."}
           </div>
         ) : peopleResults.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-background/60 px-6 py-10 text-center">
             <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
             <p className="font-medium text-foreground">Ninguém encontrado</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Não encontramos pessoas com esse nome ou nome de usuário.
+              Não encontramos leitores com esse nome que tenham escolhido aparecer na busca.
             </p>
           </div>
         ) : (

@@ -1,3 +1,5 @@
+-- NOTE: this file is not registered in meta/_journal.json, so the migrator never runs it.
+-- Its rules are applied by 0013_privacy_media_and_community_authority.sql. Kept for history only.
 -- Security hardening for private communities and profile/follow data.
 BEGIN;
 

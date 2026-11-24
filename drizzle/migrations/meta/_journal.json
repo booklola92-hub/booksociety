@@ -92,6 +92,13 @@
       "when": 1795434007288,
       "tag": "0012_community_files_and_cover_framing",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795489752144,
+      "tag": "0013_privacy_media_and_community_authority",
+      "breakpoints": true
     }
   ]
 }

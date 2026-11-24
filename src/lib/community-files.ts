@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPrivateObject } from "@/lib/media";
 import { getMyId } from "@/lib/social";
 
 export const COMMUNITY_FILES_BUCKET = "community-files";
@@ -102,7 +103,7 @@ export async function uploadCommunityFile(communityId: string, file: File) {
   const mime = validateCommunityFile(file);
   const me = await getMyId();
   const path = `${communityId}/${me}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
-  const up = await supabase.storage.from(COMMUNITY_FILES_BUCKET).upload(path, file, { contentType: mime });
+  const up = await supabase.storage.from(COMMUNITY_FILES_BUCKET).upload(path, file, { contentType: mime, cacheControl: "0" });
   if (up.error) throw new Error(up.error.message);
   const { error } = await supabase.from("community_files").insert({
     community_id: communityId,
@@ -118,12 +119,28 @@ export async function uploadCommunityFile(communityId: string, file: File) {
   }
 }
 
-export async function communityFileUrl(f: Pick<CommunityFile, "storage_path" | "name">, download: boolean) {
-  const { data, error } = await supabase.storage
-    .from(COMMUNITY_FILES_BUCKET)
-    .createSignedUrl(f.storage_path, 60, download ? { download: f.name } : undefined);
-  if (error) throw new Error("Você não tem acesso a este arquivo ou ele não existe mais.");
-  return data.signedUrl;
+/**
+ * Opens or downloads a community file. Access is checked by the database at the moment
+ * of the request (no shareable signed link), and the copy only lives in this browser tab.
+ */
+export async function openCommunityFile(f: Pick<CommunityFile, "storage_path" | "name">, download: boolean) {
+  const blob = await fetchPrivateObject(COMMUNITY_FILES_BUCKET, f.storage_path);
+  if (!blob) throw new Error("Você não tem acesso a este arquivo ou ele não existe mais.");
+  const url = URL.createObjectURL(blob);
+  try {
+    if (download) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else {
+      window.open(url, "_blank", "noopener");
+    }
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+  }
 }
 
 export async function deleteCommunityFile(f: Pick<CommunityFile, "id" | "storage_path">) {

@@ -786,6 +786,7 @@ export type Database = {
           avatar_url: string | null
           bio: string
           created_at: string
+          discoverable: boolean
           display_name: string
           id: string
           updated_at: string
@@ -795,6 +796,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string
           created_at?: string
+          discoverable?: boolean
           display_name?: string
           id: string
           updated_at?: string
@@ -804,6 +806,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string
           created_at?: string
+          discoverable?: boolean
           display_name?: string
           id?: string
           updated_at?: string
@@ -1147,6 +1150,7 @@ export type Database = {
         Args: { _approve: boolean; _request: string }
         Returns: undefined
       }
+      delete_community: { Args: { _community: string }; Returns: undefined }
       discover_communities: {
         Args: { _limit?: number; _search?: string }
         Returns: {
@@ -1177,6 +1181,15 @@ export type Database = {
           member_count: number
           name: string
           slug: string
+        }[]
+      }
+      get_profile_by_username: {
+        Args: { _username: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          username: string
         }[]
       }
       get_work: {

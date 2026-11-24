@@ -29,7 +29,7 @@ export function useRealtimeInbox(userId: string | undefined) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `recipient_id=eq.${userId}` },
-        () => {
+        (payload) => {
           qc.invalidateQueries({ queryKey: ["unread"] });
           qc.invalidateQueries({ queryKey: ["messages"] });
           qc.invalidateQueries({ queryKey: ["conversations"] });

@@ -31,7 +31,7 @@ type Friendship = {
 };
 
 type FriendshipState =
-  | { kind: "none"; request: null }
+  | { kind: "none"; request: Friendship | null }
   | { kind: "outgoing"; request: Friendship }
   | { kind: "incoming"; request: Friendship }
   | { kind: "friends"; request: Friendship };
@@ -45,14 +45,9 @@ function PublicProfilePage() {
   const profile = useQuery({
     queryKey: ["public-profile", username],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("search_public_profiles", {
-        _search: username,
-        _limit: 30,
-      });
+      const { data, error } = await supabase.rpc("get_profile_by_username", { _username: username });
       if (error) throw error;
-      return ((data ?? []) as PublicProfile[]).find(
-        (item) => item.username.toLowerCase() === username.toLowerCase(),
-      ) ?? null;
+      return ((data ?? []) as PublicProfile[])[0] ?? null;
     },
     enabled: Boolean(username),
   });

@@ -130,9 +130,9 @@ function MessengerPage() {
       const { data } = await supabase.auth.getUser();
       const metadata = data.user?.user_metadata ?? {};
       if (!active) return;
-      if (typeof metadata.messenger_theme === "string") setChatTheme(metadata.messenger_theme);
-      if (metadata.messenger_custom_colors && typeof metadata.messenger_custom_colors === "object") {
-        setCustomColors({ ...defaultCustomColors, ...metadata.messenger_custom_colors });
+      if (typeof metadata["messenger_theme"] === "string") setChatTheme(metadata["messenger_theme"]);
+      if (metadata["messenger_custom_colors"] && typeof metadata["messenger_custom_colors"] === "object") {
+        setCustomColors({ ...defaultCustomColors, ...metadata["messenger_custom_colors"] });
       }
     })();
     return () => { active = false; };
@@ -158,14 +158,14 @@ function MessengerPage() {
     },
   });
   const contacts = contactsQuery.data ?? [];
-  const groupsQuery = useQuery({ queryKey: ["messages", "groups", me?.id], enabled: !!me?.id, queryFn: async () => { const { data, error } = await (supabase as any).from("messenger_group_members").select("group_id, messenger_groups!inner(id,name,created_at)").eq("user_id", me!.id); if (error) throw error; return (data ?? []).map((row: any) => row.messenger_groups as MessengerGroup); } });
+  const groupsQuery = useQuery<MessengerGroup[]>({ queryKey: ["messages", "groups", me?.id], enabled: !!me?.id, queryFn: async () => { const { data, error } = await (supabase as any).from("messenger_group_members").select("group_id, messenger_groups!inner(id,name,created_at)").eq("user_id", me!.id); if (error) throw error; return (data ?? []).map((row: any) => row.messenger_groups as MessengerGroup); } });
   const groups = groupsQuery.data ?? [];
   const activeGroup = groups.find((group) => group.id === selectedGroupId) ?? null;
   const groupMembersQuery = useQuery({ queryKey: ["messages", "group-members", selectedGroupId], enabled: !!selectedGroupId, queryFn: async () => { const { data, error } = await (supabase as any).from("messenger_group_members").select("user_id").eq("group_id", selectedGroupId); if (error) throw error; return (data ?? []).map((row: { user_id: string }) => row.user_id as string); } });
   const groupMemberIds = groupMembersQuery.data ?? [];
   useEffect(() => {
-    if (!selectedGroupId && !selected && contacts.length) setSelected(contacts[0].id);
-    if (!selectedGroupId && selected && contacts.length && !contacts.some((c) => c.id === selected)) setSelected(contacts[0].id);
+    if (!selectedGroupId && !selected && contacts.length) setSelected(contacts[0]!.id);
+    if (!selectedGroupId && selected && contacts.length && !contacts.some((c) => c.id === selected)) setSelected(contacts[0]!.id);
   }, [contacts, selected, selectedGroupId]);
 
   const myPresenceQuery = useQuery({
@@ -231,7 +231,7 @@ function MessengerPage() {
         qc.invalidateQueries({ queryKey: ["messages", "group-members"] });
       })
       .on("broadcast", { event: "nudge" }, (event) => {
-        const payload = event.payload as { sender_id?: string };
+        const payload = event["payload"] as { sender_id?: string };
         if (payload.sender_id && payload.sender_id !== me.id) {
           setAttention(true);
           window.setTimeout(() => setAttention(false), 1100);
@@ -357,6 +357,7 @@ function MessengerPage() {
   useEffect(() => {
     if (!messages.length) return;
     const latest = messages[messages.length - 1];
+    if (!latest) return;
     if (lastIncomingRef.current && latest.id !== lastIncomingRef.current && latest.sender_id !== me?.id) {
       const wink = winkFromContent(latest.content);
       if (wink && soundOn) playWinkSound(wink);
@@ -435,7 +436,7 @@ function MessengerPage() {
           {(contact || activeGroup) ? <>
             <div className="flex min-h-[44px] items-center gap-2 border-b border-[var(--msg-border)] bg-[var(--msg-panel)] px-2 py-1">
               {activeGroup ? <div className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--msg-border)] bg-[var(--msg-received)] text-lg">👥</div> : avatar(contact!.avatar, contact!.name, "h-8 w-8")}
-              <div className="min-w-0 flex-1"><p className="text-xs font-bold">{activeGroup?.name || contact?.name <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-xs text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-0.5 text-xs italic">“{activeGroup ? "Conversa em grupo" : (contactPresence?.status_text || "Sonhe, leia, converse...")}” <Heart className="inline" size={16} /></p></div>
+              <div className="min-w-0 flex-1"><p className="text-xs font-bold">{activeGroup?.name || contact?.name} <ChevronDown className="inline" size={19} /></p><p className="mt-0.5 text-xs text-[#258a43]">🟢 <span className="text-[var(--msg-text)]">Online</span></p><p className="mt-0.5 text-xs italic">“{activeGroup ? "Conversa em grupo" : (contactPresence?.status_text || "Sonhe, leia, converse...")}” <Heart className="inline" size={16} /></p></div>
               <button onClick={callAttention} className="hidden items-center gap-2 rounded-full border border-[var(--msg-border)] bg-gradient-to-b from-[var(--msg-accent)] to-[var(--msg-sent)] px-3 py-2 text-xs font-bold text-white shadow-lg hover:brightness-110 md:flex"><Bell size={18} />Chamar atenção</button>
             </div>
             <div className="flex flex-wrap items-center gap-1 border-b border-[#d9b49b] bg-[#f8ead7] px-1.5 py-0.5">
@@ -501,10 +502,10 @@ function MessengerPage() {
                 <button onClick={() => { setEmojiOpen(!emojiOpen); setWinksOpen(false); }} className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Emoticons"><Smile size={16} /></button>
                 <button onClick={() => photoInputRef.current?.click()} className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Enviar foto"><ImageIcon size={16} /></button>
                 <button onClick={() => void sendWink({kind:"heart",label:"Presente",icon:"🎁",caption:"Um presente para você! 🎁"})} className="rounded-md p-1 hover:bg-[#f0dfcb]" title="Enviar presente"><Gift size={16} /></button>
-                <button onClick={() => void sendWink(winks[0])} className="rounded-md p-1.5 text-lg hover:bg-[#f0dfcb]" title="Porquinho dançante">🐷</button>
-                <button onClick={() => void sendWink(winks[1])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Coração">❤️</button>
-                <button onClick={() => void sendWink(winks[2])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Beijo">💋</button>
-                <button onClick={() => void sendWink(winks[3])} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Dança">♫</button>
+                <button onClick={() => void sendWink(winks[0]!)} className="rounded-md p-1.5 text-lg hover:bg-[#f0dfcb]" title="Porquinho dançante">🐷</button>
+                <button onClick={() => void sendWink(winks[1]!)} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Coração">❤️</button>
+                <button onClick={() => void sendWink(winks[2]!)} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Beijo">💋</button>
+                <button onClick={() => void sendWink(winks[3]!)} className="rounded-md p-2 text-2xl hover:bg-[#f0dfcb]" title="Dança">♫</button>
                 <button onClick={() => { setBackgroundOpen(!backgroundOpen); setWinksOpen(false); setEmojiOpen(false); }} className="ml-auto rounded-md px-2 py-1.5 text-xs font-semibold hover:bg-[#f0dfcb]"><Palette className="mr-1 inline" size={15} />Fundo da conversa <ChevronDown className="ml-2 inline" size={15} /></button>
                 <button onClick={() => { const next = !soundOn; setSoundOn(next); localStorage.setItem("book-messenger-sound", next ? "on" : "off"); }} className="rounded-md p-1 hover:bg-[#f0dfcb]" title={soundOn ? "Desativar som" : "Ativar som"}>{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
 
