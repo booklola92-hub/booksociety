@@ -161,6 +161,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
   const invalidate = useInvalidate();
 
   async function importGoodreads(files: FileList) {
