@@ -115,6 +115,46 @@ function parseDate(value: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+
+async function findBookCover(title: string, author: string): Promise<string | null> {
+  const targetTitle = normalize(title);
+  const targetAuthor = normalize(author);
+  try {
+    const terms = [`intitle:${title}`, author ? `inauthor:${author}` : ""].filter(Boolean).join(" ");
+    const query = new URLSearchParams({ q: terms, maxResults: "10", printType: "books" });
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?${query.toString()}`);
+    if (response.ok) {
+      const result = await response.json();
+      const match = (result.items ?? []).find((entry: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }) => {
+        const info = entry.volumeInfo;
+        if (!info?.title || (!info.imageLinks?.thumbnail && !info.imageLinks?.smallThumbnail)) return false;
+        const candidate = normalize(info.title);
+        const titleMatches = candidate === targetTitle || candidate.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidate} `);
+        const authors = normalize((info.authors ?? []).join(" "));
+        return titleMatches && (!targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors));
+      });
+      const image = match?.volumeInfo?.imageLinks?.thumbnail ?? match?.volumeInfo?.imageLinks?.smallThumbnail;
+      if (image) return image.replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
+    }
+  } catch (error) { console.warn("Google Books não encontrou a capa:", error); }
+  try {
+    const params = new URLSearchParams({ title, fields: "cover_i,title,author_name", limit: "10" });
+    if (author) params.set("author", author);
+    const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
+    if (response.ok) {
+      const result = await response.json();
+      const match = (result.docs ?? []).find((doc: { title?: string; author_name?: string[]; cover_i?: number }) => {
+        const candidate = normalize(doc.title ?? "");
+        const titleMatches = candidate === targetTitle || candidate.startsWith(`${targetTitle} `) || targetTitle.startsWith(`${candidate} `);
+        const authors = normalize((doc.author_name ?? []).join(" "));
+        return titleMatches && (!targetAuthor || !authors || authors.includes(targetAuthor) || targetAuthor.includes(authors)) && !!doc.cover_i;
+      });
+      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
+    }
+  } catch (error) { console.warn("Open Library não encontrou a capa:", error); }
+  return null;
+}
+
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -127,7 +167,7 @@ function GoodreadsTransfer() {
       if (!rows[0] || !("title" in rows[0])) throw new Error("Esse arquivo não parece ser uma exportação CSV do Goodreads.");
       const userId = await getMyId();
       const [{ data: allBooks, error: booksError }, { data: shelf, error: shelfError }] = await Promise.all([
-        supabase.from("books").select("id,title,author").limit(10000),
+        supabase.from("books").select("id,title,author,cover_url").limit(10000),
         supabase.from("shelf_items").select("book_id").eq("user_id", userId),
       ]);
       if (booksError) throw booksError;
@@ -150,9 +190,27 @@ function GoodreadsTransfer() {
       }
 
       for (let offset = 0; offset < pending.length; offset += 100) {
-        const { data, error } = await supabase.from("books").insert(pending.slice(offset, offset + 100)).select("id,title,author");
+        const { data, error } = await supabase.from("books").insert(pending.slice(offset, offset + 100)).select("id,title,author,cover_url");
         if (error) throw error;
         for (const book of data ?? []) bookMap.set(`${normalize(book.title)}|${normalize(book.author ?? "")}`, book.id);
+      }
+
+      // Busca capas para os livros novos importados do Goodreads.
+      const importedForCovers = new Map<string, { id: string; title: string; author: string }>();
+      for (const row of rows) {
+        const title = row["title"]?.trim();
+        if (!title) continue;
+        const author = row["author"]?.trim() ?? "";
+        const key = `${normalize(title)}|${normalize(author)}`;
+        const id = bookMap.get(key);
+        if (id && pendingKeys.has(key)) importedForCovers.set(key, { id, title, author });
+      }
+      for (const book of importedForCovers.values()) {
+        const coverUrl = await findBookCover(book.title, book.author);
+        if (coverUrl) {
+          const { error } = await supabase.from("books").update({ cover_url: coverUrl }).eq("id", book.id);
+          if (error) console.warn(`Não foi possível salvar a capa de "${book.title}":`, error);
+        }
       }
 
       const shelfRows: Array<Record<string, unknown>> = [];
