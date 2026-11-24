@@ -405,47 +405,6 @@ export type Database = {
           },
         ]
       }
-      messenger_presence: {
-        Row: {
-          spotify_album_image: string | null
-          spotify_artist: string | null
-          spotify_is_playing: boolean
-          spotify_track_name: string | null
-          spotify_url: string | null
-          status_text: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          spotify_album_image?: string | null
-          spotify_artist?: string | null
-          spotify_is_playing?: boolean
-          spotify_track_name?: string | null
-          spotify_url?: string | null
-          status_text?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          spotify_album_image?: string | null
-          spotify_artist?: string | null
-          spotify_is_playing?: boolean
-          spotify_track_name?: string | null
-          spotify_url?: string | null
-          status_text?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "messenger_presence_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       messages: {
         Row: {
           content: string
@@ -483,6 +442,148 @@ export type Database = {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messenger_group_members: {
+        Row: {
+          group_id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messenger_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "messenger_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messenger_group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messenger_group_messages: {
+        Row: {
+          content: string
+          created_at: string
+          group_id: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          group_id: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messenger_group_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "messenger_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messenger_group_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messenger_groups: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messenger_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messenger_presence: {
+        Row: {
+          spotify_album_image: string | null
+          spotify_artist: string | null
+          spotify_is_playing: boolean
+          spotify_track_name: string | null
+          spotify_url: string | null
+          status_text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          spotify_album_image?: string | null
+          spotify_artist?: string | null
+          spotify_is_playing?: boolean
+          spotify_track_name?: string | null
+          spotify_url?: string | null
+          status_text?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          spotify_album_image?: string | null
+          spotify_artist?: string | null
+          spotify_is_playing?: boolean
+          spotify_track_name?: string | null
+          spotify_url?: string | null
+          status_text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messenger_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1007,26 +1108,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      search_public_profiles: {
-        Args: { _limit?: number; _search: string }
-        Returns: {
-          avatar_url: string | null
-          display_name: string
-          id: string
-          username: string
-        }[]
-      }
-      list_visible_profiles: {
-        Args: { _ids: string[] }
-        Returns: {
-          avatar_url: string | null
-          display_name: string
-          id: string
-          username: string
-        }[]
-      }
       can_view_community: {
         Args: { _community: string; _user: string }
+        Returns: boolean
+      }
+      can_view_messenger_presence: {
+        Args: { _owner: string }
         Returns: boolean
       }
       catalog_compact: { Args: { _text: string }; Returns: string }
@@ -1124,6 +1211,10 @@ export type Database = {
         Args: { _community: string; _user: string }
         Returns: boolean
       }
+      is_messenger_group_member: {
+        Args: { _group: string; _user: string }
+        Returns: boolean
+      }
       list_communities: {
         Args: { _limit?: number; _search?: string }
         Returns: {
@@ -1140,6 +1231,15 @@ export type Database = {
           my_role: string
           name: string
           slug: string
+        }[]
+      }
+      list_visible_profiles: {
+        Args: { _ids: string[] }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          username: string
         }[]
       }
       my_conversations: {
@@ -1174,6 +1274,15 @@ export type Database = {
           origin: string
           synopsis: string
           title: string
+        }[]
+      }
+      search_public_profiles: {
+        Args: { _limit?: number; _search: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+          username: string
         }[]
       }
       search_works: {
