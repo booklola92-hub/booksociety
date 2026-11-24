@@ -281,19 +281,24 @@ function GoodreadsTransfer() {
         toast.success("Todos os livros da sua estante já têm uma capa cadastrada.");
         return;
       }
-      const batch = missing.slice(0, 100);
       let found = 0;
-      for (const book of batch) {
-        const cover = await findPublicCover(book.title, book.author ?? "", "", "");
-        if (cover) {
-          const { error: updateError } = await supabase.from("books").update({ cover_url: cover }).eq("id", book.id);
-          if (!updateError) found += 1;
+      let processed = 0;
+      // Pesquisa automaticamente toda a estante em lotes de até 100, sem exigir cliques ou reaberturas.
+      for (let offset = 0; offset < missing.length; offset += 100) {
+        const batch = missing.slice(offset, offset + 100);
+        for (const book of batch) {
+          const cover = await findPublicCover(book.title, book.author ?? "", "", "");
+          if (cover) {
+            const { error: updateError } = await supabase.from("books").update({ cover_url: cover }).eq("id", book.id);
+            if (!updateError) found += 1;
+          }
+          processed += 1;
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
         }
-        await new Promise((resolve) => window.setTimeout(resolve, 1500));
       }
       await invalidate("shelf");
       await invalidate("books");
-      toast.success(`Pesquisa concluída: ${found} capas encontradas em ${batch.length} livros. ${Math.max(0, missing.length - batch.length)} ainda aguardam pesquisa; serão pesquisados ao abrir a Biblioteca novamente.`);
+      toast.success(`Pesquisa automática concluída: ${found} capas encontradas em ${processed} livros.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível pesquisar as capas.");
     } finally { setCoverBusy(false); }
