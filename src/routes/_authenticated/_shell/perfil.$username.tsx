@@ -190,30 +190,30 @@ function PublicProfilePage() {
               <p className="mt-1 text-sm text-muted-foreground">@{person.username}</p>
             </div>
             {!isOwnProfile ? (
-              <div className="flex flex-wrap gap-2 pb-1">
+              <div className="flex flex-wrap items-center gap-2 pb-1">
                 <Button
-                  className="rounded-full"
+                  variant="outline"
+                  className="rounded-full border-primary/40 bg-card/90 text-primary shadow-sm hover:bg-secondary"
+                  disabled={busy !== null || friendship.isLoading || friendship.isError}
+                  onClick={handleFriendAction}
+                >
+                  {friendState === "friends" ? (
+                    <><UserCheck className="mr-2 h-4 w-4" /> Amigos</>
+                  ) : friendState === "incoming" ? (
+                    <><Check className="mr-2 h-4 w-4" /> Aceitar amizade</>
+                  ) : friendState === "outgoing" ? (
+                    <><UserX className="mr-2 h-4 w-4" /> Pedido enviado</>
+                  ) : (
+                    <><UserPlus className="mr-2 h-4 w-4" /> Adicionar Amizade</>
+                  )}
+                </Button>
+                <Button
+                  className="rounded-full shadow-sm"
                   disabled={busy !== null || followStats.isLoading}
                   onClick={toggleFollow}
                 >
                   {followStats.data?.iFollow ? <Check className="mr-2 h-4 w-4" /> : <Heart className="mr-2 h-4 w-4" />}
                   {followStats.data?.iFollow ? "Deixar de seguir" : "Seguir"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-full"
-                  disabled={busy !== null || friendship.isLoading || friendship.isError}
-                  onClick={handleFriendAction}
-                >
-                  {friendState === "friends" ? (
-                    <><UserCheck className="mr-2 h-4 w-4" /> Desfazer amizade</>
-                  ) : friendState === "incoming" ? (
-                    <><Check className="mr-2 h-4 w-4" /> Aceitar amizade</>
-                  ) : friendState === "outgoing" ? (
-                    <><UserX className="mr-2 h-4 w-4" /> Cancelar pedido</>
-                  ) : (
-                    <><UserPlus className="mr-2 h-4 w-4" /> Adicionar amigo</>
-                  )}
                 </Button>
               </div>
             ) : (
