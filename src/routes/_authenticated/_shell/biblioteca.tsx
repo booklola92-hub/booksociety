@@ -123,7 +123,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   // Goodreads frequentemente acrescenta a série e o número do volume entre parênteses.
   // Os catálogos públicos normalmente guardam apenas o título principal.
   const catalogTitle = (value: string) =>
-    normalize(value.replace(/\s*\\([^)]*\\)\s*$/, "")).replace(/[^a-z0-9]+/g, " ").trim();
+    normalize(value.replace(/\s*\([^)]*\)\s*$/, "")).replace(/[^a-z0-9]+/g, " ").trim();
   const normalizedTitle = catalogTitle(title);
   const normalizedAuthor = normalize(author);
   const matchesBook = (candidateTitle: string, candidateAuthors: string[]) => {
@@ -141,7 +141,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
 
   // 1) Google Books
   try {
-    const searchTitle = title.replace(/\s*\\([^)]*\\)\s*$/, "").trim();
+    const searchTitle = title.replace(/\s*\([^)]*\)\s*$/, "").trim();
     const queries = isbn
       ? [`isbn:${isbn}`]
       : [`intitle:${searchTitle}${author ? `+inauthor:${author}` : ""}`, `intitle:${searchTitle}`];
@@ -164,7 +164,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   try {
     const params = new URLSearchParams();
     if (isbn) params.set("isbn", isbn);
-    else { params.set("title", title.replace(/\s*\\([^)]*\\)\s*$/, "").trim()); if (author) params.set("author", author); }
+    else { params.set("title", title.replace(/\s*\([^)]*\)\s*$/, "").trim()); if (author) params.set("author", author); }
     params.set("limit", "20");
     const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
     if (response.ok) {
