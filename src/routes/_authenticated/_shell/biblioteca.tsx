@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
 import { BookOpen, Download, FileUp, Library, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PageTitle } from "@/components/empty-state";
@@ -151,7 +151,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
       const normalizedTitle = normalize(title);
       const normalizedAuthor = normalize(author);
       const match = docs.find((doc: any) => normalize(String(doc.title ?? "")) === normalizedTitle &&
-        (!normalizedAuthor || (doc.author_name ?? []).some((name: string) => normalize(name) === normalizedAuthor))) ?? docs[0];
+        (!normalizedAuthor || (doc.author_name ?? []).some((name: string) => normalize(name).includes(normalizedAuthor))));
       if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg?default=false`;
     }
   } catch (error) { console.warn("Open Library não respondeu:", error); }
@@ -162,6 +162,7 @@ function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
+  const autoCoverStarted = useRef(false);
   const invalidate = useInvalidate();
 
   async function importGoodreads(files: FileList) {
@@ -298,6 +299,13 @@ function GoodreadsTransfer() {
     } finally { setCoverBusy(false); }
   }
 
+  useEffect(() => {
+    if (autoCoverStarted.current) return;
+    autoCoverStarted.current = true;
+    // Preenche automaticamente um primeiro lote de capas ausentes ao abrir a Biblioteca.
+    void findMissingCovers();
+  }, []);
+
   async function exportGoodreads() {
     setBusy(true);
     try {
@@ -359,13 +367,6 @@ function GoodreadsTransfer() {
           <h2 className="font-display text-2xl font-semibold">Importar e exportar</h2>
           <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
         </div>
-      </div>
-      <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2">
-        <div className="font-semibold">Buscar capas automaticamente</div>
-        <p className="text-sm text-muted-foreground">Procura capas de livros, novels, mangás e manhwas por título e autor nos catálogos públicos Google Books e Open Library. A busca roda em lotes de até 20 livros para respeitar os limites dos serviços. Não substitui capas que já existem.</p>
-        <Button type="button" variant="outline" className="w-full" disabled={busy || coverBusy} onClick={() => void findMissingCovers()}>
-          <BookOpen className="h-4 w-4" /> {coverBusy ? "Pesquisando capas..." : "Pesquisar próximas 20 capas"}
-        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
