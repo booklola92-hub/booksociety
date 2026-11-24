@@ -86,6 +86,34 @@ function PublicProfilePage() {
     },
   });
 
+  const genresQuery = useQuery({
+    queryKey: ["profile-genres", profileId],
+    enabled: Boolean(profileId),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("profile_genres")
+        .select("id, genre")
+        .eq("user_id", profileId!)
+        .order("genre");
+      if (error) throw error;
+      return (data ?? []) as { id: string; genre: string }[];
+    },
+  });
+
+  const achievementsQuery = useQuery({
+    queryKey: ["profile-achievements", profileId],
+    enabled: Boolean(profileId),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("profile_achievements")
+        .select("id, achievement_key, title, description, unlocked_at")
+        .eq("user_id", profileId!)
+        .order("unlocked_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as { id: string; achievement_key: string; title: string; description: string; unlocked_at: string }[];
+    },
+  });
+
   const friendship = useQuery({
     queryKey: ["friendship", me?.id, profileId],
     enabled: Boolean(me?.id && profileId && !isOwnProfile),
@@ -161,16 +189,7 @@ function PublicProfilePage() {
   const readCount = entries.filter((item) => item.status === "read").length;
   const readingCount = entries.filter((item) => item.status === "reading").length;
   const favoriteBooks = entries.filter((item) => item.rating === 5 && item.book).slice(0, 5);
-  const badges = [
-    { name: "Primeiro Desafio", icon: BookOpen, tone: "text-amber-700", detail: "Primeiro desafio concluído" },
-    { name: "Leitor Constante", icon: Award, tone: "text-slate-500", detail: "5 desafios concluídos" },
-    { name: "Leitor Lendário", icon: Crown, tone: "text-amber-600", detail: "10 desafios concluídos" },
-    { name: "Mestre da Fantasia", icon: Sparkles, tone: "text-sky-700", detail: "Conquista literária" },
-    { name: "Amor Sobrenatural", icon: MoonStar, tone: "text-slate-700", detail: "50 livros do gênero" },
-    { name: "Rosa Negra", icon: Heart, tone: "text-rose-800", detail: "1 livro de Romance Dark" },
-    { name: "Coração das Sombras", icon: Star, tone: "text-amber-700", detail: "20 livros de Romance Dark" },
-    { name: "Rainha do Dark", icon: Crown, tone: "text-amber-600", detail: "50 livros de Romance Dark" },
-  ];
+  const badges = achievementsQuery.data ?? [];
 
   return (
     <div className="space-y-4">
@@ -230,16 +249,15 @@ function PublicProfilePage() {
           <span className="text-xs font-medium text-primary">Ver todas →</span>
         </div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {badges.map((badge) => {
-            const Icon = badge.icon;
-            return <div key={badge.name} className="flex min-w-0 flex-col items-center border-r border-primary/10 px-1 text-center last:border-0">
+          {achievementsQuery.isLoading ? <p className="col-span-full py-5 text-center text-sm text-muted-foreground">Carregando conquistas...</p> : badges.length ? badges.map((badge) => (
+            <div key={badge.id} className="flex min-w-0 flex-col items-center border-r border-primary/10 px-1 text-center last:border-0">
               <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#d9a85d] bg-gradient-to-br from-[#fff0d7] to-[#e7c18b] shadow-inner sm:h-20 sm:w-20">
-                <Icon className={`h-8 w-8 ${badge.tone}`} />
+                <Award className="h-8 w-8 text-amber-700" />
               </div>
-              <p className="mt-2 text-xs font-semibold leading-tight text-foreground">{badge.name}</p>
-              <p className="mt-1 hidden text-[10px] leading-tight text-muted-foreground sm:block">{badge.detail}</p>
-            </div>;
-          })}
+              <p className="mt-2 text-xs font-semibold leading-tight text-foreground">{badge.title}</p>
+              <p className="mt-1 hidden text-[10px] leading-tight text-muted-foreground sm:block">{badge.description}</p>
+            </div>
+          )) : <p className="col-span-full py-5 text-center text-sm text-muted-foreground">As conquistas desbloqueadas aparecerão aqui.</p>}
         </div>
       </section>
 
@@ -248,7 +266,7 @@ function PublicProfilePage() {
           <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-primary"><BookOpen className="h-5 w-5" /> O que gosto de ler</h2>
           <p className="mb-2 text-sm font-medium text-foreground">Meus gêneros favoritos:</p>
           <div className="flex flex-wrap gap-2">
-            {["Romance Dark", "Fantasia", "Sobrenatural", "Mistério", "Terror", "Romance"].map((genre) => <span key={genre} className="rounded-full border border-primary/10 bg-secondary px-3 py-2 text-xs font-medium text-secondary-foreground">{genre}</span>)}
+            {genresQuery.isLoading ? <span className="text-xs text-muted-foreground">Carregando gêneros...</span> : genresQuery.data?.length ? genresQuery.data.map(({ id, genre }) => <span key={id} className="rounded-full border border-primary/10 bg-secondary px-3 py-2 text-xs font-medium text-secondary-foreground">{genre}</span>) : <span className="text-xs text-muted-foreground">Nenhum gênero favorito cadastrado ainda.</span>}
           </div>
         </div>
         <div className="border-t border-primary/20 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
