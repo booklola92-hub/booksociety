@@ -381,7 +381,7 @@ function ReadBooks() {
       }
       if (updatedAnyCover) await invalidate("shelf");
     }
-    if (!isLoading && readBooks.length) void fillMissingCovers();
+    if (!isLoading && shelf.some((item) => item.book && !item.book.cover_url)) void fillMissingCovers();
   }, [isLoading, shelf, invalidate]);
 
   return (
