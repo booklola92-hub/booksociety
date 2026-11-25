@@ -69,7 +69,7 @@ function parseCsv(text: string): CsvRow[] {
   let row: string[] = [];
   let cell = "";
   let quoted = false;
-  const input = text.replace(/^\\uFEFF/, "");
+  const input = text.replace(/^\uFEFF/, "");
   for (let i = 0; i < input.length; i += 1) {
     const char = input[i];
     if (char === '"') {
@@ -80,8 +80,8 @@ function parseCsv(text: string): CsvRow[] {
     } else if (char === "," && !quoted) {
       row.push(cell);
       cell = "";
-    } else if ((char === "\\n" || char === "\\r") && !quoted) {
-      if (char === "\\r" && input[i + 1] === "\\n") i += 1;
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && input[i + 1] === "\n") i += 1;
       row.push(cell);
       if (row.some((value) => value.trim())) lines.push(row);
       row = [];
@@ -94,8 +94,6 @@ function parseCsv(text: string): CsvRow[] {
   return lines.map((values) => Object.fromEntries(headers.map((header, index) => [header, (values[index] ?? "").trim()])));
 }
 
-// Neutraliza conteúdo que planilhas podem interpretar como fórmula (CSV injection).
-// A verificação considera espaços e caracteres de controle antes do marcador.
 // Neutraliza conteúdo que planilhas podem interpretar como fórmula (CSV injection).
 // A verificação considera espaços e caracteres de controle antes do marcador.
 function csvCell(value: unknown): string {
@@ -111,7 +109,7 @@ function csvDate(value: string | null): string {
 }
 
 function normalize(value: string): string {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/\\s+/g, " ").trim();
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function parseDate(value: string): string | null {
@@ -125,9 +123,10 @@ function parseDate(value: string): string | null {
 async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
-  const mainTitle = title.replace(/\\s*\\([^)]*\\)\\s*$/, "").replace(/\\s*:\\s*.+$/, "").trim();
+  // Remove informações de série/volume que o Goodreads acrescenta ao título.
+  const mainTitle = title.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*:\s*.+$/, "").trim();
   const titleKey = (value: string) =>
-    normalize(value.replace(/\\s*\\([^)]*\\)\\s*$/, "").replace(/\\s*:\\s*.+$/, ""))
+    normalize(value.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*:\s*.+$/, ""))
       .replace(/[^a-z0-9]+/g, " ").trim();
   const words = (value: string) => titleKey(value).split(" ").filter((word) => word.length > 1);
   const expectedWords = words(mainTitle);
@@ -157,16 +156,17 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     return ranked[0]?.item ?? null;
   };
 
+  // 1) Google Books: tenta ISBN, título + autor e, por último, título sem filtros.
   try {
     const queries = isbn
-      ? [`isbn:${isbn}`]
+      ? [\`isbn:\${isbn}\`]
       : [
-          `intitle:"${mainTitle}"+inauthor:${author}`,
-          `intitle:"${mainTitle}"`,
-          `"${mainTitle}" ${author}`,
+          \`intitle:"\${mainTitle}"+inauthor:\${author}\`,
+          \`intitle:"\${mainTitle}"\`,
+          \`"\${mainTitle}" \${author}\`,
         ];
     for (const query of queries) {
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=40&orderBy=relevance`);
+      const response = await fetch(\`https://www.googleapis.com/books/v1/volumes?q=\${encodeURIComponent(query)}&maxResults=40&orderBy=relevance\`);
       if (!response.ok) continue;
       const payload = await response.json();
       const items = Array.isArray(payload.items) ? payload.items : [];
@@ -174,40 +174,42 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
         Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
       const links = match?.volumeInfo?.imageLinks;
       const image = links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail;
-      if (image) return String(image).replace(/^http:\\/\\//i, "https://").replace("&edge=curl", "");
+      if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
     }
   } catch (error) { console.warn("Google Books não respondeu:", error); }
 
+  // 2) Open Library: busca por título/autor e aceita pequenas diferenças de edição.
   try {
     const searches = isbn
-      ? [`isbn=${encodeURIComponent(isbn)}`]
+      ? [\`isbn=\${encodeURIComponent(isbn)}\`]
       : [
-          `title=${encodeURIComponent(mainTitle)}&author=${encodeURIComponent(author)}`,
-          `title=${encodeURIComponent(mainTitle)}`,
+          \`title=\${encodeURIComponent(mainTitle)}&author=\${encodeURIComponent(author)}\`,
+          \`title=\${encodeURIComponent(mainTitle)}\`,
         ];
     for (const search of searches) {
-      const response = await fetch(`https://openlibrary.org/search.json?${search}&limit=50&fields=title,author_name,cover_i`);
+      const response = await fetch(\`https://openlibrary.org/search.json?\${search}&limit=50&fields=title,author_name,cover_i\`);
       if (!response.ok) continue;
       const payload = await response.json();
       const docs = Array.isArray(payload.docs) ? payload.docs : [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
         Array.isArray(doc.author_name) ? doc.author_name : []);
-      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
+      if (match?.cover_i) return \`https://covers.openlibrary.org/b/id/\${match.cover_i}-L.jpg\`;
     }
   } catch (error) { console.warn("Open Library não respondeu:", error); }
 
+  // 3) Internet Archive: catálogo aberto de obras digitalizadas.
   try {
     const query = isbn
-      ? `isbn:${isbn} AND mediatype:texts`
-      : `title:("${mainTitle.replace(/["\\\\]/g, " ")}") AND mediatype:texts`;
-    const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json`;
+      ? \`isbn:\${isbn} AND mediatype:texts\`
+      : \`title:("\${mainTitle.replace(/["\\]/g, " ")}") AND mediatype:texts\`;
+    const url = \`https://archive.org/advancedsearch.php?q=\${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json\`;
     const response = await fetch(url);
     if (response.ok) {
       const payload = await response.json();
       const docs = payload.response?.docs ?? [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
         Array.isArray(doc.creator) ? doc.creator : [String(doc.creator ?? "")]);
-      if (match?.identifier) return `https://archive.org/services/img/${encodeURIComponent(match.identifier)}`;
+      if (match?.identifier) return \`https://archive.org/services/img/\${encodeURIComponent(match.identifier)}\`;
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
@@ -227,7 +229,7 @@ function GoodreadsTransfer() {
       const csvFile = selectedFiles.find((file) => file.name.toLowerCase().endsWith(".csv"));
       if (!csvFile) throw new Error("Selecione o CSV do Goodreads junto com as imagens das capas.");
       const coverFiles = selectedFiles.filter((file) => file !== csvFile && file.type.startsWith("image/"));
-      const coversByBookId = new Map(coverFiles.map((file) => [file.name.replace(/\\.[^.]+$/, "").trim(), file]));
+      const coversByBookId = new Map(coverFiles.map((file) => [file.name.replace(/\.[^.]+$/, "").trim(), file]));
       const rows = parseCsv(await csvFile.text());
       if (!rows[0] || !("title" in rows[0])) throw new Error("Esse arquivo não parece ser uma exportação CSV do Goodreads.");
       const userId = await getMyId();
@@ -260,6 +262,7 @@ function GoodreadsTransfer() {
         for (const book of data ?? []) bookMap.set(`${normalize(book.title)}|${normalize(book.author ?? "")}`, book.id);
       }
 
+      // Associa somente as capas fornecidas pelo usuário, usando o Goodreads Book Id no nome do arquivo.
       let importedCoverCount = 0;
       const processedBooks = new Set<string>();
       for (const row of rows) {
@@ -343,6 +346,8 @@ function GoodreadsTransfer() {
       const concurrency = 3;
       toast.info("Pesquisando capas nos catálogos da internet para " + missing.length + " livros. As imagens serão salvas conforme forem encontradas.");
 
+      // Processa em pequenos grupos para a pesquisa dos catálogos não demorar
+      // centenas de minutos, sem sobrecarregar os serviços públicos.
       const worker = async () => {
         while (true) {
           const index = cursor++;
@@ -380,6 +385,7 @@ function GoodreadsTransfer() {
   useEffect(() => {
     if (autoCoverStarted.current) return;
     autoCoverStarted.current = true;
+    // Preenche automaticamente um primeiro lote de capas ausentes ao abrir a Biblioteca.
     void findMissingCovers();
   }, []);
 
@@ -404,7 +410,7 @@ function GoodreadsTransfer() {
         if (book.cover_url) {
           try {
             let blob: Blob;
-            if (!/^https?:\\/\\//i.test(book.cover_url)) {
+            if (!/^https?:\/\//i.test(book.cover_url)) {
               const privateBlob = await fetchPrivateObject("media", book.cover_url);
               if (!privateBlob) throw new Error("Sem acesso à capa");
               blob = privateBlob;
@@ -423,9 +429,9 @@ function GoodreadsTransfer() {
         manifest.push([book.title, book.author, coverFile]);
       }
       const encoder = new TextEncoder();
-      files.unshift({ name: "book-society-goodreads.csv", data: encoder.encode("\\uFEFF" + lines.join("\\r\\n")) });
-      files.push({ name: "indice-das-capas.csv", data: encoder.encode("\\uFEFF" + manifest.map((row) => row.map(csvCell).join(",")).join("\\r\\n")) });
-      files.push({ name: "LEIA-ME.txt", data: encoder.encode("Sua biblioteca Book Society\\n\\nO CSV contém os dados dos livros. A pasta capas contém as imagens disponíveis. A coluna Cover File e o indice-das-capas.csv relacionam cada imagem ao livro.\\n\\nAlguns serviços não importam capas pelo CSV; mantenha a pasta capas como cópia de segurança.\\n") });
+      files.unshift({ name: "book-society-goodreads.csv", data: encoder.encode("\uFEFF" + lines.join("\r\n")) });
+      files.push({ name: "indice-das-capas.csv", data: encoder.encode("\uFEFF" + manifest.map((row) => row.map(csvCell).join(",")).join("\r\n")) });
+      files.push({ name: "LEIA-ME.txt", data: encoder.encode("Sua biblioteca Book Society\n\nO CSV contém os dados dos livros. A pasta capas contém as imagens disponíveis. A coluna Cover File e o indice-das-capas.csv relacionam cada imagem ao livro.\n\nAlguns serviços não importam capas pelo CSV; mantenha a pasta capas como cópia de segurança.\n") });
       const archive = zipStore(files);
       const url = URL.createObjectURL(archive);
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = "book-society-biblioteca-com-capas.zip"; anchor.click();
