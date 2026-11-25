@@ -316,11 +316,12 @@ export function useTrendingBooks(limit = 5) {
 
 /* ---------------- Shelf ---------------- */
 
-export type ShelfStatus = "want" | "reading" | "read";
+export type ShelfStatus = "want" | "reading" | "read" | "not_finished";
 export const SHELF_LABEL: Record<ShelfStatus, string> = {
   want: "Quero ler",
   reading: "Lendo",
   read: "Lido",
+  not_finished: "Não terminou",
 };
 
 export type ShelfEntry = ShelfItem & { book: Book };
