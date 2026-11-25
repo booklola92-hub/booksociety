@@ -338,26 +338,41 @@ function GoodreadsTransfer() {
 
       // Busca primeiro os IDs da biblioteca e depois os livros diretamente.
       // Isso evita falhas de relacionamento aninhado que podem impedir a leitura das capas.
-      const { data: shelfRows, error: shelfError } = await supabase
-        .from("shelf_items")
-        .select("book_id")
-        .eq("user_id", userId)
-        .limit(10000);
-      if (shelfError) throw shelfError;
+      // Pagina a biblioteca para não perder livros quando o Supabase aplica
+      // um limite máximo de linhas por consulta.
+      const shelfRows: Array<{ book_id: string }> = [];
+      const pageSize = 500;
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+          .from("shelf_items")
+          .select("book_id")
+          .eq("user_id", userId)
+          .order("book_id")
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        shelfRows.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+      }
 
-      const bookIds = [...new Set((shelfRows ?? []).map((item) => item.book_id).filter(Boolean))];
+      const bookIds = [...new Set(shelfRows.map((item) => item.book_id).filter(Boolean))];
       if (!bookIds.length) {
         toast.info("Adicione livros à Biblioteca para buscar as capas.");
         return;
       }
 
-      const { data: books, error: booksError } = await supabase
-        .from("books")
-        .select("id,title,author,cover_url")
-        .in("id", bookIds);
-      if (booksError) throw booksError;
+      // Consulta os livros em lotes menores para suportar bibliotecas grandes.
+      const books: Array<{ id: string; title: string; author: string | null; cover_url: string | null }> = [];
+      for (let offset = 0; offset < bookIds.length; offset += 200) {
+        const batchIds = bookIds.slice(offset, offset + 200);
+        const { data, error } = await supabase
+          .from("books")
+          .select("id,title,author,cover_url")
+          .in("id", batchIds);
+        if (error) throw error;
+        books.push(...(data ?? []));
+      }
 
-      const missing = (books ?? []).filter((book) => !book.cover_url?.trim());
+      const missing = books.filter((book) => !book.cover_url?.trim());
       if (!missing.length) {
         await invalidate("shelf");
         toast.success("Todos os livros da sua Biblioteca já têm capa.");
