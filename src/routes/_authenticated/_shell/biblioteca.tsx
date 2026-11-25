@@ -142,7 +142,6 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   ].filter(Boolean))];
   const normalizeTitle = (value: string) => normalize(cleanTitle(value)).replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
   const tokens = (value: string) => normalizeTitle(value).split(" ").filter((word) => word.length > 1);
-  const expectedTokens = tokens(title);
   const expectedAuthor = normalize(author).replace(/[^a-z0-9]+/g, " ").trim();
   const authorMatch = (names: string[]) => {
     if (!expectedAuthor || !names.length) return false;
@@ -160,12 +159,15 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     if (!candidateKey) return 0;
     if (titleVariants.map(normalizeTitle).includes(candidateKey)) return 1;
     const candidateTokens = new Set(tokens(candidate));
-    const expected = new Set(expectedTokens);
-    if (!expected.size || !candidateTokens.size) return 0;
-    const overlap = [...expected].filter((word) => candidateTokens.has(word)).length;
-    const recall = overlap / expected.size;
-    const precision = overlap / candidateTokens.size;
-    return precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
+    if (!candidateTokens.size) return 0;
+    return Math.max(0, ...titleVariants.map((variant) => {
+      const expected = new Set(tokens(variant));
+      if (!expected.size) return 0;
+      const overlap = [...expected].filter((word) => candidateTokens.has(word)).length;
+      const recall = overlap / expected.size;
+      const precision = overlap / candidateTokens.size;
+      return precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
+    }));
   };
   const pickBest = <T,>(items: T[], getTitle: (item: T) => string, getAuthors: (item: T) => string[]) => {
     const ranked = items.map((item) => {
