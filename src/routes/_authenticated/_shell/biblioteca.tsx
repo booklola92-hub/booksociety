@@ -120,100 +120,98 @@ function parseDate(value: string): string | null {
 async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
-  // Goodreads frequentemente acrescenta a série e o número do volume entre parênteses.
-  // Os catálogos públicos normalmente guardam apenas o título principal.
-  const catalogTitle = (value: string) =>
-    normalize(value.replace(/\s*\([^)]*\)\s*$/, "")).replace(/[^a-z0-9]+/g, " ").trim();
-  const normalizedTitle = catalogTitle(title);
-  const normalizedAuthor = normalize(author);
-  const matchesBook = (candidateTitle: string, candidateAuthors: string[]) => {
-    const candidate = catalogTitle(candidateTitle);
-    const titleMatches = candidate === normalizedTitle;
-    const authorMatches =
-      !normalizedAuthor ||
-      candidateAuthors.length === 0 ||
-      candidateAuthors.some((name) => {
-        const normalized = normalize(name);
-        return normalized && (normalized.includes(normalizedAuthor) || normalizedAuthor.includes(normalized));
-      });
-    return titleMatches && authorMatches;
+  // Remove informações de série/volume que o Goodreads acrescenta ao título.
+  const mainTitle = title.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*:\s*.+$/, "").trim();
+  const titleKey = (value: string) =>
+    normalize(value.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*:\s*.+$/, ""))
+      .replace(/[^a-z0-9]+/g, " ").trim();
+  const words = (value: string) => titleKey(value).split(" ").filter((word) => word.length > 1);
+  const expectedWords = words(mainTitle);
+  const expectedAuthor = normalize(author).replace(/[^a-z0-9]+/g, " ").trim();
+  const titleScore = (candidate: string) => {
+    const candidateKey = titleKey(candidate);
+    if (!candidateKey) return 0;
+    if (candidateKey === titleKey(mainTitle)) return 1;
+    if (candidateKey.includes(titleKey(mainTitle)) || titleKey(mainTitle).includes(candidateKey)) return 0.9;
+    const candidateWords = new Set(words(candidate));
+    const overlap = expectedWords.filter((word) => candidateWords.has(word)).length;
+    return expectedWords.length ? overlap / expectedWords.length : 0;
+  };
+  const authorMatches = (candidateAuthors: string[]) => {
+    if (!expectedAuthor || !candidateAuthors.length) return true;
+    return candidateAuthors.some((candidate) => {
+      const key = normalize(candidate).replace(/[^a-z0-9]+/g, " ").trim();
+      return key && (key.includes(expectedAuthor) || expectedAuthor.includes(key) ||
+        expectedAuthor.split(" ").filter((word) => word.length > 1 && key.includes(word)).length >= 2);
+    });
+  };
+  const pickBest = <T,>(items: T[], getTitle: (item: T) => string, getAuthors: (item: T) => string[]) => {
+    const ranked = items
+      .map((item) => ({ item, score: titleScore(getTitle(item)), authorOk: authorMatches(getAuthors(item)) }))
+      .filter((entry) => entry.score >= 0.72 && entry.authorOk)
+      .sort((a, b) => b.score - a.score);
+    return ranked[0]?.item ?? null;
   };
 
-  // 1) Google Books
+  // 1) Google Books: tenta ISBN, título + autor e, por último, título sem filtros.
   try {
-    const searchTitle = title.replace(/\s*\([^)]*\)\s*$/, "").trim();
     const queries = isbn
-      ? [`isbn:${isbn}`]
-      : [`intitle:${searchTitle}${author ? `+inauthor:${author}` : ""}`, `intitle:${searchTitle}`];
+      ? [\`isbn:\${isbn}\`]
+      : [
+          \`intitle:"\${mainTitle}"+inauthor:\${author}\`,
+          \`intitle:"\${mainTitle}"\`,
+          \`"\${mainTitle}" \${author}\`,
+        ];
     for (const query of queries) {
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20`);
+      const response = await fetch(\`https://www.googleapis.com/books/v1/volumes?q=\${encodeURIComponent(query)}&maxResults=40&orderBy=relevance\`);
       if (!response.ok) continue;
       const payload = await response.json();
       const items = Array.isArray(payload.items) ? payload.items : [];
-      const match = items.find((item: any) => {
-        const info = item.volumeInfo ?? {};
-        return matchesBook(String(info.title ?? ""), Array.isArray(info.authors) ? info.authors : []);
-      });
+      const match = pickBest(items, (item: any) => String(item.volumeInfo?.title ?? ""), (item: any) =>
+        Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
       const links = match?.volumeInfo?.imageLinks;
       const image = links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail;
       if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
     }
   } catch (error) { console.warn("Google Books não respondeu:", error); }
 
-  // 2) Open Library
+  // 2) Open Library: busca por título/autor e aceita pequenas diferenças de edição.
   try {
-    const params = new URLSearchParams();
-    if (isbn) params.set("isbn", isbn);
-    else { params.set("title", title.replace(/\s*\([^)]*\)\s*$/, "").trim()); if (author) params.set("author", author); }
-    params.set("limit", "20");
-    const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
-    if (response.ok) {
+    const searches = isbn
+      ? [\`isbn=\${encodeURIComponent(isbn)}\`]
+      : [
+          \`title=\${encodeURIComponent(mainTitle)}&author=\${encodeURIComponent(author)}\`,
+          \`title=\${encodeURIComponent(mainTitle)}\`,
+        ];
+    for (const search of searches) {
+      const response = await fetch(\`https://openlibrary.org/search.json?\${search}&limit=50&fields=title,author_name,cover_i\`);
+      if (!response.ok) continue;
       const payload = await response.json();
       const docs = Array.isArray(payload.docs) ? payload.docs : [];
-      const match = docs.find((doc: any) => matchesBook(String(doc.title ?? ""), Array.isArray(doc.author_name) ? doc.author_name : []));
-      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg?default=false`;
+      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
+        Array.isArray(doc.author_name) ? doc.author_name : []);
+      if (match?.cover_i) return \`https://covers.openlibrary.org/b/id/\${match.cover_i}-L.jpg\`;
     }
   } catch (error) { console.warn("Open Library não respondeu:", error); }
 
-  // 3) Internet Archive: catálogo de livros digitalizados e miniaturas dos registros.
+  // 3) Internet Archive: catálogo aberto de obras digitalizadas.
   try {
     const query = isbn
-      ? `isbn:${isbn} AND mediatype:texts`
-      : `title:"${title.replace(/["\\]/g, " ")}" AND mediatype:texts`;
-    const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=10&page=1&output=json`;
+      ? \`isbn:\${isbn} AND mediatype:texts\`
+      : \`title:("\${mainTitle.replace(/["\\]/g, " ")}") AND mediatype:texts\`;
+    const url = \`https://archive.org/advancedsearch.php?q=\${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json\`;
     const response = await fetch(url);
     if (response.ok) {
       const payload = await response.json();
       const docs = payload.response?.docs ?? [];
-      const match = docs.find((doc: any) => matchesBook(String(doc.title ?? ""), Array.isArray(doc.creator) ? doc.creator : [String(doc.creator ?? "")]));
-      if (match?.identifier) {
-        const image = `https://archive.org/services/img/${encodeURIComponent(match.identifier)}`;
-        const check = await fetch(image, { method: "HEAD" });
-        if (check.ok) return image;
-      }
+      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
+        Array.isArray(doc.creator) ? doc.creator : [String(doc.creator ?? "")]);
+      if (match?.identifier) return \`https://archive.org/services/img/\${encodeURIComponent(match.identifier)}\`;
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
-  // 4) Library of Congress: coleção pública de livros e materiais digitalizados.
-  try {
-    const query = [title, author].filter(Boolean).join(" ");
-    const response = await fetch(`https://www.loc.gov/books/?q=${encodeURIComponent(query)}&fo=json&c=10`);
-    if (response.ok) {
-      const payload = await response.json();
-      const results = Array.isArray(payload.results) ? payload.results : [];
-      const match = results.find((item: any) => {
-        const itemTitle = String(item.title ?? "");
-        const creators = Array.isArray(item.contributors) ? item.contributors : [];
-        return matchesBook(itemTitle, creators.map(String));
-      });
-      const image = match?.image_url;
-      if (image) return Array.isArray(image) ? String(image[0]) : String(image);
-    }
-  } catch (error) { console.warn("Library of Congress não respondeu:", error); }
-
   return null;
 }
-
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
