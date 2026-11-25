@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Plus, Target, Trash2, Trophy } from "lucide-react";
+import { BookOpen, CalendarDays, Plus, Sparkles, Target, Trash2, Trophy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -67,16 +67,69 @@ function DesafiosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageTitle
-        title="Desafios de leitura"
-        subtitle="Crie metas literárias e convide a comunidade a ler junto."
-        action={
-          <Button className="rounded-full" onClick={() => setCreating(true)}>
+    <div className="space-y-7">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-medium tracking-tight text-primary sm:text-4xl">
+            Seu próximo capítulo
+          </h1>
+          <p className="mt-3 text-base text-muted-foreground">
+            Pequenas leituras. Grandes conquistas.
+          </p>
+        </div>
+        <Button className="h-11 rounded-xl px-6 shadow-soft" onClick={() => setCreating(true)}>
+          Personalizar meta
+        </Button>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft sm:p-6">
+        <h2 className="font-display flex items-center gap-3 text-2xl text-primary">
+          <Trophy className="h-6 w-6" /> Conquistas de leitura
+        </h2>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            "Primeira leitura",
+            "10 livros lidos",
+            "25 livros lidos",
+            "50 livros lidos",
+          ].map((achievement) => (
+            <div key={achievement} className="rounded-xl border border-primary/30 bg-secondary/50 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Trophy className="h-5 w-5 shrink-0 text-primary" />
+                {achievement}
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">Conquista desbloqueada</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-soft sm:p-6">
+        <h2 className="flex items-center gap-3 text-xl font-semibold text-foreground">
+          <Trophy className="h-6 w-6 text-primary" /> Sua próxima leitura
+        </h2>
+        <p className="mt-4 text-sm text-muted-foreground sm:text-base">
+          Todo grande universo começa com a primeira página.
+        </p>
+        <div className="relative mt-5 flex h-28 items-center justify-between overflow-hidden rounded-xl bg-secondary/40 px-5">
+          <Sparkles className="h-7 w-7 text-primary/70" />
+          <BookOpen className="mr-1 h-16 w-16 text-primary" strokeWidth={1.35} />
+        </div>
+        <p className="mt-5 text-sm text-muted-foreground">
+          Escolha uma meta e transforme sua próxima leitura em uma conquista.
+        </p>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-2xl font-medium text-primary">Desafios da comunidade</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Metas literárias para ler junto com outros leitores.</p>
+          </div>
+          <Button variant="outline" className="rounded-xl" onClick={() => setCreating(true)}>
             <Plus className="mr-1 h-4 w-4" /> Criar desafio
           </Button>
-        }
-      />
+        </div>
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -125,6 +178,8 @@ function DesafiosPage() {
           })}
         </div>
       )}
+
+      </section>
 
       <CreateChallengeDialog
         open={creating}
