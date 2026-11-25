@@ -155,10 +155,12 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     });
   };
   const pickBest = <T,>(items: T[], getTitle: (item: T) => string, getAuthors: (item: T) => string[]) => {
+    // Primeiro prioriza título e autor; se o catálogo registrar o autor de outra
+    // forma (ou não tiver autor), tenta o melhor título sem bloquear a capa.
     const ranked = items
       .map((item) => ({ item, score: titleScore(getTitle(item)), authorOk: authorMatches(getAuthors(item)) }))
-      .filter((entry) => entry.score >= 0.72 && entry.authorOk)
-      .sort((a, b) => b.score - a.score);
+      .filter((entry) => entry.score >= 0.55)
+      .sort((a, b) => Number(b.authorOk) - Number(a.authorOk) || b.score - a.score);
     return ranked[0]?.item ?? null;
   };
 
