@@ -42,7 +42,7 @@ function ComunidadePage() {
       <section className="relative flex min-h-[250px] items-center justify-between gap-8 overflow-hidden rounded-[28px] border border-border bg-gradient-to-br from-card via-card to-secondary/50 px-7 py-9 shadow-soft sm:px-10">
         <div className="relative z-10 max-w-3xl">
           <p className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-primary/75">
-            The Secret Bookshelf · Encontre sua turma
+            Encontre sua turma
           </p>
           <h1 className="font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
             Comunidades
