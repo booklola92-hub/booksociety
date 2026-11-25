@@ -227,6 +227,7 @@ function GoodreadsTransfer() {
   const [coverBusy, setCoverBusy] = useState(false);
   const autoCoverStarted = useRef(false);
   const invalidate = useInvalidate();
+  const { data: me } = useMe();
 
   async function importGoodreads(files: FileList) {
     setBusy(true);
@@ -417,11 +418,12 @@ function GoodreadsTransfer() {
   }
 
   useEffect(() => {
-    if (autoCoverStarted.current) return;
+    // Aguarda a sessão carregar antes de consultar a biblioteca do leitor.
+    // Assim a busca automática não falha por executar antes da autenticação.
+    if (!me?.id || autoCoverStarted.current) return;
     autoCoverStarted.current = true;
-    // Preenche automaticamente um primeiro lote de capas ausentes ao abrir a Biblioteca.
     void findMissingCovers();
-  }, []);
+  }, [me?.id]);
 
   async function exportGoodreads() {
     setBusy(true);
