@@ -48,6 +48,7 @@ function ExplorePage() {
         subtitle="Encontre leitores e descubra novas pessoas para acompanhar no Book Society."
       />
 
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
       <section className="space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
         <div className="flex items-center gap-2 text-primary">
           <Users className="h-5 w-5" />
@@ -139,6 +140,7 @@ function ExplorePage() {
           Buscar obras
         </span>
       </Link>
+      </div>
     </div>
   );
 }
