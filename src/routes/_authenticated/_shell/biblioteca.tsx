@@ -459,9 +459,6 @@ function GoodreadsTransfer() {
           <h2 className="font-display text-2xl font-semibold">Importar e exportar</h2>
           <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
         </div>
-        <Button type="button" variant="outline" disabled={coverBusy || busy} onClick={() => void findMissingCovers()}>
-          <BookOpen className="h-4 w-4" /> {coverBusy ? "Pesquisando capas..." : "Buscar capas que estão faltando"}
-        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
