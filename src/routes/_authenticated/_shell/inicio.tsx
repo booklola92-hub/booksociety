@@ -1,25 +1,55 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ArrowRight, Heart } from "lucide-react";
 
+import openBook from "@/assets/open-book-hearts.png.asset.json";
 import { Composer } from "@/components/composer";
 import { Feed } from "@/components/feed";
 import { RightRail } from "@/components/right-rail";
+import { Button } from "@/components/ui/button";
 import { useMe } from "@/lib/social";
 
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
-  head: () => ({ meta: [{ title: "Início — The Secret Bookshelf" }] }),
+  head: () => ({ meta: [{ title: "Início — Book Society" }] }),
   component: Inicio,
 });
 
 function Inicio() {
   const { data: me } = useMe();
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <div className="space-y-5">
-        <h1 className="font-display text-3xl font-semibold text-primary">
-          Olá, {me?.display_name || me?.username || "leitora"}!
-        </h1>
-        <Composer />
-        <Feed filter={{ kind: "all" }} empty={{ title: "Nenhuma publicação ainda", body: "Seja a primeira a publicar!" }} />
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0 space-y-5">
+        <section className="relative isolate flex min-h-[250px] overflow-hidden rounded-[1.5rem] border border-rose-200/70 bg-gradient-to-r from-[#f9d9ce] via-[#fce9df] to-[#7a4938] shadow-soft sm:min-h-[300px]">
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_15%_30%,rgba(255,255,255,.8),transparent_45%)]" />
+          <img src={openBook.url} alt="" className="absolute bottom-0 left-0 h-[82%] w-[48%] object-contain object-bottom opacity-80 sm:w-[52%]" />
+          <div className="ml-auto flex w-[62%] flex-col justify-center px-5 py-8 text-right text-white sm:w-[58%] sm:px-8">
+            <h1 className="font-display text-3xl leading-tight italic sm:text-4xl lg:text-5xl">
+              Bem-vinda ao <span className="text-rose-300">♡</span><br />Book Society!
+            </h1>
+            <p className="ml-auto mt-4 max-w-sm text-sm leading-relaxed text-white/90 sm:text-base">
+              Descubra, leia, compartilhe e faça parte da nossa comunidade literária!
+            </p>
+            <Button asChild className="mt-5 self-end rounded-full bg-rose-500 px-5 text-white hover:bg-rose-600">
+              <a href="/comunidade">Explorar a comunidade <ArrowRight className="ml-1 h-4 w-4" /></a>
+            </Button>
+          </div>
+        </section>
+
+        <div className="rounded-2xl border border-rose-200/70 bg-card/90 p-3 shadow-soft">
+          <div className="flex items-center gap-3">
+            <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 sm:flex">
+              <Heart className="h-5 w-5 fill-current" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-lg text-muted-foreground">Compartilhe o que está lendo...</p>
+              <p className="text-xs text-muted-foreground">{me?.display_name || me?.username || "Leitora"}, sua próxima história começa aqui.</p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <Composer className="border-0 bg-transparent p-0 shadow-none" />
+          </div>
+        </div>
+
+        <Feed filter={{ kind: "all" }} empty={{ title: "Sua comunidade começa com uma história", body: "Compartilhe uma leitura ou uma recomendação para iniciar a conversa." }} />
       </div>
       <RightRail />
     </div>
