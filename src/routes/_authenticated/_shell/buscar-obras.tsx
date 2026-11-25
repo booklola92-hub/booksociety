@@ -1,7 +1,8 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, Search } from "lucide-react";
+import { Check, Loader2, Plus, Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 import { BookCover } from "@/components/book-cover";
 import { PageTitle } from "@/components/empty-state";
@@ -17,6 +18,7 @@ import {
   type CatalogCategory,
   type CatalogItem,
 } from "@/lib/catalog-search";
+import { addToShelf, type ShelfStatus } from "@/lib/social";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
@@ -46,6 +48,7 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
 }
 
 function BuscarObras() {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [searched, setSearched] = useState("");
   const [category, setCategory] = useState<CatalogCategory>("todos");
@@ -178,7 +181,7 @@ function BuscarObras() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((item) => (
-                <CatalogCard key={`${item.origin}-${item.id}`} item={item} />
+                <CatalogCard key={`${item.origin}-${item.id}`} item={item} onAdded={() => queryClient.invalidateQueries({ queryKey: ["shelf"] })} />
               ))}
             </div>
           )}
@@ -202,33 +205,73 @@ function BuscarObras() {
   );
 }
 
-function CatalogCard({ item }: { item: CatalogItem }) {
+const CATALOG_SHELF_STATUSES: { value: ShelfStatus; label: string }[] = [
+  { value: "want", label: "Quero ler" },
+  { value: "reading", label: "Atualmente lendo" },
+  { value: "read", label: "Lido" },
+  { value: "not_finished", label: "Não terminou" },
+];
+
+async function ensureBookId(item: CatalogItem): Promise<string> {
+  if (item.origin === "book") return item.id;
+  const author = item.authors.join(", ") || "Autor(a) não informado(a)";
+  const { data: existing, error: lookupError } = await supabase
+    .from("books").select("id").ilike("title", item.title).limit(1).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing?.id) return existing.id;
+  const { data, error } = await supabase.from("books").insert({
+    title: item.title,
+    author,
+    description: item.synopsis ?? "",
+    cover_url: item.cover_url,
+  }).select("id").single();
+  if (error) throw error;
+  return data.id;
+}
+
+function CatalogCard({ item, onAdded }: { item: CatalogItem; onAdded: () => void }) {
+  const [status, setStatus] = useState<ShelfStatus>("want");
+  const [busy, setBusy] = useState(false);
+  const [added, setAdded] = useState(false);
+
+  async function addCatalogItem() {
+    setBusy(true);
+    try {
+      const bookId = await ensureBookId(item);
+      await addToShelf(bookId, status);
+      setAdded(true);
+      onAdded();
+      toast.success(`“${item.title}” foi adicionado à Biblioteca.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível adicionar à Biblioteca.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <article className="flex gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft">
       <BookCover book={{ title: item.title, cover_url: item.cover_url }} className="w-24" />
       <div className="flex min-w-0 flex-1 flex-col">
         <h2 className="font-display line-clamp-2 text-lg leading-snug font-semibold text-foreground">{item.title}</h2>
-        <p
-          className={cn(
-            "mt-0.5 line-clamp-1 text-sm",
-            item.authors.length ? "text-foreground/80" : "text-muted-foreground italic",
-          )}
-        >
+        <p className={cn("mt-0.5 line-clamp-1 text-sm", item.authors.length ? "text-foreground/80" : "text-muted-foreground italic")}>
           {item.authors.length ? item.authors.join(", ") : "Autor(a) não informado(a)"}
         </p>
-        {item.alt_titles.length > 0 && (
-          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-            Também conhecido como: {item.alt_titles.join(", ")}
-          </p>
-        )}
+        {item.alt_titles.length > 0 && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">Também conhecido como: {item.alt_titles.join(", ")}</p>}
         {item.synopsis && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>}
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
-          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
-            {catalogKindLabel(item.kind)}
-          </span>
-          {item.is_bl && (
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">BL</span>
-          )}
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{catalogKindLabel(item.kind)}</span>
+          {item.is_bl && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">BL</span>}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <select aria-label={`Status de ${item.title}`} value={status} onChange={(event) => setStatus(event.target.value as ShelfStatus)} disabled={busy || added}
+            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-2 text-xs">
+            {CATALOG_SHELF_STATUSES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <Button type="button" size="sm" className="shrink-0" disabled={busy || added} onClick={() => void addCatalogItem()}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {busy ? "Adicionando…" : added ? "Adicionado" : "Adicionar"}
+          </Button>
         </div>
       </div>
     </article>
