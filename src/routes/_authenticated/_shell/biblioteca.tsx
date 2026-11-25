@@ -334,15 +334,32 @@ function GoodreadsTransfer() {
     setCoverBusy(true);
     try {
       const userId = await getMyId();
-      const { data, error } = await supabase.from("shelf_items")
-        .select("book_id,books(id,title,author,cover_url)")
-        .eq("user_id", userId).order("created_at", { ascending: true }).limit(10000);
-      if (error) throw error;
-      const missing = (data ?? [])
-        .map((item) => item.books as unknown as { id: string; title: string; author: string | null; cover_url: string | null } | null)
-        .filter((book): book is { id: string; title: string; author: string | null; cover_url: string | null } => !!book && !book.cover_url);
+
+      // Busca primeiro os IDs da biblioteca e depois os livros diretamente.
+      // Isso evita falhas de relacionamento aninhado que podem impedir a leitura das capas.
+      const { data: shelfRows, error: shelfError } = await supabase
+        .from("shelf_items")
+        .select("book_id")
+        .eq("user_id", userId)
+        .limit(10000);
+      if (shelfError) throw shelfError;
+
+      const bookIds = [...new Set((shelfRows ?? []).map((item) => item.book_id).filter(Boolean))];
+      if (!bookIds.length) {
+        toast.info("Adicione livros à Biblioteca para buscar as capas.");
+        return;
+      }
+
+      const { data: books, error: booksError } = await supabase
+        .from("books")
+        .select("id,title,author,cover_url")
+        .in("id", bookIds);
+      if (booksError) throw booksError;
+
+      const missing = (books ?? []).filter((book) => !book.cover_url?.trim());
       if (!missing.length) {
-        toast.success("Todos os livros da sua estante já têm uma capa cadastrada.");
+        await invalidate("shelf");
+        toast.success("Todos os livros da sua Biblioteca já têm capa.");
         return;
       }
 
@@ -350,10 +367,8 @@ function GoodreadsTransfer() {
       let processed = 0;
       let cursor = 0;
       const concurrency = 3;
-      toast.info("Pesquisando capas nos catálogos da internet para " + missing.length + " livros. As imagens serão salvas conforme forem encontradas.");
+      toast.info(`Buscando automaticamente capas para ${missing.length} livros nos catálogos disponíveis.`);
 
-      // Processa em pequenos grupos para a pesquisa dos catálogos não demorar
-      // centenas de minutos, sem sobrecarregar os serviços públicos.
       const worker = async () => {
         while (true) {
           const index = cursor++;
@@ -363,19 +378,18 @@ function GoodreadsTransfer() {
           try {
             const cover = await findPublicCover(book.title, book.author ?? "", "", "");
             if (cover) {
-              // Alguns registros antigos guardam capa vazia ("") em vez de NULL.
-              // Atualiza apenas se ainda estiver sem capa, para nunca substituir uma capa existente.
-              const { data: updatedBook, error: updateError } = await supabase.from("books")
+              const { data: updated, error: updateError } = await supabase
+                .from("books")
                 .update({ cover_url: cover })
                 .eq("id", book.id)
                 .or('cover_url.is.null,cover_url.eq.""')
                 .select("id")
                 .maybeSingle();
               if (updateError) throw updateError;
-              if (updatedBook?.id) found += 1;
+              if (updated?.id) found += 1;
             }
           } catch (searchError) {
-            console.warn("Falha ao buscar capa de " + book.title, searchError);
+            console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
           } finally {
             processed += 1;
             if (processed % 5 === 0 || processed === missing.length) {
@@ -385,12 +399,18 @@ function GoodreadsTransfer() {
           }
         }
       };
+
       await Promise.all(Array.from({ length: Math.min(concurrency, missing.length) }, () => worker()));
       await invalidate("shelf");
       await invalidate("books");
-      toast.success("Pesquisa concluída: " + found + " capas encontradas de " + processed + " livros consultados.");
+      if (found === 0) {
+        toast.warning(`Não encontramos capas para os ${processed} livros consultados. Os livros continuam na Biblioteca; tente novamente mais tarde.`);
+      } else {
+        toast.success(`Pesquisa concluída: ${found} capas encontradas de ${processed} livros. As capas foram salvas automaticamente.`);
+      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível pesquisar as capas.");
+      console.error("Erro na busca automática de capas:", error);
+      toast.error(error instanceof Error ? `Não foi possível carregar as capas: ${error.message}` : "Não foi possível pesquisar as capas.");
     } finally {
       setCoverBusy(false);
     }
