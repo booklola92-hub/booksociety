@@ -329,36 +329,54 @@ function GoodreadsTransfer() {
         .select("book_id,books(id,title,author,cover_url)")
         .eq("user_id", userId).order("created_at", { ascending: true }).limit(10000);
       if (error) throw error;
-      const missing = (data ?? []).map((item) => item.books as unknown as { id: string; title: string; author: string | null; cover_url: string | null } | null)
+      const missing = (data ?? [])
+        .map((item) => item.books as unknown as { id: string; title: string; author: string | null; cover_url: string | null } | null)
         .filter((book): book is { id: string; title: string; author: string | null; cover_url: string | null } => !!book && !book.cover_url);
       if (!missing.length) {
         toast.success("Todos os livros da sua estante já têm uma capa cadastrada.");
         return;
       }
+
       let found = 0;
       let processed = 0;
-      toast.info(`Pesquisando capas para ${missing.length} livros sem imagem. As capas aparecerão conforme forem encontradas.`);
-      // Percorre todos os livros sem capa. Atualiza a biblioteca a cada 5 livros processados,
-      // para que as capas encontradas apareçam sem esperar a pesquisa inteira terminar.
-      for (const book of missing) {
-        const cover = await findPublicCover(book.title, book.author ?? "", "", "");
-        if (cover) {
-          const { error: updateError } = await supabase.from("books").update({ cover_url: cover }).eq("id", book.id);
-          if (!updateError) found += 1;
+      let cursor = 0;
+      const concurrency = 3;
+      toast.info("Pesquisando capas nos catálogos da internet para " + missing.length + " livros. As imagens serão salvas conforme forem encontradas.");
+
+      // Processa em pequenos grupos para a pesquisa dos catálogos não demorar
+      // centenas de minutos, sem sobrecarregar os serviços públicos.
+      const worker = async () => {
+        while (true) {
+          const index = cursor++;
+          if (index >= missing.length) return;
+          const book = missing[index];
+          try {
+            const cover = await findPublicCover(book.title, book.author ?? "", "", "");
+            if (cover) {
+              const { error: updateError } = await supabase.from("books")
+                .update({ cover_url: cover }).eq("id", book.id).is("cover_url", null);
+              if (!updateError) found += 1;
+            }
+          } catch (searchError) {
+            console.warn("Falha ao buscar capa de " + book.title, searchError);
+          } finally {
+            processed += 1;
+            if (processed % 5 === 0 || processed === missing.length) {
+              await invalidate("shelf");
+              await invalidate("books");
+            }
+          }
         }
-        processed += 1;
-        if (processed % 5 === 0) {
-          await invalidate("shelf");
-          await invalidate("books");
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 250));
-      }
+      };
+      await Promise.all(Array.from({ length: Math.min(concurrency, missing.length) }, () => worker()));
       await invalidate("shelf");
       await invalidate("books");
-      toast.success(`Pesquisa automática concluída: ${found} capas encontradas em ${processed} livros.`);
+      toast.success("Pesquisa concluída: " + found + " capas encontradas de " + processed + " livros consultados.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível pesquisar as capas.");
-    } finally { setCoverBusy(false); }
+    } finally {
+      setCoverBusy(false);
+    }
   }
 
   useEffect(() => {
