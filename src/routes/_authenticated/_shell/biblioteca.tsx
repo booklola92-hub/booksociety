@@ -129,101 +129,125 @@ function parseDate(value: string): string | null {
 async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
-  // Remove informações de série/volume que o Goodreads acrescenta ao título.
-  const mainTitle = title.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*:\s*.+$/, "").trim();
-  const titleKey = (value: string) =>
-    normalize(value.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*:\s*.+$/, ""))
-      .replace(/[^a-z0-9]+/g, " ").trim();
-  const words = (value: string) => titleKey(value).split(" ").filter((word) => word.length > 1);
-  const expectedWords = words(mainTitle);
+  const cleanTitle = (value: string) => value
+    .replace(/\s*[\[(（【][^\])）】]*[\])）】]\s*$/g, "")
+    .replace(/\s*(?:-|—|:)\s*(?:volume|vol\.?|book|livro|série|serie|parte|part)\s*#?\s*\d+.*$/i, "")
+    .replace(/\s*#\s*\d+\s*$/i, "")
+    .trim();
+  const titleVariants = [...new Set([
+    title.trim(),
+    cleanTitle(title),
+    cleanTitle(title).replace(/\s*(?:—|:|-)\s*.+$/, "").trim(),
+    title.replace(/\s*\([^)]*(?:series|série|volume|vol\.?|book|livro|#\s*\d+)[^)]*\)\s*$/i, "").trim(),
+  ].filter(Boolean))];
+  const normalizeTitle = (value: string) => normalize(cleanTitle(value)).replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  const tokens = (value: string) => normalizeTitle(value).split(" ").filter((word) => word.length > 1);
+  const expectedTokens = tokens(title);
   const expectedAuthor = normalize(author).replace(/[^a-z0-9]+/g, " ").trim();
-  const titleScore = (candidate: string) => {
-    const candidateKey = titleKey(candidate);
-    if (!candidateKey) return 0;
-    if (candidateKey === titleKey(mainTitle)) return 1;
-    if (candidateKey.includes(titleKey(mainTitle)) || titleKey(mainTitle).includes(candidateKey)) return 0.9;
-    const candidateWords = new Set(words(candidate));
-    const overlap = expectedWords.filter((word) => candidateWords.has(word)).length;
-    return expectedWords.length ? overlap / expectedWords.length : 0;
-  };
-  const authorMatches = (candidateAuthors: string[]) => {
-    if (!expectedAuthor || !candidateAuthors.length) return true;
-    return candidateAuthors.some((candidate) => {
-      const key = normalize(candidate).replace(/[^a-z0-9]+/g, " ").trim();
-      return key && (key.includes(expectedAuthor) || expectedAuthor.includes(key) ||
-        expectedAuthor.split(" ").filter((word) => word.length > 1 && key.includes(word)).length >= 2);
+  const authorMatch = (names: string[]) => {
+    if (!expectedAuthor || !names.length) return false;
+    return names.some((name) => {
+      const candidate = normalize(name).replace(/[^a-z0-9]+/g, " ").trim();
+      if (!candidate) return false;
+      if (candidate === expectedAuthor || candidate.includes(expectedAuthor) || expectedAuthor.includes(candidate)) return true;
+      const expected = expectedAuthor.split(" ").filter((word) => word.length > 1);
+      const actual = new Set(candidate.split(" "));
+      return expected.length > 1 && expected.filter((word) => actual.has(word)).length / expected.length >= 0.7;
     });
   };
+  const scoreTitle = (candidate: string) => {
+    const candidateKey = normalizeTitle(candidate);
+    if (!candidateKey) return 0;
+    if (titleVariants.map(normalizeTitle).includes(candidateKey)) return 1;
+    const candidateTokens = new Set(tokens(candidate));
+    const expected = new Set(expectedTokens);
+    if (!expected.size || !candidateTokens.size) return 0;
+    const overlap = [...expected].filter((word) => candidateTokens.has(word)).length;
+    const recall = overlap / expected.size;
+    const precision = overlap / candidateTokens.size;
+    return precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
+  };
   const pickBest = <T,>(items: T[], getTitle: (item: T) => string, getAuthors: (item: T) => string[]) => {
-    // Primeiro prioriza título e autor; se o catálogo registrar o autor de outra
-    // forma (ou não tiver autor), tenta o melhor título sem bloquear a capa.
-    const ranked = items
-      .map((item) => ({ item, score: titleScore(getTitle(item)), authorOk: authorMatches(getAuthors(item)) }))
-      .filter((entry) => entry.score >= 0.55)
-      .sort((a, b) => Number(b.authorOk) - Number(a.authorOk) || b.score - a.score);
+    const ranked = items.map((item) => {
+      const titleScore = scoreTitle(getTitle(item));
+      const authors = getAuthors(item);
+      const hasAuthorData = authors.some((name) => Boolean(name?.trim()));
+      const matchesAuthor = authorMatch(authors);
+      const acceptable = titleScore >= 0.72 && (
+        !expectedAuthor || !hasAuthorData || matchesAuthor || titleScore >= 0.98
+      );
+      return { item, titleScore, matchesAuthor, acceptable };
+    }).filter((entry) => entry.acceptable)
+      .sort((a, b) => Number(b.matchesAuthor) - Number(a.matchesAuthor) || b.titleScore - a.titleScore);
     return ranked[0]?.item ?? null;
   };
+  const safeQuery = (value: string) => value.replace(/["\\]/g, " ").replace(/\s+/g, " ").trim();
 
-  // 1) Internet Archive: prioridade principal catálogo aberto de obras digitalizadas.
+  // Internet Archive: tenta título e autor, depois repete apenas com o título.
   try {
-    const query = isbn
-      ? `isbn:${isbn} AND mediatype:texts`
-      : `title:("${mainTitle.replace(/["\\]/g, " ")}") AND mediatype:texts`;
-    const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json`;
-    const response = await fetch(url);
-    if (response.ok) {
+    const queries = isbn
+      ? ["isbn:" + isbn + " AND mediatype:texts"]
+      : titleVariants.flatMap((variant) => {
+          const exactTitle = 'title:("' + safeQuery(variant) + '")';
+          return [
+            expectedAuthor ? exactTitle + ' AND creator:("' + safeQuery(author) + '") AND mediatype:texts' : exactTitle + " AND mediatype:texts",
+            exactTitle + " AND mediatype:texts",
+          ];
+        });
+    for (const query of [...new Set(queries)]) {
+      const url = "https://archive.org/advancedsearch.php?q=" + encodeURIComponent(query) + "&fl[]=identifier,title,creator&rows=50&page=1&output=json";
+      const response = await fetch(url);
+      if (!response.ok) continue;
       const payload = await response.json();
       const docs = payload.response?.docs ?? [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
-        Array.isArray(doc.creator) ? doc.creator : [String(doc.creator ?? "")]);
-      if (match?.identifier) return `https://archive.org/services/img/${encodeURIComponent(match.identifier)}`;
+        Array.isArray(doc.creator) ? doc.creator.map(String) : [String(doc.creator ?? "")]);
+      if (match?.identifier) return "https://archive.org/services/img/" + encodeURIComponent(match.identifier);
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
-
-  // 2) Open Library: busca por título/autor e aceita pequenas diferenças de edição.
+  // Open Library: pesquisa título + autor e repete sem autor/subtítulo.
   try {
     const searches = isbn
-      ? [`isbn=${encodeURIComponent(isbn)}`]
-      : [
-          `title=${encodeURIComponent(mainTitle)}&author=${encodeURIComponent(author)}`,
-          `title=${encodeURIComponent(mainTitle)}`,
-        ];
-    for (const search of searches) {
-      const response = await fetch(`https://openlibrary.org/search.json?${search}&limit=50&fields=title,author_name,cover_i`);
+      ? ["isbn=" + encodeURIComponent(isbn)]
+      : titleVariants.flatMap((variant) => [
+          "title=" + encodeURIComponent(variant) + (author ? "&author=" + encodeURIComponent(author) : ""),
+          "title=" + encodeURIComponent(variant),
+        ]);
+    for (const search of [...new Set(searches)]) {
+      const response = await fetch("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
       if (!response.ok) continue;
       const payload = await response.json();
       const docs = Array.isArray(payload.docs) ? payload.docs : [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
-        Array.isArray(doc.author_name) ? doc.author_name : []);
-      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
+        Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
+      if (match?.cover_i) return "https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg";
     }
   } catch (error) { console.warn("Open Library não respondeu:", error); }
 
-
-
-  // 3) Google Books: tenta ISBN, título + autor e, por último, título sem filtros.
+  // Google Books: título + autor, depois título isolado e variações sem subtítulo.
   try {
     const queries = isbn
-      ? [`isbn:${isbn}`]
-      : [
-          `intitle:"${mainTitle}"+inauthor:${author}`,
-          `intitle:"${mainTitle}"`,
-          `"${mainTitle}" ${author}`,
-        ];
-    for (const query of queries) {
-      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=40&orderBy=relevance`);
+      ? ["isbn:" + isbn]
+      : titleVariants.flatMap((variant) => [
+          'intitle:"' + variant + '"' + (author ? ' inauthor:"' + author + '"' : ""),
+          'intitle:"' + variant + '"',
+          '"' + variant + '"',
+        ]);
+    for (const query of [...new Set(queries)]) {
+      const response = await fetch("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=40&orderBy=relevance");
       if (!response.ok) continue;
       const payload = await response.json();
       const items = Array.isArray(payload.items) ? payload.items : [];
-      const match = pickBest(items, (item: any) => String(item.volumeInfo?.title ?? ""), (item: any) =>
-        Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
+      const match = pickBest(items, (item: any) => {
+        const info = item.volumeInfo ?? {};
+        return [info.title, info.subtitle].filter(Boolean).join(" ");
+      }, (item: any) => Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
       const links = match?.volumeInfo?.imageLinks;
       const image = links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail;
       if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
     }
   } catch (error) { console.warn("Google Books não respondeu:", error); }
-
 
   return null;
 }
