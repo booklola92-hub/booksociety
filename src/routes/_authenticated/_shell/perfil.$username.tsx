@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { EmptyState, PageTitle } from "@/components/empty-state";
 import { Feed } from "@/components/feed";
 import { UserAvatar } from "@/components/user-avatar";
+import { EditAvatarButton } from "@/components/edit-avatar-button";
 import { BookCover } from "@/components/book-cover";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -234,6 +235,7 @@ function PublicProfilePage() {
           <div className="relative flex h-full flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative shrink-0 self-start rounded-full border-4 border-[#fff3e8] shadow-lg">
               <UserAvatar profile={person} className="h-32 w-32 border-0 sm:h-40 sm:w-40" />
+              {me?.id === person.id ? <EditAvatarButton className="absolute bottom-1 right-1" /> : null}
             </div>
             <div className="min-w-0 flex-1 self-center">
               <h1 className="font-display text-3xl font-semibold text-white sm:text-4xl">{person.display_name || person.username}</h1>

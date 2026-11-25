@@ -4,6 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { PageTitle } from "@/components/empty-state";
+import { EditAvatarButton } from "@/components/edit-avatar-button";
+import { UserAvatar } from "@/components/user-avatar";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyId, useMe } from "@/lib/social";
@@ -31,6 +33,13 @@ function SettingsPage() {
   return (
     <div className="space-y-7">
       <PageTitle title="Configurações" subtitle="Escolha como outros leitores podem encontrar você." />
+      <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
+        <h2 className="font-display text-2xl font-semibold text-primary">Foto de perfil</h2>
+        <div className="mt-5 flex flex-wrap items-center gap-4">
+          {me ? <UserAvatar profile={me} className="h-20 w-20" /> : null}
+          <EditAvatarButton variant="button" />
+        </div>
+      </section>
       <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
         <h2 className="font-display text-2xl font-semibold text-primary">Privacidade</h2>
         <div className="mt-5 flex items-start justify-between gap-4 rounded-2xl border border-border bg-background p-4">

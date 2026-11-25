@@ -436,7 +436,7 @@ function MessengerPage() {
         <span className="ml-auto hidden text-xs text-[#ffe4d3] sm:block">● Conectado</span>
       </div>
 
-      <div className="grid min-h-[240px] grid-cols-1 lg:h-[570px] lg:min-h-0 lg:grid-cols-[190px_minmax(0,1fr)]">
+      <div className="grid min-h-[240px] grid-cols-1 lg:h-[570px] lg:min-h-0 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="min-h-0 border-b-2 border-[#d9b49b] bg-[#f4e5d1] lg:overflow-hidden lg:border-b-0 lg:border-r-2">
           <div className="flex items-center gap-2 border-b border-[#d9b49b] p-2">
             {avatar(myAvatar, displayName, "h-8 w-8", "max-h-8 max-w-8")}
@@ -457,7 +457,7 @@ function MessengerPage() {
             {contactsQuery.isError && <p className="p-4 text-xs">Não foi possível carregar os contatos.</p>}
             {!contactsQuery.isLoading && !contacts.length && <p className="p-4 text-xs text-[#8c5b51]">Seus contatos aparecerão aqui quando você seguir alguém ou aceitar uma amizade.</p>}
             {contacts.map((c) => <button key={c.id} data-contact-name={c.name.toLowerCase()} onClick={() => { setSelected(c.id); setSelectedGroupId(null); }} className={`mb-1 flex w-full items-center gap-2 rounded-lg border p-1.5 text-left transition ${selected === c.id && !selectedGroupId ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}>
-              {avatar(c.avatar, c.name, "h-7 w-7")}<span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{c.name}</span><span className="block truncate text-[10px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
+              {avatar(c.avatar, c.name, "h-10 w-10")}<span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{c.name}</span><span className="block truncate text-[10px] text-[#8c5b51]">{c.handle}</span></span><span className="text-xs text-[#a71925]">▮▮▮</span>
             </button>)}
             {!!groups.length && <p className="px-1 pb-1 pt-2 text-xs font-bold">Grupos</p>}
             {groups.map((g) => <button key={g.id} onClick={() => { setSelectedGroupId(g.id); setSelected(""); }} className={`mb-1 flex w-full items-center gap-2 rounded-lg border p-1.5 text-left ${selectedGroupId === g.id ? "border-[#9a1d29] bg-[#ead6c0]" : "border-transparent hover:bg-[#fff8ed]"}`}><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#ead6c0] text-sm">👥</span><span className="min-w-0 flex-1 truncate text-xs font-bold">{g.name}</span></button>)}
@@ -510,20 +510,20 @@ function MessengerPage() {
                 const isAttachment = m.content.startsWith("[PHOTO]") || m.content.startsWith("[FILE]");
                 const clean = winkKind ? (winks.find((w) => w.kind === winkKind)?.caption ?? m.content.replace(/^\[WINK[^\]]*\]/, "")) : m.content.replace(/^\[NUDGE\]/, "🔔 ");
                 if (winkKind) return <div key={m.id} className={`flex items-center gap-3 py-2 ${mine ? "justify-end" : "justify-start"}`}>
-                  {!mine && (contact ? avatar(contact.avatar, contact.name, "h-7 w-7") : <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#ead6c0]">👥</span>)}
+                  {!mine && (contact ? avatar(contact.avatar, contact.name, "h-10 w-10") : <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#ead6c0]">👥</span>)}
                   <div className="wink-message">
                     <WinkArtwork kind={winkKind} />
                     <p className="text-center text-xs font-semibold">{clean}</p>
                     <p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}</p>
                   </div>
-                  {mine && avatar(myAvatar, displayName, "h-7 w-7")}
+                  {mine && avatar(myAvatar, displayName, "h-10 w-10")}
                 </div>;
                 return <div key={m.id} className={`flex items-end gap-2 py-1 ${mine ? "justify-end" : "justify-start"}`}>
-                  {!mine && (contact ? avatar(contact.avatar, contact.name, "h-7 w-7") : <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#ead6c0]">👥</span>)}
+                  {!mine && (contact ? avatar(contact.avatar, contact.name, "h-10 w-10") : <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#ead6c0]">👥</span>)}
                   <div className={`max-w-[80%] rounded-[16px] border border-[#d9a78d] bg-[#fff4e5] px-3 py-1.5 text-[#981d27] shadow-sm ${mine ? "rounded-br-md" : "rounded-bl-md"} ${isNudge ? "font-bold" : ""}`}>
                     {isAttachment ? <ChatAttachment content={m.content} /> : <p className="whitespace-pre-wrap text-xs leading-tight">{clean}</p>}<p className="mt-1 text-right text-[10px] text-[#9c6d60]">{stamp(m.created_at)}{mine && m.read_at ? " · lida" : ""}</p>
                   </div>
-                  {mine && avatar(myAvatar, displayName, "h-7 w-7")}
+                  {mine && avatar(myAvatar, displayName, "h-10 w-10")}
                 </div>;
               })}
               {!messagesQuery.isLoading && !messages.length && <p className="py-12 text-center text-sm text-[#9c6d60]">Diga oi e comece uma conversa!</p>}
@@ -567,7 +567,7 @@ function MessengerPage() {
       </div>}
       <style>{`
         .bs-messenger { font-family: Arial, Helvetica, sans-serif; }
-        .bs-messenger .messenger-avatar { border:3px solid #f5fff0; border-radius:17px; box-shadow:0 0 0 2px #8bbd77, 0 0 13px 4px rgba(110,220,90,.72), inset 0 0 0 1px rgba(255,255,255,.85); background:#e9d6c6; }
+        .bs-messenger .messenger-avatar { aspect-ratio:1/1; object-fit:cover; border:3px solid #f5fff0; border-radius:6px; box-shadow:0 0 0 2px #8bbd77, 0 0 13px 4px rgba(110,220,90,.72), inset 0 0 0 1px rgba(255,255,255,.85); background:#e9d6c6; }
         .bs-messenger .messenger-chat-area { min-height:0; max-height:100%; padding:3px 4px; }
         .bs-messenger .toolbar-btn { min-height:24px; padding:2px 6px; font-size:9px; }
         .bs-messenger .toolbar-btn svg { width:12px; height:12px; }

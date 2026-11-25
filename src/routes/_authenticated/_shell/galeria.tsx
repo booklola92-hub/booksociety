@@ -103,7 +103,7 @@ function GalleryPage() {
       const cover_path = selectedAlbum.cover_path || paths[0];
       if (!selectedAlbum.cover_path) {
         await (supabase as any).from("gallery_albums").update({ cover_path }).eq("id", selectedAlbum.id);
-        setSelectedAlbum({ ...selectedAlbum, cover_path });
+        setSelectedAlbum({ ...selectedAlbum, cover_path: cover_path ?? null });
       }
     },
     onSuccess: async () => { setCaption(""); await refresh(); toast.success("Fotos adicionadas ao álbum!"); },

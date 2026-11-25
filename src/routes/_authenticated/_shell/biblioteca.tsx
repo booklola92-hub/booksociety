@@ -161,14 +161,14 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   // 1) Google Books: tenta ISBN, título + autor e, por último, título sem filtros.
   try {
     const queries = isbn
-      ? [\`isbn:\${isbn}\`]
+      ? [`isbn:${isbn}`]
       : [
-          \`intitle:"\${mainTitle}"+inauthor:\${author}\`,
-          \`intitle:"\${mainTitle}"\`,
-          \`"\${mainTitle}" \${author}\`,
+          `intitle:"${mainTitle}"+inauthor:${author}`,
+          `intitle:"${mainTitle}"`,
+          `"${mainTitle}" ${author}`,
         ];
     for (const query of queries) {
-      const response = await fetch(\`https://www.googleapis.com/books/v1/volumes?q=\${encodeURIComponent(query)}&maxResults=40&orderBy=relevance\`);
+      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=40&orderBy=relevance`);
       if (!response.ok) continue;
       const payload = await response.json();
       const items = Array.isArray(payload.items) ? payload.items : [];
@@ -183,35 +183,35 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   // 2) Open Library: busca por título/autor e aceita pequenas diferenças de edição.
   try {
     const searches = isbn
-      ? [\`isbn=\${encodeURIComponent(isbn)}\`]
+      ? [`isbn=${encodeURIComponent(isbn)}`]
       : [
-          \`title=\${encodeURIComponent(mainTitle)}&author=\${encodeURIComponent(author)}\`,
-          \`title=\${encodeURIComponent(mainTitle)}\`,
+          `title=${encodeURIComponent(mainTitle)}&author=${encodeURIComponent(author)}`,
+          `title=${encodeURIComponent(mainTitle)}`,
         ];
     for (const search of searches) {
-      const response = await fetch(\`https://openlibrary.org/search.json?\${search}&limit=50&fields=title,author_name,cover_i\`);
+      const response = await fetch(`https://openlibrary.org/search.json?${search}&limit=50&fields=title,author_name,cover_i`);
       if (!response.ok) continue;
       const payload = await response.json();
       const docs = Array.isArray(payload.docs) ? payload.docs : [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
         Array.isArray(doc.author_name) ? doc.author_name : []);
-      if (match?.cover_i) return \`https://covers.openlibrary.org/b/id/\${match.cover_i}-L.jpg\`;
+      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
     }
   } catch (error) { console.warn("Open Library não respondeu:", error); }
 
   // 3) Internet Archive: catálogo aberto de obras digitalizadas.
   try {
     const query = isbn
-      ? \`isbn:\${isbn} AND mediatype:texts\`
-      : \`title:("\${mainTitle.replace(/["\\]/g, " ")}") AND mediatype:texts\`;
-    const url = \`https://archive.org/advancedsearch.php?q=\${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json\`;
+      ? `isbn:${isbn} AND mediatype:texts`
+      : `title:("${mainTitle.replace(/["\\]/g, " ")}") AND mediatype:texts`;
+    const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json`;
     const response = await fetch(url);
     if (response.ok) {
       const payload = await response.json();
       const docs = payload.response?.docs ?? [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
         Array.isArray(doc.creator) ? doc.creator : [String(doc.creator ?? "")]);
-      if (match?.identifier) return \`https://archive.org/services/img/\${encodeURIComponent(match.identifier)}\`;
+      if (match?.identifier) return `https://archive.org/services/img/${encodeURIComponent(match.identifier)}`;
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
@@ -355,6 +355,7 @@ function GoodreadsTransfer() {
           const index = cursor++;
           if (index >= missing.length) return;
           const book = missing[index];
+          if (!book) return;
           try {
             const cover = await findPublicCover(book.title, book.author ?? "", "", "");
             if (cover) {
