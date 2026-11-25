@@ -384,7 +384,7 @@ function GoodreadsTransfer() {
       let found = 0;
       let processed = 0;
       let cursor = 0;
-      const concurrency = 3;
+      const concurrency = 20;
       toast.info(`Buscando automaticamente capas para ${missing.length} livros nos catálogos disponíveis.`);
 
       const worker = async () => {
