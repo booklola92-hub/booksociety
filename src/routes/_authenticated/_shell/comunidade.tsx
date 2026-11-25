@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { Lock, Plus, Search, Users } from "lucide-react";
+import { Lock, Plus, Search, Sparkles, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { CommunityAvatar, CommunityCover, CoverFramer, DEFAULT_FRAMING, type CoverFraming } from "@/components/community-image";
-import { EmptyState, PageTitle } from "@/components/empty-state";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -38,32 +38,60 @@ function ComunidadePage() {
   const { data = [], isLoading, isError } = useCommunityList(search);
 
   return (
-    <div className="space-y-6">
-      <PageTitle
-        title="Comunidade"
-        subtitle="Grupos de leitores para conversar, trocar fotos e indicações."
-        action={
-          <Button className="rounded-full" onClick={() => setCreating(true)}>
+    <div className="space-y-8">
+      <section className="relative flex min-h-[250px] items-center justify-between gap-8 overflow-hidden rounded-[28px] border border-border bg-gradient-to-br from-card via-card to-secondary/50 px-7 py-9 shadow-soft sm:px-10">
+        <div className="relative z-10 max-w-3xl">
+          <p className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-primary/75">
+            The Secret Bookshelf · Encontre sua turma
+          </p>
+          <h1 className="font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+            Comunidades
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+            Encontre leitores que amam as mesmas histórias que você. Participe das conversas,
+            compartilhe descobertas e faça parte de um clube de leitura.
+          </p>
+        </div>
+        <div className="relative mr-1 hidden h-32 w-32 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-background/80 shadow-[0_12px_35px_hsl(var(--foreground)/0.08)] sm:flex">
+          <div className="flex h-28 w-28 items-center justify-center rounded-full border border-primary/15 bg-card">
+            <Users className="h-11 w-11 text-primary" strokeWidth={1.8} />
+          </div>
+          <Sparkles className="absolute right-4 top-5 h-5 w-5 fill-foreground text-foreground" />
+        </div>
+      </section>
+
+      <section className="space-y-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-medium text-foreground sm:text-3xl">
+              Explore as comunidades
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {data.length} {data.length === 1 ? "comunidade" : "comunidades"} para descobrir
+            </p>
+          </div>
+          <Button className="h-11 rounded-lg px-6 shadow-soft" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" /> Criar comunidade
           </Button>
-        }
-      />
-      <form
-        className="relative max-w-lg"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setSearch(q.trim());
-        }}
-      >
-        <Search className="absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar por nome ou assunto"
-          aria-label="Buscar comunidade"
-          className="h-11 rounded-full bg-card pl-11 shadow-soft"
-        />
-      </form>
+        </div>
+
+        <form
+          className="relative w-full"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSearch(q.trim());
+          }}
+        >
+          <Search className="absolute top-1/2 left-5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar pelo nome ou assunto..."
+            aria-label="Buscar comunidade"
+            className="h-16 w-full rounded-xl border-border bg-card pl-14 text-base shadow-soft placeholder:text-muted-foreground/70"
+          />
+        </form>
+      </section>
 
       {isLoading ? (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
