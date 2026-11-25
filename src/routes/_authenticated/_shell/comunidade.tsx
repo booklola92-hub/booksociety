@@ -39,38 +39,38 @@ function ComunidadePage() {
 
   return (
     <div className="space-y-8">
-      <section className="relative flex min-h-[250px] items-center justify-between gap-8 overflow-hidden rounded-[28px] border border-border bg-gradient-to-br from-card via-card to-secondary/50 px-7 py-9 shadow-soft sm:px-10">
+      <section className="relative flex min-h-[230px] items-center justify-between gap-8 overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-soft sm:p-8">
         <div className="relative z-10 max-w-3xl">
-          <p className="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-primary/75">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
             Encontre sua turma
           </p>
-          <h1 className="font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
             Comunidades
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
             Encontre leitores que amam as mesmas histórias que você. Participe das conversas,
             compartilhe descobertas e faça parte de um clube de leitura.
           </p>
         </div>
-        <div className="relative mr-1 hidden h-32 w-32 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-background/80 shadow-[0_12px_35px_hsl(var(--foreground)/0.08)] sm:flex">
-          <div className="flex h-28 w-28 items-center justify-center rounded-full border border-primary/15 bg-card">
+        <div className="relative mr-1 hidden h-28 w-28 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-soft sm:flex">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full border border-border bg-card">
             <Users className="h-11 w-11 text-primary" strokeWidth={1.8} />
           </div>
-          <Sparkles className="absolute right-4 top-5 h-5 w-5 fill-foreground text-foreground" />
+          <Sparkles className="absolute right-3 top-3 h-5 w-5 fill-primary text-primary" />
         </div>
       </section>
 
       <section className="space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-2xl font-medium text-foreground sm:text-3xl">
+            <h2 className="font-display text-2xl font-semibold text-primary">
               Explore as comunidades
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {data.length} {data.length === 1 ? "comunidade" : "comunidades"} para descobrir
             </p>
           </div>
-          <Button className="h-11 rounded-lg px-6 shadow-soft" onClick={() => setCreating(true)}>
+          <Button className="h-11 rounded-xl px-6 shadow-soft" onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" /> Criar comunidade
           </Button>
         </div>
@@ -88,7 +88,7 @@ function ComunidadePage() {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar pelo nome ou assunto..."
             aria-label="Buscar comunidade"
-            className="h-16 w-full rounded-xl border-border bg-card pl-14 text-base shadow-soft placeholder:text-muted-foreground/70"
+            className="h-12 w-full rounded-xl border-border bg-card pl-12 text-sm shadow-soft placeholder:text-muted-foreground/70 sm:h-14 sm:text-base"
           />
         </form>
       </section>
