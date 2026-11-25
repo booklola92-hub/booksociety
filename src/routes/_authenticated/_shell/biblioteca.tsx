@@ -164,7 +164,45 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     return ranked[0]?.item ?? null;
   };
 
-  // 1) Google Books: tenta ISBN, título + autor e, por último, título sem filtros.
+  // 1) Internet Archive: prioridade principal catálogo aberto de obras digitalizadas.
+  try {
+    const query = isbn
+      ? `isbn:${isbn} AND mediatype:texts`
+      : `title:("${mainTitle.replace(/["\\]/g, " ")}") AND mediatype:texts`;
+    const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const payload = await response.json();
+      const docs = payload.response?.docs ?? [];
+      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
+        Array.isArray(doc.creator) ? doc.creator : [String(doc.creator ?? "")]);
+      if (match?.identifier) return `https://archive.org/services/img/${encodeURIComponent(match.identifier)}`;
+    }
+  } catch (error) { console.warn("Internet Archive não respondeu:", error); }
+
+
+  // 2) Open Library: busca por título/autor e aceita pequenas diferenças de edição.
+  try {
+    const searches = isbn
+      ? [`isbn=${encodeURIComponent(isbn)}`]
+      : [
+          `title=${encodeURIComponent(mainTitle)}&author=${encodeURIComponent(author)}`,
+          `title=${encodeURIComponent(mainTitle)}`,
+        ];
+    for (const search of searches) {
+      const response = await fetch(`https://openlibrary.org/search.json?${search}&limit=50&fields=title,author_name,cover_i`);
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const docs = Array.isArray(payload.docs) ? payload.docs : [];
+      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
+        Array.isArray(doc.author_name) ? doc.author_name : []);
+      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
+    }
+  } catch (error) { console.warn("Open Library não respondeu:", error); }
+
+
+
+  // 3) Google Books: tenta ISBN, título + autor e, por último, título sem filtros.
   try {
     const queries = isbn
       ? [`isbn:${isbn}`]
@@ -186,40 +224,6 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     }
   } catch (error) { console.warn("Google Books não respondeu:", error); }
 
-  // 2) Open Library: busca por título/autor e aceita pequenas diferenças de edição.
-  try {
-    const searches = isbn
-      ? [`isbn=${encodeURIComponent(isbn)}`]
-      : [
-          `title=${encodeURIComponent(mainTitle)}&author=${encodeURIComponent(author)}`,
-          `title=${encodeURIComponent(mainTitle)}`,
-        ];
-    for (const search of searches) {
-      const response = await fetch(`https://openlibrary.org/search.json?${search}&limit=50&fields=title,author_name,cover_i`);
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const docs = Array.isArray(payload.docs) ? payload.docs : [];
-      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
-        Array.isArray(doc.author_name) ? doc.author_name : []);
-      if (match?.cover_i) return `https://covers.openlibrary.org/b/id/${match.cover_i}-L.jpg`;
-    }
-  } catch (error) { console.warn("Open Library não respondeu:", error); }
-
-  // 3) Internet Archive: catálogo aberto de obras digitalizadas.
-  try {
-    const query = isbn
-      ? `isbn:${isbn} AND mediatype:texts`
-      : `title:("${mainTitle.replace(/["\\]/g, " ")}") AND mediatype:texts`;
-    const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier,title,creator&rows=30&page=1&output=json`;
-    const response = await fetch(url);
-    if (response.ok) {
-      const payload = await response.json();
-      const docs = payload.response?.docs ?? [];
-      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
-        Array.isArray(doc.creator) ? doc.creator : [String(doc.creator ?? "")]);
-      if (match?.identifier) return `https://archive.org/services/img/${encodeURIComponent(match.identifier)}`;
-    }
-  } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
   return null;
 }
@@ -383,42 +387,46 @@ function GoodreadsTransfer() {
 
       let found = 0;
       let processed = 0;
-      let cursor = 0;
+      const batchSize = 20;
       const concurrency = 20;
-      toast.info(`Buscando automaticamente capas para ${missing.length} livros nos catálogos disponíveis.`);
+      toast.info(`Buscando capas em lotes de 20 livros. Internet Archive será consultado primeiro.`);
 
-      const worker = async () => {
-        while (true) {
-          const index = cursor++;
-          if (index >= missing.length) return;
-          const book = missing[index];
-          if (!book) return;
-          try {
-            const cover = await findPublicCover(book.title, book.author ?? "", "", "");
-            if (cover) {
-              const { data: updated, error: updateError } = await supabase
-                .from("books")
-                .update({ cover_url: cover })
-                .eq("id", book.id)
-                .or('cover_url.is.null,cover_url.eq.""')
-                .select("id")
-                .maybeSingle();
-              if (updateError) throw updateError;
-              if (updated?.id) found += 1;
-            }
-          } catch (searchError) {
-            console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
-          } finally {
-            processed += 1;
-            if (processed % 5 === 0 || processed === missing.length) {
-              await invalidate("shelf");
-              await invalidate("books");
+      // Processa 20 livros por rodada; só inicia o próximo lote quando o atual termina.
+      for (let batchStart = 0; batchStart < missing.length; batchStart += batchSize) {
+        const batch = missing.slice(batchStart, batchStart + batchSize);
+        let cursor = 0;
+
+        const worker = async () => {
+          while (true) {
+            const index = cursor++;
+            if (index >= batch.length) return;
+            const book = batch[index];
+            if (!book) return;
+            try {
+              const cover = await findPublicCover(book.title, book.author ?? "", "", "");
+              if (cover) {
+                const { data: updated, error: updateError } = await supabase
+                  .from("books")
+                  .update({ cover_url: cover })
+                  .eq("id", book.id)
+                  .or('cover_url.is.null,cover_url.eq.""')
+                  .select("id")
+                  .maybeSingle();
+                if (updateError) throw updateError;
+                if (updated?.id) found += 1;
+              }
+            } catch (searchError) {
+              console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
+            } finally {
+              processed += 1;
             }
           }
-        }
-      };
+        };
 
-      await Promise.all(Array.from({ length: Math.min(concurrency, missing.length) }, () => worker()));
+        await Promise.all(Array.from({ length: Math.min(concurrency, batch.length) }, () => worker()));
+        await invalidate("shelf");
+        await invalidate("books");
+      }
       await invalidate("shelf");
       await invalidate("books");
       if (found === 0) {
