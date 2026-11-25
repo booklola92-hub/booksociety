@@ -52,7 +52,7 @@ export function RightRail() {
 
   return (
     <aside className="space-y-4">
-      <div className="space-y-4 rounded-[22px] border-[4px] border-[#8f001b] bg-[#fff7f3] p-1.5 shadow-[0_7px_22px_rgba(143,0,27,0.08)]">
+      <div className="space-y-4">
         <section className="rounded-[17px] border border-[#f3d9d1] bg-gradient-to-br from-[#fff8f5] to-[#fde9e4] p-4">
           <div className="mb-4 flex items-center justify-between gap-2 border-b border-[#efd9d1] pb-3">
             <h2 className="flex items-center gap-2 font-display text-base font-semibold text-[#3f201d]"><Trophy className="h-5 w-5 text-amber-500"/> Minhas Conquistas</h2>
