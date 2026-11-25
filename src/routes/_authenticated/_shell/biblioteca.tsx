@@ -96,10 +96,12 @@ function parseCsv(text: string): CsvRow[] {
 
 // Neutraliza conteúdo que planilhas podem interpretar como fórmula (CSV injection).
 // A verificação considera espaços e caracteres de controle antes do marcador.
+// Neutraliza conteúdo que planilhas podem interpretar como fórmula (CSV injection).
+// A verificação considera espaços e caracteres de controle antes do marcador.
 function csvCell(value: unknown): string {
   let text = value == null ? "" : String(value);
   if (/^[\s\u0000-\u001f]*[=+\-@]/.test(text)) text = "'" + text;
-  return /[",\r\n]/.test(text) ? \`"\${text.replace(/"/g, '""')}"\` : text;
+  return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
 }
 
 function csvDate(value: string | null): string {
