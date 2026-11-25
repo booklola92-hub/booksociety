@@ -1,15 +1,19 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, Download, FileUp, Library, Trash2, Upload } from "lucide-react";
+import { ArrowDownUp, BookOpen, Bookmark, CheckCircle2, Download, FileUp, Heart, LayoutGrid, Library, Plus, Rows3, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { PageTitle } from "@/components/empty-state";
+import { BookPicker } from "@/components/book-picker";
+import { Stars } from "@/components/stars";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookCover } from "@/components/book-cover";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPrivateObject, uploadMedia } from "@/lib/media";
-import { getMyId, useInvalidate, useMe, useShelf } from "@/lib/social";
+import { addToShelf, getMyId, SHELF_LABEL, useInvalidate, useMe, useShelf, type ShelfEntry, type ShelfStatus } from "@/lib/social";
+import { cn } from "@/lib/utils";
 
 type CsvRow = Record<string, string>;
 
@@ -480,13 +484,118 @@ function GoodreadsTransfer() {
   );
 }
 
-function ReadBooks() {
+const STATUS_TABS = [
+  { value: "all", label: "Todos" },
+  { value: "read", label: "Lidos" },
+  { value: "reading", label: "Lendo" },
+  { value: "want", label: "Quero ler" },
+  { value: "fav", label: "Favoritos" },
+] as const;
+type StatusTab = (typeof STATUS_TABS)[number]["value"];
+type SortKey = "recent" | "title" | "author" | "rating";
+
+/** Favoritos = livros que você avaliou com 5 estrelas. */
+const isFavorite = (item: ShelfEntry) => item.rating === 5;
+
+function LibraryHero() {
+  return (
+    <section className="relative overflow-hidden rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-accent/40 p-6 shadow-sm sm:p-8">
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
+          <BookOpen className="h-7 w-7" />
+        </div>
+        <div>
+          <h1 className="font-display text-3xl font-semibold text-primary sm:text-4xl">Biblioteca</h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">Organize seus livros, descubra novas leituras e compartilhe suas impressões.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProgressRing({ value }: { value: number }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative mx-auto h-36 w-36">
+      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+        <circle cx="60" cy="60" r={r} fill="none" strokeWidth="10" className="stroke-muted" />
+        <circle cx="60" cy="60" r={r} fill="none" strokeWidth="10" strokeLinecap="round" className="stroke-primary transition-all" strokeDasharray={c} strokeDashoffset={c - (c * value) / 100} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-display text-3xl font-semibold text-primary">{value}%</span>
+        <span className="text-xs text-muted-foreground">concluídos</span>
+      </div>
+    </div>
+  );
+}
+
+function ReadingSummary({ shelf }: { shelf: ShelfEntry[] }) {
+  const read = shelf.filter((i) => i.status === "read").length;
+  const reading = shelf.filter((i) => i.status === "reading").length;
+  const want = shelf.filter((i) => i.status === "want").length;
+  const fav = shelf.filter(isFavorite).length;
+  const pct = shelf.length ? Math.round((read / shelf.length) * 100) : 0;
+  const rows = [
+    { icon: CheckCircle2, label: "Livros concluídos", value: read },
+    { icon: BookOpen, label: "Lendo agora", value: reading },
+    { icon: Heart, label: "Favoritos", value: fav },
+    { icon: Bookmark, label: "Quero ler", value: want },
+  ];
+  return (
+    <aside className="h-fit space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm lg:sticky lg:top-24">
+      <div>
+        <h3 className="font-display text-xl font-semibold">Sua Leitura</h3>
+        <p className="text-xs text-muted-foreground">{read} de {shelf.length} {shelf.length === 1 ? "livro" : "livros"} da biblioteca</p>
+      </div>
+      <ProgressRing value={pct} />
+      <ul className="space-y-2">
+        {rows.map(({ icon: Icon, label, value }) => (
+          <li key={label} className="flex items-center justify-between rounded-xl bg-secondary/60 px-3 py-2.5">
+            <span className="flex items-center gap-2 text-sm"><Icon className="h-4 w-4 text-primary" /> {label}</span>
+            <span className="font-semibold">{value}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted-foreground">Favoritos são os livros que você avaliou com 5 estrelas.</p>
+    </aside>
+  );
+}
+
+function MyLibrary() {
   const { data: me } = useMe();
   const { data: shelf = [], isLoading } = useShelf(me?.id);
-  const readBooks = shelf.filter((item) => item.status === "read" && item.book);
   const invalidate = useInvalidate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [q, setQ] = useState("");
+  const [tab, setTab] = useState<StatusTab>("all");
+  const [minRating, setMinRating] = useState("0");
+  const [sort, setSort] = useState<SortKey>("recent");
+  const [view, setView] = useState<"grid" | "shelf">("grid");
+  const [picking, setPicking] = useState(false);
+
+  const counts: Record<StatusTab, number> = {
+    all: shelf.length,
+    read: shelf.filter((i) => i.status === "read").length,
+    reading: shelf.filter((i) => i.status === "reading").length,
+    want: shelf.filter((i) => i.status === "want").length,
+    fav: shelf.filter(isFavorite).length,
+  };
+
+  const needle = normalize(q.trim());
+  const min = Number(minRating);
+  const items = shelf
+    .filter((i) => i.book)
+    .filter((i) => (tab === "all" ? true : tab === "fav" ? isFavorite(i) : i.status === tab))
+    .filter((i) => (min ? (i.rating ?? 0) >= min : true))
+    .filter((i) => !needle || normalize(i.book.title).includes(needle) || normalize(i.book.author ?? "").includes(needle))
+    .sort((a, b) =>
+      sort === "title" ? a.book.title.localeCompare(b.book.title, "pt-BR")
+      : sort === "author" ? (a.book.author ?? "").localeCompare(b.book.author ?? "", "pt-BR")
+      : sort === "rating" ? (b.rating ?? 0) - (a.rating ?? 0)
+      : b.updated_at.localeCompare(a.updated_at),
+    );
 
   async function removeBook(itemId: string, title: string) {
     if (!window.confirm(`Deseja excluir “${title}” da sua Biblioteca?`)) return;
@@ -519,74 +628,154 @@ function ReadBooks() {
     }
   }
 
+  const removeBtn = (item: ShelfEntry) => (
+    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label={`Excluir ${item.book.title} da Biblioteca`} title="Excluir livro" disabled={deletingAll || deletingId === item.id} onClick={() => void removeBook(item.id, item.book.title)}>
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-2xl font-semibold">Livros que já li</h2>
-          <p className="text-sm text-muted-foreground">Suas leituras concluídas, com as capas dos livros.</p>
+    <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+      <section className="min-w-0 space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-semibold">Minha biblioteca</h2>
+            <p className="text-sm text-muted-foreground">Cada livro, um pedacinho da sua história.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => document.getElementById("importar-exportar")?.scrollIntoView({ behavior: "smooth" })}>
+              <ArrowDownUp className="h-4 w-4" /> Importar e exportar
+            </Button>
+            <Button onClick={() => setPicking(true)}><Plus className="h-4 w-4" /> Adicionar livro</Button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="text-sm text-muted-foreground">{readBooks.length} {readBooks.length === 1 ? "livro lido" : "livros lidos"}</span>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar livros ou autores" className="pl-9" aria-label="Buscar livros ou autores" />
+          </div>
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="sm:w-48" aria-label="Ordenar"><SlidersHorizontal className="h-4 w-4" /><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Mais recentes</SelectItem>
+              <SelectItem value="title">Título (A–Z)</SelectItem>
+              <SelectItem value="author">Autor(a) (A–Z)</SelectItem>
+              <SelectItem value="rating">Maior nota</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1" role="tablist">
+          {STATUS_TABS.map((t) => (
+            <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => setTab(t.value)}
+              className={cn("shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors", tab === t.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-accent")}>
+              {t.label} <span className="ml-1 opacity-70">{counts[t.value]}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Nota mínima</span>
+            <Select value={minRating} onValueChange={setMinRating}>
+              <SelectTrigger className="h-9 w-36" aria-label="Nota mínima"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Qualquer nota</SelectItem>
+                {[1, 2, 3, 4, 5].map((n) => <SelectItem key={n} value={String(n)}>{"★".repeat(n)}{n < 5 ? " ou mais" : ""}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex rounded-full border border-border p-0.5">
+            {([["grid", LayoutGrid, "Grade"], ["shelf", Rows3, "Estante"]] as const).map(([v, Icon, label]) => (
+              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+                className={cn("flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors", view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+                <Icon className="h-4 w-4" /> {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isLoading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Carregando seus livros...</p>
+        ) : items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
+            <BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="font-medium">{shelf.length ? "Nenhum livro corresponde aos filtros." : "Sua biblioteca ainda está vazia."}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{shelf.length ? "Tente outra busca ou mude os filtros." : "Use “Adicionar livro” para começar."}</p>
+          </div>
+        ) : view === "grid" ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+            {items.map((item) => (
+              <article key={item.id} className="min-w-0 space-y-2">
+                <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
+                  <BookCover book={item.book} className="h-full w-full rounded-none object-cover" />
+                  <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-[11px] font-medium">{SHELF_LABEL[item.status as ShelfStatus] ?? item.status}</span>
+                  {isFavorite(item) ? <Heart className="absolute top-2 right-2 h-5 w-5 fill-primary text-primary" /> : null}
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="line-clamp-2 text-sm font-medium leading-snug">{item.book.title}</h3>
+                    <p className="line-clamp-1 text-xs text-muted-foreground">{item.book.author || "Autor desconhecido"}</p>
+                    {item.rating ? <Stars value={item.rating} size="h-3 w-3" /> : null}
+                  </div>
+                  {removeBtn(item)}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Array.from({ length: Math.ceil(items.length / 6) }, (_, r) => items.slice(r * 6, r * 6 + 6)).map((row, r) => (
+              <div key={r}>
+                <div className="flex items-end gap-2 overflow-x-auto px-2 sm:gap-3">
+                  {row.map((item) => (
+                    <div key={item.id} className="group relative w-20 shrink-0 sm:w-24" title={`${item.book.title} — ${item.book.author}`}>
+                      <BookCover book={item.book} className="w-full rounded-sm shadow-md transition-transform group-hover:-translate-y-1" />
+                      <div className="absolute -top-2 -right-2 hidden group-hover:block">{removeBtn(item)}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="h-3 rounded-b-md border-t-4 border-primary/40 bg-secondary shadow-inner" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+          <span className="text-sm text-muted-foreground">Mostrando {items.length} de {shelf.length} {shelf.length === 1 ? "livro" : "livros"}</span>
           <Button type="button" variant="destructive" size="sm" disabled={!shelf.length || deletingAll || !!deletingId} onClick={() => void removeLibrary()}>
             <Trash2 className="h-4 w-4" /> {deletingAll ? "Excluindo..." : "Excluir biblioteca"}
           </Button>
         </div>
-      </div>
+      </section>
 
-      {isLoading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Carregando seus livros...</p>
-      ) : readBooks.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
-          <BookOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="font-medium">Você ainda não marcou livros como lidos.</p>
-          <p className="mt-1 text-sm text-muted-foreground">Quando mudar o status de um livro para “Lido”, ele aparecerá aqui.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {readBooks.map((item) => (
-            <article key={item.id} className="min-w-0 space-y-2">
-              <div className="aspect-[2/3] overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
-                <BookCover book={item.book} className="h-full w-full rounded-none object-cover" />
-              </div>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h3 className="line-clamp-2 text-sm font-medium leading-snug">{item.book.title}</h3>
-                  <p className="line-clamp-1 text-xs text-muted-foreground">{item.book.author || "Autor desconhecido"}</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  aria-label={`Excluir ${item.book.title} da Biblioteca`}
-                  title="Excluir livro"
-                  disabled={deletingAll || deletingId === item.id}
-                  onClick={() => void removeBook(item.id, item.book.title)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
+      <ReadingSummary shelf={shelf} />
+
+      <BookPicker open={picking} onOpenChange={setPicking} title="Adicionar livro à biblioteca" onSelect={async (book) => {
+        try {
+          await addToShelf(book.id, "want");
+          await invalidate("shelf");
+          toast.success(`“${book.title}” foi adicionado em Quero ler.`);
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "Não foi possível adicionar o livro.");
+        }
+      }} />
+    </div>
   );
 }
 
 function BibliotecaPage() {
   return (
     <div className="space-y-7">
-      <PageTitle title="Biblioteca" subtitle="Organize suas leituras e mantenha sua coleção por perto." />
-      <ReadBooks />
-      <GoodreadsTransfer />
+      <LibraryHero />
+      <MyLibrary />
+      <div id="importar-exportar" className="scroll-mt-24"><GoodreadsTransfer /></div>
     </div>
   );
 }
 
 export const Route = createFileRoute("/_authenticated/_shell/biblioteca")({
-  head: () => ({ meta: [{ title: "Biblioteca — The Secret Bookshelf" }] }),
+  head: () => ({ meta: [{ title: "Biblioteca — The Secret Bookshelf" }, { name: "description", content: "Organize seus livros, descubra novas leituras e compartilhe suas impressões." }] }),
   component: BibliotecaPage,
 });
