@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, Heart, Sparkles } from "lucide-react";
 
-import booksTeacup from "@/assets/books-teacup.png.asset.json";
 import { Composer } from "@/components/composer";
 import { Feed } from "@/components/feed";
 import { RightRail } from "@/components/right-rail";
@@ -17,7 +16,7 @@ function Inicio() {
     <div className="mx-auto grid w-full max-w-[1480px] grid-cols-1 items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-4">
         <section aria-label="Boas-vindas ao Book Society" className="relative isolate flex min-h-[250px] overflow-hidden rounded-[24px] border border-[#e9c9b8] bg-[#6a3829] shadow-[0_12px_35px_rgba(112,65,45,0.10)] sm:min-h-[290px] lg:min-h-[330px]">
-          <img src={booksTeacup.url} alt="Livros e uma xícara em um cantinho aconchegante de leitura" className="absolute inset-0 -z-20 h-full w-full object-cover object-center" />
+          <img src="/book-society-banner.svg" alt="Livros e uma xícara em um cantinho aconchegante de leitura" className="absolute inset-0 -z-20 h-full w-full object-cover object-center" />
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#3c2018]/5 via-[#3c2018]/35 to-[#3c2018]/85" />
           <div className="ml-auto flex w-full max-w-[470px] flex-col items-start justify-center px-6 py-8 text-white sm:px-9 lg:px-10">
             <h1 className="font-display text-3xl leading-[1.12] italic drop-shadow sm:text-4xl lg:text-[2.65rem]">Bem-vinda ao <span className="text-[#ff9fb0]">♡</span><br/>Book Society!</h1>
