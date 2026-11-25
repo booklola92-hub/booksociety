@@ -358,9 +358,16 @@ function GoodreadsTransfer() {
           try {
             const cover = await findPublicCover(book.title, book.author ?? "", "", "");
             if (cover) {
-              const { error: updateError } = await supabase.from("books")
-                .update({ cover_url: cover }).eq("id", book.id).is("cover_url", null);
-              if (!updateError) found += 1;
+              // Alguns registros antigos guardam capa vazia ("") em vez de NULL.
+              // Atualiza apenas se ainda estiver sem capa, para nunca substituir uma capa existente.
+              const { data: updatedBook, error: updateError } = await supabase.from("books")
+                .update({ cover_url: cover })
+                .eq("id", book.id)
+                .or('cover_url.is.null,cover_url.eq.""')
+                .select("id")
+                .maybeSingle();
+              if (updateError) throw updateError;
+              if (updatedBook?.id) found += 1;
             }
           } catch (searchError) {
             console.warn("Falha ao buscar capa de " + book.title, searchError);
@@ -452,6 +459,9 @@ function GoodreadsTransfer() {
           <h2 className="font-display text-2xl font-semibold">Importar e exportar</h2>
           <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
         </div>
+        <Button type="button" variant="outline" disabled={coverBusy || busy} onClick={() => void findMissingCovers()}>
+          <BookOpen className="h-4 w-4" /> {coverBusy ? "Pesquisando capas..." : "Buscar capas que estão faltando"}
+        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
