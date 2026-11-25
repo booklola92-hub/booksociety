@@ -550,31 +550,16 @@ export type Database = {
       }
       messenger_presence: {
         Row: {
-          spotify_album_image: string | null
-          spotify_artist: string | null
-          spotify_is_playing: boolean
-          spotify_track_name: string | null
-          spotify_url: string | null
           status_text: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          spotify_album_image?: string | null
-          spotify_artist?: string | null
-          spotify_is_playing?: boolean
-          spotify_track_name?: string | null
-          spotify_url?: string | null
           status_text?: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          spotify_album_image?: string | null
-          spotify_artist?: string | null
-          spotify_is_playing?: boolean
-          spotify_track_name?: string | null
-          spotify_url?: string | null
           status_text?: string
           updated_at?: string
           user_id?: string
