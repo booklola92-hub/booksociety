@@ -185,7 +185,9 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   };
   const safeQuery = (value: string) => value.replace(/["\\]/g, " ").replace(/\s+/g, " ").trim();
 
-  // Internet Archive: tenta título e autor, depois repete apenas com o título.
+  // Internet Archive: pesquisa registros e arquivos de capa hospedados no próprio acervo.
+  // Primeiro tenta título + autor; depois título simplificado. A capa é escolhida
+  // entre arquivos identificados como imagem de capa; usa o serviço de miniatura como fallback.
   try {
     const queries = isbn
       ? ["isbn:" + isbn + " AND mediatype:texts"]
@@ -204,7 +206,39 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
       const docs = payload.response?.docs ?? [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
         Array.isArray(doc.creator) ? doc.creator.map(String) : [String(doc.creator ?? "")]);
-      if (match?.identifier) return "https://archive.org/services/img/" + encodeURIComponent(match.identifier);
+      if (!match?.identifier) continue;
+
+      const identifier = String(match.identifier);
+      try {
+        const metadataResponse = await fetch("https://archive.org/metadata/" + encodeURIComponent(identifier));
+        if (metadataResponse.ok) {
+          const metadata = await metadataResponse.json();
+          const files = Array.isArray(metadata.files) ? metadata.files : [];
+          const imageFiles = files
+            .filter((file: any) => {
+              const name = String(file.name ?? "").toLowerCase();
+              const format = String(file.format ?? "").toLowerCase();
+              return /\.(jpg|jpeg|png|webp)$/i.test(name) &&
+                (/(^|[/_-])(cover|front|bookcover|itemimage|__ia_thumb)([/_.-]|$)/i.test(name) ||
+                  /cover|thumbnail/i.test(format));
+            })
+            .sort((left: any, right: any) => {
+              const rank = (file: any) => {
+                const name = String(file.name ?? "").toLowerCase();
+                return name.includes("cover") ? 0 : name.includes("__ia_thumb") ? 1 : name.includes("front") ? 2 : 3;
+              };
+              return rank(left) - rank(right);
+            });
+          const selected = imageFiles[0]?.name;
+          if (selected) {
+            return "https://archive.org/download/" + encodeURIComponent(identifier) + "/" +
+              String(selected).split("/").map(encodeURIComponent).join("/");
+          }
+        }
+      } catch (metadataError) {
+        console.warn("Não foi possível consultar os arquivos do Internet Archive:", metadataError);
+      }
+      return "https://archive.org/services/img/" + encodeURIComponent(identifier);
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
