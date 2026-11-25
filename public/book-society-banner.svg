@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" role="img" aria-labelledby="title desc">
+<title id="title">Cantinho aconchegante de leitura Book Society</title><desc id="desc">Livros empilhados, uma caneca de café, flores delicadas e uma manta em tons quentes.</desc>
+<defs>
+ <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#f4c6a9"/><stop offset=".48" stop-color="#b8785c"/><stop offset="1" stop-color="#4b291f"/></linearGradient>
+ <linearGradient id="wood" x2="0" y2="1"><stop stop-color="#e8b38e"/><stop offset="1" stop-color="#8e5039"/></linearGradient>
+ <linearGradient id="mug" x2=".8" y2="1"><stop stop-color="#fff4e9"/><stop offset=".55" stop-color="#edc4a9"/><stop offset="1" stop-color="#c98569"/></linearGradient>
+ <linearGradient id="book1" x2="0" y2="1"><stop stop-color="#f5d2b6"/><stop offset="1" stop-color="#c17b58"/></linearGradient>
+ <linearGradient id="book2" x2="0" y2="1"><stop stop-color="#59604a"/><stop offset="1" stop-color="#303c32"/></linearGradient>
+ <pattern id="knit" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M0 8 Q8 -2 17 8 T34 8 M0 25 Q8 15 17 25 T34 25" fill="none" stroke="#f4cdbb" stroke-width="5" opacity=".55"/><path d="M8 0 Q18 9 8 17 M25 17 Q35 26 25 34" fill="none" stroke="#fff0e3" stroke-width="3" opacity=".4"/></pattern>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur stdDeviation="14"/></filter>
+ <radialGradient id="light"><stop stop-color="#ffe6c8" stop-opacity=".8"/><stop offset="1" stop-color="#ffe6c8" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1600" height="600" fill="url(#bg)"/><ellipse cx="410" cy="190" rx="440" ry="330" fill="url(#light)"/>
+<!-- soft out-of-focus library -->
+<g opacity=".42" filter="url(#shadow)"><rect x="40" y="0" width="70" height="370" fill="#513023"/><rect x="125" y="0" width="46" height="350" fill="#f0c19d"/><rect x="185" y="0" width="92" height="380" fill="#70402d"/><rect x="290" y="0" width="58" height="340" fill="#d99b77"/><rect x="370" y="0" width="80" height="390" fill="#593322"/><rect x="470" y="0" width="55" height="360" fill="#f0c6a7"/></g>
+<!-- knitted blanket -->
+<path d="M0 430 Q250 380 470 470 T900 435 T1320 450 L1600 410 V600 H0Z" fill="#c88972"/><path d="M0 430 Q250 380 470 470 T900 435 T1320 450 L1600 410 V600 H0Z" fill="url(#knit)" opacity=".8"/>
+<!-- tabletop and books -->
+<ellipse cx="390" cy="500" rx="390" ry="42" fill="#3a211a" opacity=".25" filter="url(#shadow)"/>
+<g><path d="M55 410 L540 410 L590 463 L90 463Z" fill="#42261d"/><path d="M55 396 L535 396 L580 445 L90 445Z" fill="url(#book2)" stroke="#263128" stroke-width="5"/><path d="M90 445 L580 445 L580 463 L90 463Z" fill="#d9a477"/><path d="M55 365 L520 365 L570 407 L70 407Z" fill="#5b3428"/><path d="M70 350 L520 350 L570 393 L70 393Z" fill="url(#book1)"/><path d="M70 393 L570 393 L570 407 L70 407Z" fill="#9c5d42"/><path d="M140 310 L575 310 L625 354 L155 354Z" fill="#f2d1b7"/><path d="M155 354 L625 354 L625 370 L155 370Z" fill="#bd8061"/><path d="M140 310 L575 310 L625 354 L155 354Z" fill="none" stroke="#fff0df" stroke-width="3"/></g>
+<!-- cup handle -->
+<path d="M425 205 C535 180 550 310 465 330 C438 336 426 320 425 304" fill="none" stroke="#d9a98d" stroke-width="35"/><path d="M430 210 C510 192 525 300 460 310" fill="none" stroke="#fff0e5" stroke-width="15"/>
+<!-- cup -->
+<path d="M270 150 Q270 125 300 125 H470 Q500 125 500 155 L480 320 Q476 348 445 350 H330 Q300 347 296 320Z" fill="url(#mug)" stroke="#f8e4d5" stroke-width="6"/><ellipse cx="385" cy="151" rx="108" ry="22" fill="#fff6ed"/><ellipse cx="385" cy="153" rx="91" ry="13" fill="#6b3d2b"/><ellipse cx="385" cy="151" rx="82" ry="10" fill="#3d241d"/>
+<text x="385" y="235" text-anchor="middle" font-family="Georgia,serif" font-size="38" fill="#4d251d" font-weight="bold">Book</text><text x="385" y="278" text-anchor="middle" font-family="Georgia,serif" font-size="38" fill="#4d251d" font-weight="bold">Society</text><text x="385" y="316" text-anchor="middle" font-family="Georgia,serif" font-size="29" fill="#8e3c42">♡</text>
+<!-- flowers and stems -->
+<g stroke="#68704b" stroke-width="5" fill="none"><path d="M105 280 Q120 170 75 65 M130 280 Q170 150 205 45 M145 280 Q220 190 265 100 M90 280 Q70 180 30 120 M160 280 Q130 140 145 30"/></g>
+<g fill="#fff0df" stroke="#e5c3a8" stroke-width="2"><g transform="translate(75 65)"><circle r="17"/><circle cx="-17" cy="0" r="12"/><circle cx="17" cy="0" r="12"/><circle cy="-17" r="12"/><circle cy="17" r="12"/><circle r="6" fill="#d9a15e"/></g><g transform="translate(205 45)"><circle r="16"/><circle cx="-16" r="11"/><circle cx="16" r="11"/><circle cy="-16" r="11"/><circle cy="16" r="11"/><circle r="6" fill="#d9a15e"/></g><g transform="translate(265 100)"><circle r="14"/><circle cx="-14" r="10"/><circle cx="14" r="10"/><circle cy="-14" r="10"/><circle cy="14" r="10"/><circle r="5" fill="#d9a15e"/></g><g transform="translate(30 120)"><circle r="15"/><circle cx="-15" r="10"/><circle cx="15" r="10"/><circle cy="-15" r="10"/><circle cy="15" r="10"/><circle r="5" fill="#d9a15e"/></g><g transform="translate(145 30)"><circle r="14"/><circle cx="-14" r="10"/><circle cx="14" r="10"/><circle cy="-14" r="10"/><circle cy="14" r="10"/><circle r="5" fill="#d9a15e"/></g></g>
+<!-- right-side soft dark copy space -->
+<rect x="850" width="750" height="600" fill="#43251d" opacity=".28"/><rect x="900" width="700" height="600" fill="url(#bg)" opacity=".22"/>
+<path d="M0 0H1600V600H0Z" fill="none" stroke="#fff0e3" stroke-opacity=".18" stroke-width="14"/>
+</svg>
