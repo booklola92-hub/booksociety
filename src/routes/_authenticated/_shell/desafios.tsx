@@ -4,7 +4,7 @@ import { BookOpen, CalendarDays, Plus, Sparkles, Target, Trash2, Trophy } from "
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState, PageTitle } from "@/components/empty-state";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
