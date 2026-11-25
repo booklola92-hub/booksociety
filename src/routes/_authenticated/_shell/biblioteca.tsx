@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowDownUp, BookOpen, Bookmark, CheckCircle2, Download, FileUp, Heart, LayoutGrid, Library, Plus, Rows3, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { ArrowDownUp, BookOpen, Bookmark, CheckCircle2, Download, FileUp, Heart, Library, Plus, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -572,7 +572,6 @@ function MyLibrary() {
   const [tab, setTab] = useState<StatusTab>("all");
   const [minRating, setMinRating] = useState("0");
   const [sort, setSort] = useState<SortKey>("recent");
-  const [view, setView] = useState<"grid" | "shelf">("grid");
   const [picking, setPicking] = useState(false);
 
   const counts: Record<StatusTab, number> = {
@@ -686,14 +685,7 @@ function MyLibrary() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex rounded-full border border-border p-0.5">
-            {([["grid", LayoutGrid, "Grade"], ["shelf", Rows3, "Estante"]] as const).map(([v, Icon, label]) => (
-              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-                className={cn("flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors", view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-                <Icon className="h-4 w-4" /> {label}
-              </button>
-            ))}
-          </div>
+>
         </div>
 
         {isLoading ? (
@@ -704,7 +696,7 @@ function MyLibrary() {
             <p className="font-medium">{shelf.length ? "Nenhum livro corresponde aos filtros." : "Sua biblioteca ainda está vazia."}</p>
             <p className="mt-1 text-sm text-muted-foreground">{shelf.length ? "Tente outra busca ou mude os filtros." : "Use “Adicionar livro” para começar."}</p>
           </div>
-        ) : view === "grid" ? (
+        ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
             {items.map((item) => (
               <article key={item.id} className="min-w-0 space-y-2">
@@ -722,22 +714,6 @@ function MyLibrary() {
                   {removeBtn(item)}
                 </div>
               </article>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {Array.from({ length: Math.ceil(items.length / 6) }, (_, r) => items.slice(r * 6, r * 6 + 6)).map((row, r) => (
-              <div key={r}>
-                <div className="flex items-end gap-2 overflow-x-auto px-2 sm:gap-3">
-                  {row.map((item) => (
-                    <div key={item.id} className="group relative w-20 shrink-0 sm:w-24" title={`${item.book.title} — ${item.book.author}`}>
-                      <BookCover book={item.book} className="w-full rounded-sm shadow-md transition-transform group-hover:-translate-y-1" />
-                      <div className="absolute -top-2 -right-2 hidden group-hover:block">{removeBtn(item)}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="h-3 rounded-b-md border-t-4 border-primary/40 bg-secondary shadow-inner" />
-              </div>
             ))}
           </div>
         )}
