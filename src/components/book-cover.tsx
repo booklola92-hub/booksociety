@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useMediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,11 @@ export function BookCover({
 }) {
   const [failed, setFailed] = useState(false);
   const storedCover = book.cover_url?.trim() || null;
+  // Quando uma capa é encontrada e salva depois da primeira renderização,
+  // libera o estado de erro da imagem anterior para tentar carregar a nova URL.
+  useEffect(() => {
+    setFailed(false);
+  }, [storedCover]);
   const normalizedCover = storedCover?.startsWith("//") ? `https:${storedCover}` : storedCover?.startsWith("http://") ? storedCover.replace(/^http:\/\//i, "https://") : storedCover;
   const url = useMediaUrl(normalizedCover);
   if (!url || failed) {
