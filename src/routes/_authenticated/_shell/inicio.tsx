@@ -15,10 +15,10 @@ export const Route = createFileRoute("/_authenticated/_shell/inicio")({
 function Inicio() {
   return (
     <div className="mx-auto grid w-full max-w-[1480px] grid-cols-1 items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="order-2 min-w-0 lg:sticky lg:top-[108px] lg:order-1">
+      <aside aria-label="Painéis da comunidade" className="order-2 min-w-0 lg:sticky lg:top-[108px] lg:order-1">
         <RightRail />
       </aside>
-      <div className="order-1 min-w-0 space-y-4 lg:order-2">
+      <main className="order-1 min-w-0 space-y-4 lg:order-2">
         <section aria-label="Boas-vindas ao Book Society" className="relative isolate flex min-h-[250px] overflow-hidden rounded-[24px] border border-[#e9c9b8] bg-[#6a3829] shadow-[0_12px_35px_rgba(112,65,45,0.10)] sm:min-h-[290px] lg:min-h-[330px]">
           <img src={booksTeacup.url} alt="Livros e uma xícara em um cantinho aconchegante de leitura" className="absolute inset-0 -z-20 h-full w-full object-cover object-center" />
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#3c2018]/5 via-[#3c2018]/35 to-[#3c2018]/85" />
@@ -41,7 +41,7 @@ function Inicio() {
           <div className="flex items-center justify-between px-1"><h2 className="font-display text-2xl text-[#684438]">Novidades da comunidade</h2><span className="hidden items-center gap-1.5 text-xs font-medium text-[#ad7868] sm:inline-flex"><BookOpen className="h-4 w-4"/> Feed de leitura</span></div>
           <Feed filter={{ kind: "all" }} empty={{ title: "Sua comunidade começa com uma história", body: "Compartilhe uma leitura ou uma recomendação para iniciar a conversa." }} />
         </section>
-      </div>
+      </main>
     </div>
   );
 }
