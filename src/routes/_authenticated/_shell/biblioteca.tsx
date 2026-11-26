@@ -344,7 +344,19 @@ function GoodreadsTransfer() {
       const { data, error } = await supabase.functions.invoke("goodreads-public-shelf", {
         body: { username, shelf: goodreadsShelf },
       });
-      if (error) throw new Error(error.message || "Não foi possível consultar o Goodreads.");
+      if (error) {
+        let message = error.message || "Não foi possível consultar o Goodreads.";
+        const context = (error as { context?: unknown }).context;
+        if (context instanceof Response) {
+          try {
+            const payload = await context.clone().json();
+            if (typeof payload?.error === "string" && payload.error.trim()) message = payload.error;
+          } catch {
+            // Mantém a mensagem original quando a resposta não contém JSON.
+          }
+        }
+        throw new Error(message);
+      }
       if (data?.error) throw new Error(data.error);
       const books = Array.isArray(data?.books) ? data.books as PublicGoodreadsBook[] : [];
       if (!books.length) throw new Error("Nenhum livro encontrado nessa estante pública.");
