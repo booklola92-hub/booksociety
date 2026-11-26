@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LockKeyhole, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyId, useMe } from "@/lib/social";
+import { uploadMedia, useMediaUrl } from "@/lib/media";
 
 function SettingsPage() {
   const { data: me, isLoading } = useMe();
@@ -24,6 +25,9 @@ function SettingsPage() {
   const [birthDate, setBirthDate] = useState("");
   const [readingGoal, setReadingGoal] = useState("12");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [bannerSaving, setBannerSaving] = useState(false);
+  const bannerInput = useRef<HTMLInputElement>(null);
+  const bannerPreview = useMediaUrl((me as any)?.banner_url);
 
   useEffect(() => {
     if (!me) return;
@@ -65,6 +69,22 @@ function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function uploadBanner(file?: File) {
+    if (!file) return;
+    setBannerSaving(true);
+    try {
+      const id = await getMyId();
+      const path = await uploadMedia(id, file, "banners");
+      const { error } = await (supabase as any).from("profiles").update({ banner_url: path }).eq("id", id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      await queryClient.invalidateQueries({ queryKey: ["public-profile"] });
+      toast.success("Banner do perfil atualizado!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o banner.");
+    } finally { setBannerSaving(false); if (bannerInput.current) bannerInput.current.value = ""; }
   }
 
   async function toggleDiscoverable(next: boolean) {
@@ -123,6 +143,19 @@ function SettingsPage() {
           </div>
         </div>
 
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Banner do perfil</label>
+          <div className="overflow-hidden rounded-2xl border border-border bg-muted">
+            <div className="h-36 w-full bg-cover bg-center sm:h-44" style={bannerPreview ? { backgroundImage: `url("${bannerPreview}")` } : undefined}>
+              {!bannerPreview ? <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Nenhum banner escolhido</div> : null}
+            </div>
+            <div className="p-3">
+              <input ref={bannerInput} type="file" accept="image/*" className="hidden" onChange={(e) => void uploadBanner(e.target.files?.[0])} />
+              <Button type="button" variant="outline" disabled={bannerSaving} onClick={() => bannerInput.current?.click()}>{bannerSaving ? "Enviando..." : "Escolher banner"}</Button>
+              <p className="mt-2 text-xs text-muted-foreground">Escolha uma imagem de até 10 MB. Ela aparecerá no topo do seu perfil.</p>
+            </div>
+          </div>
+        </div>
         <div className="space-y-2">
           <label htmlFor="settings-name" className="text-sm font-medium">Nome</label>
           <input id="settings-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
