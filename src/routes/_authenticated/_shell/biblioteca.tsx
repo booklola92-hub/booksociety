@@ -133,7 +133,7 @@ async function canLoadPublicCover(url: string): Promise<boolean> {
     const timeout = window.setTimeout(() => {
       image.src = "";
       resolve(false);
-    }, 8000);
+    }, 3000);
     image.onload = () => { window.clearTimeout(timeout); resolve(image.naturalWidth > 0 && image.naturalHeight > 0); };
     image.onerror = () => { window.clearTimeout(timeout); resolve(false); };
     image.src = url;
@@ -199,6 +199,57 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   };
   const safeQuery = (value: string) => value.replace(/["\\]/g, " ").replace(/\s+/g, " ").trim();
 
+  // Google Books: título + autor, depois título isolado e variações sem subtítulo.
+  try {
+    const queries = isbn
+      ? ["isbn:" + isbn]
+      : titleVariants.flatMap((variant) => [
+          'intitle:"' + variant + '"' + (author ? ' inauthor:"' + author + '"' : ""),
+          'intitle:"' + variant + '"',
+          '"' + variant + '"',
+        ]);
+    for (const query of [...new Set(queries)]) {
+      const response = await fetch("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=40&orderBy=relevance");
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      const match = pickBest(items, (item: any) => {
+        const info = item.volumeInfo ?? {};
+        return [info.title, info.subtitle].filter(Boolean).join(" ");
+      }, (item: any) => Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
+      const links = match?.volumeInfo?.imageLinks;
+      const image = links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail;
+      if (image) {
+        const coverUrl = String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
+        if (await canLoadPublicCover(coverUrl)) return coverUrl;
+      }
+    }
+  } catch (error) { console.warn("Google Books não respondeu:", error); }
+
+  // Open Library: pesquisa título + autor e repete sem autor/subtítulo.
+  try {
+    const searches = isbn
+      ? ["isbn=" + encodeURIComponent(isbn)]
+      : titleVariants.flatMap((variant) => [
+          "title=" + encodeURIComponent(variant) + (author ? "&author=" + encodeURIComponent(author) : ""),
+          "title=" + encodeURIComponent(variant),
+        ]);
+    for (const search of [...new Set(searches)]) {
+      const response = await fetch("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const docs = Array.isArray(payload.docs) ? payload.docs : [];
+      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
+        Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
+      if (match?.cover_i) {
+        const coverUrl = "https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg";
+        if (await canLoadPublicCover(coverUrl)) return coverUrl;
+      }
+    }
+  } catch (error) { console.warn("Open Library não respondeu:", error); }
+
+
+
   // Internet Archive: pesquisa registros e arquivos de capa hospedados no próprio acervo.
   // Primeiro tenta título + autor; depois título simplificado. A capa é escolhida
   // entre arquivos identificados como imagem de capa; usa o serviço de miniatura como fallback.
@@ -260,62 +311,15 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
-  // Open Library: pesquisa título + autor e repete sem autor/subtítulo.
-  try {
-    const searches = isbn
-      ? ["isbn=" + encodeURIComponent(isbn)]
-      : titleVariants.flatMap((variant) => [
-          "title=" + encodeURIComponent(variant) + (author ? "&author=" + encodeURIComponent(author) : ""),
-          "title=" + encodeURIComponent(variant),
-        ]);
-    for (const search of [...new Set(searches)]) {
-      const response = await fetch("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const docs = Array.isArray(payload.docs) ? payload.docs : [];
-      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
-        Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
-      if (match?.cover_i) {
-        const coverUrl = "https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg";
-        if (await canLoadPublicCover(coverUrl)) return coverUrl;
-      }
-    }
-  } catch (error) { console.warn("Open Library não respondeu:", error); }
 
-  // Google Books: título + autor, depois título isolado e variações sem subtítulo.
-  try {
-    const queries = isbn
-      ? ["isbn:" + isbn]
-      : titleVariants.flatMap((variant) => [
-          'intitle:"' + variant + '"' + (author ? ' inauthor:"' + author + '"' : ""),
-          'intitle:"' + variant + '"',
-          '"' + variant + '"',
-        ]);
-    for (const query of [...new Set(queries)]) {
-      const response = await fetch("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=40&orderBy=relevance");
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const items = Array.isArray(payload.items) ? payload.items : [];
-      const match = pickBest(items, (item: any) => {
-        const info = item.volumeInfo ?? {};
-        return [info.title, info.subtitle].filter(Boolean).join(" ");
-      }, (item: any) => Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
-      const links = match?.volumeInfo?.imageLinks;
-      const image = links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail;
-      if (image) {
-        const coverUrl = String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
-        if (await canLoadPublicCover(coverUrl)) return coverUrl;
-      }
-    }
-  } catch (error) { console.warn("Google Books não respondeu:", error); }
 
   return null;
 }
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const autoCoverStarted = useRef(false);
   const [busy, setBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
-  const autoCoverStarted = useRef(false);
   const invalidate = useInvalidate();
   const { data: me } = useMe();
 
@@ -504,7 +508,6 @@ function GoodreadsTransfer() {
                   .from("books")
                   .update({ cover_url: cover })
                   .eq("id", book.id)
-                  .or('cover_url.is.null,cover_url.eq.""')
                   .select("id")
                   .maybeSingle();
                 if (updateError) throw updateError;
@@ -538,8 +541,6 @@ function GoodreadsTransfer() {
   }
 
   useEffect(() => {
-    // Aguarda a sessão carregar antes de consultar a biblioteca do leitor.
-    // Assim a busca automática não falha por executar antes da autenticação.
     if (!me?.id || autoCoverStarted.current) return;
     autoCoverStarted.current = true;
     void findMissingCovers();
