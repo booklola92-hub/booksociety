@@ -520,6 +520,9 @@ function GoodreadsTransfer() {
         const checked = await Promise.all(books.slice(offset, offset + 20).map(async (book) => {
           const cover = book.cover_url?.trim() ?? "";
           if (!cover) return book;
+          // Reconsulta capas antigas da Open Library para tentar substituí-las
+          // por arquivos reais do Internet Archive, mesmo que a URL ainda responda.
+          if (/^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(cover)) return book;
           const isPrivateStoragePath = !/^https?:\/\//i.test(cover);
           const isValid = isPrivateStoragePath
             ? await canLoadStoredCover(cover)
@@ -553,7 +556,11 @@ function GoodreadsTransfer() {
             if (!book) return;
             try {
               const cover = await findPublicCover(book.title, book.author ?? "", "", "");
-              if (cover) {
+              const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(book.cover_url ?? "");
+              // Para capas antigas da Open Library, só substitui quando encontra
+              // uma imagem hospedada no Internet Archive; nunca troca por outro fallback.
+              const isInternetArchiveCover = /^https?:\/\/(?:www\.)?archive\.org\//i.test(cover ?? "");
+              if (cover && (!oldCoverIsOpenLibrary || isInternetArchiveCover)) {
                 const { data: updated, error: updateError } = await supabase
                   .from("books")
                   .update({ cover_url: cover })
