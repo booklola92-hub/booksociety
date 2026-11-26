@@ -34,7 +34,7 @@ export function BookPicker({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (book: Book) => void | Promise<void>;
+  onSelect: (book: Book, details?: { status: "want" | "reading" | "read"; rating: number | null; review: string; started_at: string | null; finished_at: string | null }) => void | Promise<void>;
   title?: string;
 }) {
   const [q, setQ] = useState("");
@@ -49,7 +49,7 @@ export function BookPicker({
         if (!o) setCreating(false);
       }}
     >
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl text-primary">
             {creating ? "Adicionar novo livro" : title}
@@ -117,11 +117,18 @@ function NewBookForm({
 }: {
   initialTitle: string;
   onCancel: () => void;
-  onCreated: (book: Book) => Promise<void>;
+  onCreated: (book: Book, details: { status: "want" | "reading" | "read"; rating: number | null; review: string; started_at: string | null; finished_at: string | null }) => Promise<void>;
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [author, setAuthor] = useState("");
-  const [pages, setPages] = useState("");
+  const [pages, setPages] = useState("0");
+  const [genre, setGenre] = useState("");
+  const [status, setStatus] = useState<"want" | "reading" | "read">("want");
+  const [rating, setRating] = useState("0");
+  const [startedAt, setStartedAt] = useState("");
+  const [finishedAt, setFinishedAt] = useState("");
+  const [synopsis, setSynopsis] = useState("");
+  const [review, setReview] = useState("");
   const [cover, setCover] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const invalidate = useInvalidate();
@@ -141,16 +148,30 @@ function NewBookForm({
             .insert({
               title: title.trim(),
               author: author.trim(),
-              pages: pages ? Number(pages) : null,
+              pages: pages && Number(pages) > 0 ? Number(pages) : null,
+              genre: genre.trim(),
+              description: synopsis.trim(),
               cover_url: coverPath,
               created_by: me,
             })
             .select("*")
             .single();
           if (error) throw error;
-          await invalidate("books");
-          toast.success("Livro adicionado!");
-          await onCreated(data);
+          const details = {
+            status,
+            rating: Number(rating) > 0 ? Number(rating) : null,
+            review: review.trim(),
+            started_at: startedAt ? new Date(`${startedAt}T12:00:00`).toISOString() : null,
+            finished_at: finishedAt ? new Date(`${finishedAt}T12:00:00`).toISOString() : null,
+          };
+          const { error: shelfError } = await supabase.from("shelf_items").upsert({
+            user_id: me, book_id: data.id, status: details.status, rating: details.rating,
+            review: details.review, started_at: details.started_at, finished_at: details.finished_at,
+          }, { onConflict: "user_id,book_id" });
+          if (shelfError) throw shelfError;
+          await invalidate("books", "shelf");
+          toast.success("Livro salvo na sua biblioteca!");
+          await onCreated(data, details);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Não foi possível adicionar o livro.");
         } finally {
@@ -166,13 +187,47 @@ function NewBookForm({
         <Label htmlFor="nb-author">Autor(a)</Label>
         <Input id="nb-author" maxLength={120} value={author} onChange={(e) => setAuthor(e.target.value)} />
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="nb-pages">Número de páginas</Label>
-        <Input id="nb-pages" type="number" min={1} value={pages} onChange={(e) => setPages(e.target.value)} />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="nb-genre">Gênero</Label>
+          <Input id="nb-genre" maxLength={80} value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="Ex.: Romance, fantasia" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nb-pages">Páginas</Label>
+          <Input id="nb-pages" type="number" min={0} value={pages} onChange={(e) => setPages(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nb-status">Estante</Label>
+          <select id="nb-status" value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <option value="want">Quero ler</option><option value="reading">Lendo</option><option value="read">Lido</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nb-rating">Minha nota</Label>
+          <select id="nb-rating" value={rating} onChange={(e) => setRating(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <option value="0">Sem nota</option>{[1,2,3,4,5].map((n) => <option key={n} value={n}>{"★".repeat(n)}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nb-start">Início</Label>
+          <Input id="nb-start" type="date" value={startedAt} onChange={(e) => setStartedAt(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="nb-finish">Conclusão</Label>
+          <Input id="nb-finish" type="date" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)} />
+        </div>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="nb-cover">Capa (opcional)</Label>
+        <Label htmlFor="nb-cover">Capa</Label>
         <Input id="nb-cover" type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="nb-synopsis">Sinopse</Label>
+        <textarea id="nb-synopsis" rows={4} maxLength={3000} value={synopsis} onChange={(e) => setSynopsis(e.target.value)} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="nb-review">Minha resenha</Label>
+        <textarea id="nb-review" rows={4} maxLength={3000} value={review} onChange={(e) => setReview(e.target.value)} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel}>
