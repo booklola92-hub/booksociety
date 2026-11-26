@@ -151,7 +151,9 @@ export async function findPublicCover(title: string, author: string, isbn10: str
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
 
-  \n\n  // AniList: alternativa pública para mangás, manhwas e novels (inclui BL).
+
+
+  // AniList: alternativa pública para mangás, manhwas e novels (inclui BL).
   // Usa a capa publicada no catálogo; não baixa nem re-hospeda o arquivo.
   try {
     for (const variant of titleVariants) {
