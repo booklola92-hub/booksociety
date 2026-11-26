@@ -134,7 +134,7 @@ async function canLoadPublicCover(url: string): Promise<boolean> {
     const timeout = window.setTimeout(() => {
       image.src = "";
       resolve(false);
-    }, 10000);
+    }, 1500);
     image.onload = () => { window.clearTimeout(timeout); resolve(image.naturalWidth > 0 && image.naturalHeight > 0); };
     image.onerror = () => { window.clearTimeout(timeout); resolve(false); };
     image.src = url;
