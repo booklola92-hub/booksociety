@@ -321,6 +321,99 @@ function GoodreadsTransfer() {
   const coverScanRunner = useRef<() => Promise<void>>(async () => {});
   const invalidate = useInvalidate();
   const { data: me } = useMe();
+  type PublicGoodreadsBook = {
+    title: string; author: string; imageLink: string; bookLink: string;
+    rating: number | null; averageRating: number | null; dateRead: string | null;
+    dateAdded: string | null; review: string | null;
+  };
+  const [goodreadsUsername, setGoodreadsUsername] = useState("");
+  const [goodreadsShelf, setGoodreadsShelf] = useState("read");
+  const [goodreadsBooks, setGoodreadsBooks] = useState<PublicGoodreadsBook[]>([]);
+  const [selectedGoodreadsBooks, setSelectedGoodreadsBooks] = useState<string[]>([]);
+  const [goodreadsSearchBusy, setGoodreadsSearchBusy] = useState(false);
+
+  const goodreadsKey = (book: PublicGoodreadsBook) => `${normalize(book.title)}|${normalize(book.author)}|${book.bookLink}`;
+
+  async function searchPublicGoodreads() {
+    const username = goodreadsUsername.trim();
+    if (!username) { toast.error("Digite o nome de usuário do Goodreads."); return; }
+    setGoodreadsSearchBusy(true);
+    setGoodreadsBooks([]);
+    setSelectedGoodreadsBooks([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("goodreads-public-shelf", {
+        body: { username, shelf: goodreadsShelf },
+      });
+      if (error) throw new Error(error.message || "Não foi possível consultar o Goodreads.");
+      if (data?.error) throw new Error(data.error);
+      const books = Array.isArray(data?.books) ? data.books as PublicGoodreadsBook[] : [];
+      if (!books.length) throw new Error("Nenhum livro encontrado nessa estante pública.");
+      setGoodreadsBooks(books);
+      setSelectedGoodreadsBooks(books.map(goodreadsKey));
+      toast.success(`${books.length} livros encontrados. Confira a lista antes de importar.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível consultar o Goodreads.");
+    } finally {
+      setGoodreadsSearchBusy(false);
+    }
+  }
+
+  async function importPublicGoodreads() {
+    const selected = goodreadsBooks.filter((book) => selectedGoodreadsBooks.includes(goodreadsKey(book)));
+    if (!selected.length) { toast.error("Selecione pelo menos um livro para importar."); return; }
+    setBusy(true);
+    try {
+      const userId = await getMyId();
+      const [{ data: allBooks, error: booksError }, { data: shelfRows, error: shelfError }] = await Promise.all([
+        supabase.from("books").select("id,title,author,cover_url").limit(10000),
+        supabase.from("shelf_items").select("book_id").eq("user_id", userId),
+      ]);
+      if (booksError) throw booksError;
+      if (shelfError) throw shelfError;
+      const bookMap = new Map((allBooks ?? []).map((book) => [`${normalize(book.title)}|${normalize(book.author ?? "")}`, book]));
+      const pending: Array<{ title: string; author: string; cover_url: string | null; created_by: string }> = [];
+      const pendingKeys = new Set<string>();
+      for (const book of selected) {
+        const key = `${normalize(book.title)}|${normalize(book.author)}`;
+        if (!bookMap.has(key) && !pendingKeys.has(key)) {
+          pending.push({ title: book.title.slice(0, 200), author: book.author.slice(0, 120), cover_url: book.imageLink || null, created_by: userId });
+          pendingKeys.add(key);
+        }
+      }
+      for (let offset = 0; offset < pending.length; offset += 100) {
+        const { data, error } = await supabase.from("books").insert(pending.slice(offset, offset + 100)).select("id,title,author,cover_url");
+        if (error) throw error;
+        for (const book of data ?? []) bookMap.set(`${normalize(book.title)}|${normalize(book.author ?? "")}`, book);
+      }
+
+      const existingShelf = new Set((shelfRows ?? []).map((item) => item.book_id));
+      const status = goodreadsShelf === "currently-reading" ? "reading" : goodreadsShelf === "read" ? "read" : "want";
+      const rowsToInsert: Array<Record<string, unknown>> = [];
+      for (const book of selected) {
+        const match = bookMap.get(`${normalize(book.title)}|${normalize(book.author)}`);
+        if (!match || existingShelf.has(match.id)) continue;
+        rowsToInsert.push({
+          user_id: userId, book_id: match.id, status, current_page: 0,
+          rating: book.rating, review: book.review ?? "",
+          started_at: null, finished_at: status === "read" ? parseDate(book.dateRead ?? "") : null,
+        });
+        existingShelf.add(match.id);
+      }
+      for (let offset = 0; offset < rowsToInsert.length; offset += 100) {
+        const { error } = await supabase.from("shelf_items").insert(rowsToInsert.slice(offset, offset + 100) as never[]);
+        if (error) throw error;
+      }
+      await invalidate("shelf");
+      await invalidate("books");
+      toast.success(`Importação concluída: ${rowsToInsert.length} livros adicionados. Os que já estavam na sua Biblioteca foram preservados.`);
+      setGoodreadsBooks([]);
+      setSelectedGoodreadsBooks([]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível importar os livros.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function importGoodreads(files: FileList) {
     setBusy(true);
@@ -610,6 +703,54 @@ function GoodreadsTransfer() {
           <h2 className="font-display text-2xl font-semibold">Importar e exportar</h2>
           <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
         </div>
+      </div>
+      <div className="space-y-4 rounded-2xl border border-primary/25 bg-primary/5 p-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 font-semibold"><Search className="h-4 w-4 text-primary" /> Importar estante pública do Goodreads</div>
+          <p className="text-sm text-muted-foreground">Consulte uma estante pública pelo nome de usuário. Não precisa conectar sua conta nem informar senha.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_190px_auto]">
+          <Input value={goodreadsUsername} onChange={(event) => setGoodreadsUsername(event.target.value)} placeholder="Usuário Goodreads (ex.: 50993735-emma-watson)" aria-label="Nome de usuário do Goodreads" />
+          <Select value={goodreadsShelf} onValueChange={setGoodreadsShelf}>
+            <SelectTrigger aria-label="Estante do Goodreads"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="read">Lidos</SelectItem>
+              <SelectItem value="currently-reading">Lendo</SelectItem>
+              <SelectItem value="to-read">Quero ler</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button disabled={goodreadsSearchBusy || busy} onClick={() => void searchPublicGoodreads()}>{goodreadsSearchBusy ? "Buscando..." : "Buscar estante"}</Button>
+        </div>
+        {goodreadsBooks.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">{goodreadsBooks.length} livros encontrados · {selectedGoodreadsBooks.length} selecionados</p>
+              <button type="button" className="text-sm text-primary underline underline-offset-4" onClick={() => setSelectedGoodreadsBooks(selectedGoodreadsBooks.length === goodreadsBooks.length ? [] : goodreadsBooks.map(goodreadsKey))}>
+                {selectedGoodreadsBooks.length === goodreadsBooks.length ? "Desmarcar todos" : "Selecionar todos"}
+              </button>
+            </div>
+            <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border border-border bg-card p-3">
+              {goodreadsBooks.map((book) => {
+                const key = goodreadsKey(book);
+                const checked = selectedGoodreadsBooks.includes(key);
+                return (
+                  <label key={key} className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-muted/60">
+                    <input type="checkbox" checked={checked} onChange={(event) => setSelectedGoodreadsBooks((current) => event.target.checked ? [...current, key] : current.filter((value) => value !== key))} />
+                    {book.imageLink ? <img src={book.imageLink} alt="" className="h-14 w-10 rounded object-cover" loading="lazy" /> : <div className="h-14 w-10 rounded bg-muted" />}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{book.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{book.author || "Autor não informado"}{book.rating ? ` · Sua nota: ${book.rating}/5` : ""}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <Button className="w-full" disabled={busy || selectedGoodreadsBooks.length === 0} onClick={() => void importPublicGoodreads()}>
+              {busy ? "Importando..." : `Importar ${selectedGoodreadsBooks.length} livros selecionados`}
+            </Button>
+          </div>
+        ) : null}
+        <p className="text-xs text-muted-foreground">O Goodreads precisa permitir acesso público à estante. O Book Society importa no máximo 100 livros por consulta e não altera livros já cadastrados.</p>
       </div>
       <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
