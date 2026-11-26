@@ -21,7 +21,7 @@ async function findBookCover(title: string, author: string): Promise<string | nu
   const wantedAuthor = normalize(author);
   const titleMatches = (candidate: string) => {
     const normalized = normalize(candidate);
-    return normalized === wantedTitle || normalized.includes(wantedTitle) || wantedTitle.includes(normalized);
+    return Boolean(normalized && wantedTitle) && (normalized === wantedTitle || normalized.includes(wantedTitle) || wantedTitle.includes(normalized));
   };
   const authorMatches = (authors: string[]) => {
     if (!wantedAuthor || !authors.length) return true;
@@ -99,7 +99,7 @@ async function findBookCover(title: string, author: string): Promise<string | nu
     });
     if (!response.ok) return null;
     const payload = await response.json();
-    const match = (payload.items ?? []).find((volume: { volumeInfo?: { title?: string; authors?: string[] } }) => {
+    const match = (payload.items ?? []).find((volume: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { extraLarge?: string; large?: string; thumbnail?: string; smallThumbnail?: string } } }) => {
       const info = volume.volumeInfo ?? {};
       return titleMatches(info.title ?? "") && authorMatches(info.authors ?? []);
     });
