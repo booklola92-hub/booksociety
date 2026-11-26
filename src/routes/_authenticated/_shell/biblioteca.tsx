@@ -613,7 +613,9 @@ function GoodreadsTransfer() {
     }
   }
 
-  // Mantém a busca de capas ativa enquanto a Biblioteca estiver aberta.
+  // Mantém a busca de capas ativa enquanto a Biblioteca estiver aberta,
+  // mesmo quando a aba fica em segundo plano. O navegador pode limitar
+  // temporizadores em abas ocultas, mas a rotina não é pausada por visibilityState.
   // Uma nova rodada começa 30 segundos após a anterior terminar; nunca há duas simultâneas.
   coverScanRunner.current = findMissingCovers;
   useEffect(() => {
@@ -624,16 +626,12 @@ function GoodreadsTransfer() {
       if (cancelled) return;
       timer = window.setTimeout(async () => {
         if (cancelled) return;
-        if (document.visibilityState === "visible") {
-          await coverScanRunner.current();
-        }
+        await coverScanRunner.current();
         scheduleNext();
       }, 30_000);
     };
     timer = window.setTimeout(async () => {
-      if (!cancelled && document.visibilityState === "visible") {
-        await coverScanRunner.current();
-      }
+      if (!cancelled) await coverScanRunner.current();
       scheduleNext();
     }, 1_500);
     return () => {
