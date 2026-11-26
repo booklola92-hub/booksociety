@@ -550,7 +550,6 @@ function GoodreadsTransfer() {
       }
 
       let saved = 0;
-      let checked = 0;
       let cursor = 0;
       const concurrency = 4;
       toast.info(`Verificando ${books.length} livros. Cada capa encontrada será salva imediatamente.`);
@@ -594,8 +593,6 @@ function GoodreadsTransfer() {
           } catch (searchError) {
             // Falhas isoladas não interrompem a busca dos outros livros.
             console.warn(`Não foi possível atualizar a capa de “${book.title}”:`, searchError);
-          } finally {
-            checked += 1;
           }
         }
       };
