@@ -45,7 +45,13 @@ async function searchInternalCatalog(q: string, category: CatalogCategory, limit
     _offset: offset,
   });
   if (error) throw error;
-  return (data ?? []).map((row: any) => ({ ...row, genres: Array.isArray(row.genres) ? row.genres : String(row.genre ?? '').split(/[,;|]/).map((value: string) => value.trim()).filter(Boolean) })) as CatalogItem[];
+  return (data ?? []).map((row) => {
+    const item = row as CatalogItem & { genre?: string | null; genres?: string[] };
+    const genres = Array.isArray(item.genres)
+      ? item.genres
+      : String(item.genre ?? "").split(/[,;|]/).map((value) => value.trim()).filter(Boolean);
+    return { ...item, genres };
+  });
 }
 
 async function searchExternalCatalog(q: string, category: CatalogCategory): Promise<CatalogItem[]> {
