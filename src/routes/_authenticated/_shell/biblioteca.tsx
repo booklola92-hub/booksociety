@@ -464,11 +464,15 @@ function GoodreadsTransfer() {
 
       // URLs externas antigas podem estar salvas no banco mesmo quando a imagem
       // já foi removida. Testa o carregamento real antes de considerar a capa válida.
-      const missing = [];
-      for (const book of books) {
-        const cover = book.cover_url?.trim() ?? "";
-        const isPrivateStoragePath = Boolean(cover) && !/^https?:\/\//i.test(cover);
-        if (!cover || (!isPrivateStoragePath && !(await canLoadPublicCover(cover)))) missing.push(book);
+      const missing: typeof books = [];
+      // Valida em pequenos grupos para não abrir centenas de imagens ao mesmo tempo.
+      for (let offset = 0; offset < books.length; offset += 20) {
+        const checked = await Promise.all(books.slice(offset, offset + 20).map(async (book) => {
+          const cover = book.cover_url?.trim() ?? "";
+          const isPrivateStoragePath = Boolean(cover) && !/^https?:\/\//i.test(cover);
+          return !cover || (!isPrivateStoragePath && !(await canLoadPublicCover(cover))) ? book : null;
+        }));
+        missing.push(...checked.filter((book): book is typeof books[number] => book !== null));
       }
       if (!missing.length) {
         await invalidate("shelf");
