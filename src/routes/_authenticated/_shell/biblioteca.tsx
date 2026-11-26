@@ -214,18 +214,14 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     const overlap = [...a].filter((word) => b.has(word)).length;
     return a.size && b.size ? (2 * overlap) / (a.size + b.size) : 0;
   };
-  const authorMatch = (names: string[]) => {
-    if (!expectedAuthor) return false;
-    return names.some((name) => {
-      const candidate = normalize(name).replace(/[^a-z0-9]+/g, " ").trim();
-      return candidate === expectedAuthor || candidate.includes(expectedAuthor) || expectedAuthor.includes(candidate);
-    });
-  };
+  const authorMatch = (names: string[]) => !expectedAuthor || names.some((name) => {
+    const candidate = normalize(name).replace(/[^a-z0-9]+/g, " ").trim();
+    return candidate === expectedAuthor || candidate.includes(expectedAuthor) || expectedAuthor.includes(candidate);
+  });
   const pickBest = <T,>(items: T[], getTitle: (item: T) => string, getAuthors: (item: T) => string[]) =>
     items.map((item) => {
       const score = scoreTitle(getTitle(item)), authors = getAuthors(item).filter(Boolean);
-      const matchesAuthor = authorMatch(authors);
-      return { item, score, matchesAuthor, acceptable: score >= 0.68 && (!expectedAuthor || !authors.length || matchesAuthor || score >= 0.98) };
+      return { item, score, matchesAuthor: authorMatch(authors), acceptable: score >= 0.68 && (!expectedAuthor || !authors.length || authorMatch(authors) || score >= 0.98) };
     }).filter((entry) => entry.acceptable)
       .sort((a, b) => Number(b.matchesAuthor) - Number(a.matchesAuthor) || b.score - a.score)[0]?.item ?? null;
   const usable = async (url: string | null | undefined) => {
@@ -234,48 +230,8 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     return await canLoadPublicCover(normalizedUrl) ? normalizedUrl : null;
   };
 
-  // Etapa 1: Google Books e Open Library consultados ao mesmo tempo.
-  const [googleResult, openLibraryResult] = await Promise.allSettled([
-    (async () => {
-      const query = isbn ? "isbn:" + isbn : 'intitle:"' + queryTitle + '"' + (author ? ' inauthor:"' + author + '"' : "");
-      const response = await fetchWithTimeout("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=20&orderBy=relevance");
-      if (!response.ok) return null;
-      const payload = await response.json(), items = Array.isArray(payload.items) ? payload.items : [];
-      const match = pickBest(items, (item: any) => [item.volumeInfo?.title, item.volumeInfo?.subtitle].filter(Boolean).join(" "),
-        (item: any) => Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
-      const links = match?.volumeInfo?.imageLinks;
-      return await usable(links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail);
-    })(),
-    (async () => {
-      const query = isbn ? "isbn=" + encodeURIComponent(isbn) :
-        "title=" + encodeURIComponent(queryTitle) + (author ? "&author=" + encodeURIComponent(author) : "");
-      const response = await fetchWithTimeout("https://openlibrary.org/search.json?" + query + "&limit=30&fields=title,author_name,cover_i");
-      if (!response.ok) return null;
-      const payload = await response.json(), docs = Array.isArray(payload.docs) ? payload.docs : [];
-      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""),
-        (doc: any) => Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
-      return match?.cover_i ? await usable("https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg") : null;
-    })(),
-  ]);
-  if (googleResult.status === "fulfilled" && googleResult.value) return googleResult.value;
-  if (openLibraryResult.status === "fulfilled" && openLibraryResult.value) return openLibraryResult.value;
-
-  // Etapa 2: AniList e Internet Archive também são consultados em paralelo.
-  const [aniListResult, archiveResult] = await Promise.allSettled([
-    (async () => {
-      const response = await fetchWithTimeout("https://graphql.anilist.co", {
-        method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          query: "query ($search: String) { Page(page: 1, perPage: 20) { media(search: $search, type: MANGA) { title { romaji english native } coverImage { extraLarge large } staff(perPage: 10) { edges { role node { name { full } } } } } } }",
-          variables: { search: queryTitle },
-        }),
-      });
-      if (!response.ok) return null;
-      const payload = await response.json(), items = payload.data?.Page?.media ?? [];
-      const match = pickBest(items, (item: any) => [item.title?.romaji, item.title?.english, item.title?.native].filter(Boolean).join(" "),
-        (item: any) => (item.staff?.edges ?? []).filter((edge: any) => /story|art|original creator|author/i.test(String(edge.role ?? ""))).map((edge: any) => String(edge.node?.name?.full ?? "")));
-      return await usable(match?.coverImage?.extraLarge ?? match?.coverImage?.large);
-    })(),
+  // 1. Internet Archive e Google Books são consultados simultaneamente.
+  const [archiveResult, googleResult] = await Promise.allSettled([
     (async () => {
       const query = isbn ? "isbn:" + isbn + " AND mediatype:texts" :
         'title:("' + queryTitle.replace(/["\\]/g, " ") + '")' +
@@ -305,13 +261,54 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
       } catch (error) { console.warn("Internet Archive metadata não respondeu:", error); }
       return await usable("https://archive.org/services/img/" + encodeURIComponent(identifier));
     })(),
+    (async () => {
+      const query = isbn ? "isbn:" + isbn : 'intitle:"' + queryTitle + '"' + (author ? ' inauthor:"' + author + '"' : "");
+      const response = await fetchWithTimeout("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=20&orderBy=relevance");
+      if (!response.ok) return null;
+      const payload = await response.json(), items = Array.isArray(payload.items) ? payload.items : [];
+      const match = pickBest(items, (item: any) => [item.volumeInfo?.title, item.volumeInfo?.subtitle].filter(Boolean).join(" "),
+        (item: any) => Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
+      const links = match?.volumeInfo?.imageLinks;
+      return await usable(links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail);
+    })(),
   ]);
-  if (aniListResult.status === "fulfilled" && aniListResult.value) return aniListResult.value;
   if (archiveResult.status === "fulfilled" && archiveResult.value) return archiveResult.value;
-  if (googleResult.status === "rejected") console.warn("Google Books não respondeu:", googleResult.reason);
-  if (openLibraryResult.status === "rejected") console.warn("Open Library não respondeu:", openLibraryResult.reason);
-  if (aniListResult.status === "rejected") console.warn("AniList não respondeu:", aniListResult.reason);
-  if (archiveResult.status === "rejected") console.warn("Internet Archive não respondeu:", archiveResult.reason);
+  if (googleResult.status === "fulfilled" && googleResult.value) return googleResult.value;
+
+  // 2. Open Library é consultada depois das duas fontes prioritárias.
+  try {
+    const query = isbn ? "isbn=" + encodeURIComponent(isbn) :
+      "title=" + encodeURIComponent(queryTitle) + (author ? "&author=" + encodeURIComponent(author) : "");
+    const response = await fetchWithTimeout("https://openlibrary.org/search.json?" + query + "&limit=30&fields=title,author_name,cover_i");
+    if (response.ok) {
+      const payload = await response.json(), docs = Array.isArray(payload.docs) ? payload.docs : [];
+      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""),
+        (doc: any) => Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
+      const cover = match?.cover_i ? await usable("https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg") : null;
+      if (cover) return cover;
+    }
+  } catch (error) { console.warn("Open Library não respondeu:", error); }
+
+  // 3. AniList como alternativa especializada para mangás e manhwas.
+  try {
+    const response = await fetchWithTimeout("https://graphql.anilist.co", {
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        query: "query ($search: String) { Page(page: 1, perPage: 20) { media(search: $search, type: MANGA) { title { romaji english native } coverImage { extraLarge large } staff(perPage: 10) { edges { role node { name { full } } } } } } }",
+        variables: { search: queryTitle },
+      }),
+    });
+    if (response.ok) {
+      const payload = await response.json(), items = payload.data?.Page?.media ?? [];
+      const match = pickBest(items, (item: any) => [item.title?.romaji, item.title?.english, item.title?.native].filter(Boolean).join(" "),
+        (item: any) => (item.staff?.edges ?? []).filter((edge: any) => /story|art|original creator|author/i.test(String(edge.role ?? ""))).map((edge: any) => String(edge.node?.name?.full ?? "")));
+      const cover = await usable(match?.coverImage?.extraLarge ?? match?.coverImage?.large);
+      if (cover) return cover;
+    }
+  } catch (error) { console.warn("AniList não respondeu:", error); }
+
+  // Barnes & Noble e Kobo não oferecem aqui uma API pública de capas documentada.
+  // Não fazemos scraping nem contornamos proteções desses catálogos.
   return null;
 }
 function GoodreadsTransfer() {
