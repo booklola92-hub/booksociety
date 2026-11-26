@@ -141,6 +141,17 @@ async function canLoadPublicCover(url: string): Promise<boolean> {
   });
 }
 
+// Confere também arquivos salvos no Storage privado. Um caminho antigo ou sem
+// permissão não pode ser tratado como se a capa ainda estivesse disponível.
+async function canLoadStoredCover(path: string): Promise<boolean> {
+  try {
+    const blob = await fetchPrivateObject("media", path);
+    return Boolean(blob && blob.size > 0 && (!blob.type || blob.type.startsWith("image/")));
+  } catch {
+    return false;
+  }
+}
+
 async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
@@ -508,8 +519,12 @@ function GoodreadsTransfer() {
       for (let offset = 0; offset < books.length; offset += 20) {
         const checked = await Promise.all(books.slice(offset, offset + 20).map(async (book) => {
           const cover = book.cover_url?.trim() ?? "";
-          const isPrivateStoragePath = Boolean(cover) && !/^https?:\/\//i.test(cover);
-          return !cover || (!isPrivateStoragePath && !(await canLoadPublicCover(cover))) ? book : null;
+          if (!cover) return book;
+          const isPrivateStoragePath = !/^https?:\/\//i.test(cover);
+          const isValid = isPrivateStoragePath
+            ? await canLoadStoredCover(cover)
+            : await canLoadPublicCover(cover);
+          return isValid ? null : book;
         }));
         missing.push(...checked.filter((book): book is typeof books[number] => book !== null));
       }
