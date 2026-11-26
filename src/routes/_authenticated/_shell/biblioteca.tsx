@@ -10,7 +10,7 @@ import { Stars } from "@/components/stars";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookCover } from "@/components/book-cover";
-import { canLoadPublicCover, canLoadStoredCover, findPublicCover } from "@/lib/book-covers";
+import { canLoadPublicCover, findPublicCover, inspectPublicCover, inspectStoredCover } from "@/lib/book-covers";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPrivateObject, uploadMedia } from "@/lib/media";
@@ -289,12 +289,13 @@ function GoodreadsTransfer() {
           try {
             const currentCover = book.cover_url?.trim() ?? "";
             const isPrivateStoragePath = Boolean(currentCover) && !/^https?:\/\//i.test(currentCover);
-            const currentCoverWorks = currentCover
-              ? (isPrivateStoragePath ? await canLoadStoredCover(currentCover) : await canLoadPublicCover(currentCover))
-              : false;
+            const currentCoverStatus = currentCover
+              ? (isPrivateStoragePath ? await inspectStoredCover(currentCover) : await inspectPublicCover(currentCover))
+              : "broken";
 
-            // Não substitui uma capa que já carrega normalmente.
-            if (currentCoverWorks) continue;
+            // Só substitui quando a capa foi confirmada como quebrada.
+            // Se a verificação expirar ou a rede falhar, preserva a capa atual.
+            if (currentCoverStatus !== "broken") continue;
 
             // Todas as telas usam a mesma busca e a mesma ordem de fontes:
             // Internet Archive, AniList, Google Books e Open Library por último.
