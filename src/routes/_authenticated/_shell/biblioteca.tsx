@@ -523,7 +523,7 @@ function GoodreadsTransfer() {
 
           try {
             const currentCover = book.cover_url?.trim() ?? "";
-            const isPrivateStoragePath = Boolean(currentCover) && !/^https?:\\/\\//i.test(currentCover);
+            const isPrivateStoragePath = Boolean(currentCover) && !/^https?:\/\//i.test(currentCover);
             const currentCoverWorks = currentCover
               ? (isPrivateStoragePath ? await canLoadStoredCover(currentCover) : await canLoadPublicCover(currentCover))
               : false;
@@ -532,7 +532,7 @@ function GoodreadsTransfer() {
             if (currentCoverWorks) continue;
 
             const replacementCover = await findPublicCover(book.title, book.author ?? "", "", "");
-            const oldCoverIsOpenLibrary = /^https?:\\/\\/(?:covers\\.)?openlibrary\\.org\\//i.test(currentCover);
+            const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(currentCover);
             const replacementIsInternetArchive = /^https?:\\/\\/(?:www\\.)?archive\\.org\\//i.test(replacementCover ?? "");
             const canReplace = Boolean(replacementCover) && (!oldCoverIsOpenLibrary || replacementIsInternetArchive);
 
