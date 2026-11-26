@@ -9,28 +9,43 @@ function normalize(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-export async function canLoadPublicCover(url: string): Promise<boolean> {
-  if (!/^https?:\/\//i.test(url)) return true;
+export type CoverStatus = "valid" | "broken" | "unknown";
+
+export async function inspectPublicCover(url: string): Promise<CoverStatus> {
+  if (!/^https?:\/\//i.test(url)) return "unknown";
   return new Promise((resolve) => {
     const image = new Image();
+    let settled = false;
+    const finish = (status: CoverStatus) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      image.onload = null;
+      image.onerror = null;
+      resolve(status);
+    };
     const timeout = window.setTimeout(() => {
       image.src = "";
-      resolve(false);
+      finish("unknown");
     }, 1500);
-    image.onload = () => { window.clearTimeout(timeout); resolve(image.naturalWidth > 0 && image.naturalHeight > 0); };
-    image.onerror = () => { window.clearTimeout(timeout); resolve(false); };
+    image.onload = () => finish(image.naturalWidth > 0 && image.naturalHeight > 0 ? "valid" : "broken");
+    image.onerror = () => finish("broken");
     image.src = url;
   });
 }
 
-// Confere também arquivos salvos no Storage privado. Um caminho antigo ou sem
-// permissão não pode ser tratado como se a capa ainda estivesse disponível.
-export async function canLoadStoredCover(path: string): Promise<boolean> {
+export async function canLoadPublicCover(url: string): Promise<boolean> {
+  return (await inspectPublicCover(url)) === "valid";
+}
+
+// Falha temporária de rede não é prova de que a capa privada está quebrada.
+export async function inspectStoredCover(path: string): Promise<CoverStatus> {
   try {
     const blob = await fetchPrivateObject("media", path);
-    return Boolean(blob && blob.size > 0 && (!blob.type || blob.type.startsWith("image/")));
+    if (!blob) return "broken";
+    return blob.size > 0 && (!blob.type || blob.type.startsWith("image/")) ? "valid" : "broken";
   } catch {
-    return false;
+    return "unknown";
   }
 }
 
