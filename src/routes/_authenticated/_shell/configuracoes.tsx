@@ -120,7 +120,6 @@ function SettingsPage() {
           <div className="min-w-0">
             <h2 className="font-display text-2xl font-semibold text-primary">{me?.display_name || me?.username || "Meu perfil"}</h2>
             <p className="text-sm text-muted-foreground">@{me?.username ?? ""}</p>
-            <div className="mt-2"><EditAvatarButton variant="button" /></div>
           </div>
         </div>
 
