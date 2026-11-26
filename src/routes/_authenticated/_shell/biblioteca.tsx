@@ -520,9 +520,8 @@ function GoodreadsTransfer() {
         const checked = await Promise.all(books.slice(offset, offset + 20).map(async (book) => {
           const cover = book.cover_url?.trim() ?? "";
           if (!cover) return book;
-          // Reconsulta capas antigas da Open Library para tentar substituí-las
-          // por arquivos reais do Internet Archive, mesmo que a URL ainda responda.
-          if (/^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(cover)) return book;
+          // Só coloca na fila capas que realmente não carregam.
+          // Capas válidas da Open Library também devem ser preservadas.
           const isPrivateStoragePath = !/^https?:\/\//i.test(cover);
           const isValid = isPrivateStoragePath
             ? await canLoadStoredCover(cover)
