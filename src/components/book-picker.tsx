@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape -- validação defensiva de respostas JSON externas e sanitização CSV. */
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { useState } from "react";
