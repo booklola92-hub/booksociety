@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape -- validação defensiva de respostas JSON externas e sanitização CSV. */
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, BookOpen, Bookmark, CheckCircle2, Download, FileUp, Heart, Library, Plus, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BookPicker } from "@/components/book-picker";
@@ -127,22 +127,31 @@ function parseDate(value: string): string | null {
 
 
 
+const COVER_CHECK_TIMEOUT_MS = 1500;
+
+type CoverCheck = "valid" | "broken" | "unknown";
+
 async function canLoadPublicCover(url: string): Promise<boolean> {
-  if (!/^https?:\/\//i.test(url)) return true;
+  if (!/^https?:\/\//i.test(url)) return false;
   return new Promise((resolve) => {
     const image = new Image();
     const timeout = window.setTimeout(() => {
-      image.src = "";
+      image.onload = null;
+      image.onerror = null;
       resolve(false);
-    }, 3000);
-    image.onload = () => { window.clearTimeout(timeout); resolve(image.naturalWidth > 0 && image.naturalHeight > 0); };
-    image.onerror = () => { window.clearTimeout(timeout); resolve(false); };
+    }, COVER_CHECK_TIMEOUT_MS);
+    image.onload = () => {
+      window.clearTimeout(timeout);
+      resolve(image.naturalWidth > 0 && image.naturalHeight > 0);
+    };
+    image.onerror = () => {
+      window.clearTimeout(timeout);
+      resolve(false);
+    };
     image.src = url;
   });
 }
 
-// Confere também arquivos salvos no Storage privado. Um caminho antigo ou sem
-// permissão não pode ser tratado como se a capa ainda estivesse disponível.
 async function canLoadStoredCover(path: string): Promise<boolean> {
   try {
     const blob = await fetchPrivateObject("media", path);
@@ -152,7 +161,40 @@ async function canLoadStoredCover(path: string): Promise<boolean> {
   }
 }
 
-async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string, archiveOnly = false): Promise<string | null> {
+// Um timeout não prova que a capa está quebrada. Nesse caso, preservamos
+// a imagem atual para evitar substituir capas válidas que só carregam devagar.
+async function checkCurrentCover(url: string): Promise<CoverCheck> {
+  if (!url.trim()) return "broken";
+  if (!/^https?:\/\//i.test(url)) {
+    return Promise.race([
+      canLoadStoredCover(url).then((valid) => valid ? "valid" as const : "broken" as const),
+      new Promise<CoverCheck>((resolve) => window.setTimeout(() => resolve("unknown"), COVER_CHECK_TIMEOUT_MS)),
+    ]);
+  }
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    let settled = false;
+    const finish = (result: CoverCheck) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      image.onload = null;
+      image.onerror = null;
+      resolve(result);
+    };
+    const timeout = window.setTimeout(() => finish("unknown"), COVER_CHECK_TIMEOUT_MS);
+    image.onload = () => finish(image.naturalWidth > 0 && image.naturalHeight > 0 ? "valid" : "broken");
+    image.onerror = () => finish("broken");
+    image.src = url;
+  });
+}
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, signal: AbortSignal.timeout(5000) });
+}
+
+async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
   const cleanTitle = (value: string) => value
@@ -226,7 +268,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
         });
     for (const query of [...new Set(queries)]) {
       const url = "https://archive.org/advancedsearch.php?q=" + encodeURIComponent(query) + "&fl[]=identifier,title,creator&rows=50&page=1&output=json";
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
       if (!response.ok) continue;
       const payload = await response.json();
       const docs = payload.response?.docs ?? [];
@@ -236,7 +278,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
 
       const identifier = String(match.identifier);
       try {
-        const metadataResponse = await fetch("https://archive.org/metadata/" + encodeURIComponent(identifier));
+        const metadataResponse = await fetchWithTimeout("https://archive.org/metadata/" + encodeURIComponent(identifier));
         if (metadataResponse.ok) {
           const metadata = await metadataResponse.json();
           const files = Array.isArray(metadata.files) ? metadata.files : [];
@@ -273,11 +315,11 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
 
-  // Quando solicitado, não usa outros catálogos: Internet Archive tem prioridade absoluta.\n  if (archiveOnly) return null;\n\n  // AniList: alternativa pública para mangás, manhwas e novels (inclui BL).
+  // AniList: alternativa pública para mangás, manhwas e novels (inclui BL).
   // Usa a capa publicada no catálogo; não baixa nem re-hospeda o arquivo.
   try {
     for (const variant of titleVariants) {
-      const response = await fetch("https://graphql.anilist.co", {
+      const response = await fetchWithTimeout("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
@@ -316,7 +358,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
           '"' + variant + '"',
         ]);
     for (const query of [...new Set(queries)]) {
-      const response = await fetch("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=40&orderBy=relevance");
+      const response = await fetchWithTimeout("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=40&orderBy=relevance");
       if (!response.ok) continue;
       const payload = await response.json();
       const items = Array.isArray(payload.items) ? payload.items : [];
@@ -342,7 +384,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
           "title=" + encodeURIComponent(variant),
         ]);
     for (const search of [...new Set(searches)]) {
-      const response = await fetch("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
+      const response = await fetchWithTimeout("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
       if (!response.ok) continue;
       const payload = await response.json();
       const docs = Array.isArray(payload.docs) ? payload.docs : [];
@@ -472,6 +514,7 @@ function GoodreadsTransfer() {
 
 
   async function findMissingCovers() {
+    if (coverBusy) return;
     setCoverBusy(true);
     try {
       const userId = await getMyId();
@@ -506,13 +549,10 @@ function GoodreadsTransfer() {
         books.push(...(data ?? []));
       }
 
-      let found = 0;
-      let removed = 0;
-      let processed = 0;
+      let saved = 0;
       let cursor = 0;
       const concurrency = 4;
-
-      toast.info(`Verificando as capas de ${books.length} livros. Cada capa encontrada será salva imediatamente.`);
+      toast.info(`Verificando ${books.length} livros. Cada capa encontrada será salva imediatamente.`);
 
       const worker = async () => {
         while (true) {
@@ -522,63 +562,37 @@ function GoodreadsTransfer() {
           if (!book) continue;
 
           try {
-            const currentCover = book.cover_url?.trim() ?? "";
-            const isPrivateStoragePath = Boolean(currentCover) && !/^https?:\/\//i.test(currentCover);
-            const currentCoverWorks = currentCover
-              ? (isPrivateStoragePath ? await canLoadStoredCover(currentCover) : await canLoadPublicCover(currentCover))
-              : false;
+            const originalCover = book.cover_url;
+            const currentCover = originalCover?.trim() ?? "";
+            const currentState = currentCover ? await checkCurrentCover(currentCover) : "broken";
 
-            // Prioridade absoluta ao Internet Archive: procura uma edição correspondente
-            // mesmo quando já existe uma capa válida de outro catálogo.
-            const archiveCover = await findPublicCover(book.title, book.author ?? "", "", "", true);
-            if (archiveCover && archiveCover !== currentCover) {
-              const { data: updated, error } = await supabase
-                .from("books")
-                .update({ cover_url: archiveCover })
-                .eq("id", book.id)
-                .select("id")
-                .maybeSingle();
-              if (error) throw error;
-              if (updated?.id) {
-                found += 1;
-                toast.success(`Capa do Internet Archive salva para “${book.title}”!`);
-                await invalidate("shelf");
-                await invalidate("books");
-              }
-              continue;
-            }
+            // Capas válidas ou com carregamento lento são mantidas. Só pesquisamos
+            // para livros sem capa ou cuja imagem realmente retornou erro.
+            if (currentState === "valid" || currentState === "unknown") continue;
 
-            // Se o Archive não tiver uma capa correspondente, preserva a atual se estiver funcionando.
-            if (currentCoverWorks) continue;
-
-            // Só usa os demais catálogos como alternativa quando o Archive não oferece capa.
+            // A função consulta na ordem definida: Internet Archive, AniList,
+            // Google Books e Open Library (última alternativa).
             const replacementCover = await findPublicCover(book.title, book.author ?? "", "", "");
-            const nextCover = replacementCover;
-            if (currentCover !== nextCover) {
-              const { data: updated, error } = await supabase
-                .from("books")
-                .update({ cover_url: nextCover })
-                .eq("id", book.id)
-                .select("id")
-                .maybeSingle();
-              if (error) throw error;
+            if (!replacementCover || replacementCover === currentCover) continue;
 
-              if (updated?.id) {
-                if (nextCover) {
-                  found += 1;
-                  toast.success(`Capa de “${book.title}” salva!`);
-                } else if (currentCover) {
-                  removed += 1;
-                }
-                // Recarrega os dados logo após cada gravação, sem esperar os demais livros.
-                await invalidate("shelf");
-                await invalidate("books");
-              }
+            // Atualização condicional: se outra tela alterou a capa enquanto
+            // pesquisávamos, não sobrescrevemos a alteração mais recente.
+            const updateResult = originalCover == null
+              ? await supabase.from("books").update({ cover_url: replacementCover })
+                  .eq("id", book.id).is("cover_url", null).select("id").maybeSingle()
+              : await supabase.from("books").update({ cover_url: replacementCover })
+                  .eq("id", book.id).eq("cover_url", originalCover).select("id").maybeSingle();
+
+            if (updateResult.error) throw updateResult.error;
+            if (updateResult.data?.id) {
+              saved += 1;
+              toast.success(`Capa de “${book.title}” adicionada à Biblioteca!`);
+              await invalidate("shelf");
+              await invalidate("books");
             }
           } catch (searchError) {
-            console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
-          } finally {
-            processed += 1;
+            // Falhas isoladas não interrompem a busca dos outros livros.
+            console.warn(`Não foi possível atualizar a capa de “${book.title}”:`, searchError);
           }
         }
       };
@@ -586,29 +600,14 @@ function GoodreadsTransfer() {
       await Promise.all(Array.from({ length: Math.min(concurrency, books.length) }, () => worker()));
       await invalidate("shelf");
       await invalidate("books");
-
-      if (found === 0 && removed === 0) {
-        toast.warning(`Busca concluída. Nenhuma capa nova foi encontrada entre os ${processed} livros verificados; todos continuam na Biblioteca.`);
-      } else {
-        toast.success(`Busca concluída: ${found} capas recuperadas e ${removed} endereços quebrados removidos. Nenhum livro foi excluído.`);
-      }
+      toast.info(`Busca concluída: ${saved} capas salvas. Os livros sem uma imagem disponível continuam na Biblioteca.`);
     } catch (error) {
-      console.error("Erro na busca automática de capas:", error);
-      toast.error(error instanceof Error ? `Não foi possível carregar as capas: ${error.message}` : "Não foi possível pesquisar as capas.");
+      console.error("Não foi possível concluir a busca de capas:", error);
+      toast.info("A busca de capas foi interrompida. Seus livros e capas existentes foram preservados; tente novamente mais tarde.");
     } finally {
       setCoverBusy(false);
     }
   }
-
-
-  const autoCoverSearchStarted = useRef(false);
-
-  useEffect(() => {
-    if (!me?.id || autoCoverSearchStarted.current) return;
-    autoCoverSearchStarted.current = true;
-    // Recupera capas ausentes ou quebradas automaticamente ao abrir a biblioteca.
-    void findMissingCovers();
-  }, [me?.id]);
 
   async function exportGoodreads() {
     setBusy(true);
