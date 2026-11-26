@@ -279,42 +279,42 @@ function PublicProfilePage() {
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-[1.5rem] border border-[#eebdb8] bg-gradient-to-br from-[#fff8f3] via-[#fff0eb] to-[#ffe3df] p-4 shadow-[0_8px_24px_rgba(128,32,55,.07)] sm:p-6">
+      <section className="overflow-hidden rounded-[1.5rem] border border-primary/15 bg-gradient-to-br from-card via-secondary/50 to-muted p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#ffe5ae] to-[#c87929] text-white shadow-inner sm:h-20 sm:w-20">
               <Award className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="font-display text-2xl font-semibold text-[#74172f] sm:text-3xl">Minhas Conquistas</h2>
-              <p className="mt-1 text-sm text-[#8c5360]">Cada medalha conta um capítulo da sua jornada.</p>
+              <h2 className="font-display text-2xl font-semibold text-primary sm:text-3xl">Minhas Conquistas</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Cada medalha conta um capítulo da sua jornada.</p>
             </div>
           </div>
-          <span className="rounded-full border border-[#f3b7b6] bg-[#ffd8d6] px-4 py-2 text-sm font-semibold text-[#8b1737]">
+          <span className="rounded-full border border-primary/20 bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground">
             <Star className="mr-1 inline h-4 w-4 fill-current" /> {badges.length} {badges.length === 1 ? "conquista" : "conquistas"}
           </span>
         </div>
-        <div className="my-5 flex items-center gap-3 text-[#b72a51]">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#e68a91] to-[#b72a51]" />
+        <div className="my-5 flex items-center gap-3 text-primary">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/40 to-primary/60" />
           <Heart className="h-5 w-5 fill-current" />
           <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#e68a91] to-[#b72a51]" />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {achievementsQuery.isLoading ? <p className="col-span-full py-5 text-center text-sm text-muted-foreground">Carregando medalhas...</p> : badges.length ? badges.slice(0, 5).map((badge, index) => (
-            <div key={badge.id} className="flex min-w-0 flex-col items-center rounded-2xl border border-[#f1cbc3] bg-white/55 px-2 py-4 text-center">
-              <div className={`relative flex h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] border-[#d9a45e] bg-gradient-to-br ${["from-[#ffe5a8] to-[#c66b25]","from-[#f4e9e5] to-[#76615d]","from-[#fff0a8] to-[#d68a2d]","from-[#ffc4d2] to-[#b52657]","from-[#b6d8ff] to-[#245da6]"][index % 5]} shadow-[inset_0_2px_8px_rgba(255,255,255,.7),0_4px_10px_rgba(111,35,49,.12)] sm:h-[92px] sm:w-[92px]`}>
-                <span className="absolute -top-2 text-lg text-[#9b2542]">✦</span>
+            <div key={badge.id} className="flex min-w-0 flex-col items-center rounded-2xl border border-primary/15 bg-card/80 px-2 py-4 text-center">
+              <div className={`relative flex h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] border-[#d9a45e] bg-gradient-to-br ${["from-amber-200 to-amber-600","from-stone-200 to-stone-500","from-yellow-200 to-yellow-600","from-orange-200 to-orange-600","from-amber-300 to-yellow-700"][index % 5]} shadow-[inset_0_2px_8px_rgba(255,255,255,.7),0_4px_10px_rgba(111,35,49,.12)] sm:h-[92px] sm:w-[92px]`}>
+                <span className="absolute -top-2 text-lg text-primary">✦</span>
                 <Award className="h-9 w-9 text-white drop-shadow sm:h-11 sm:w-11" strokeWidth={1.7} />
                 <span className="absolute -bottom-2 text-lg text-[#9b2542]">✦</span>
               </div>
-              <p className="mt-3 line-clamp-2 text-sm font-semibold leading-tight text-[#501d2b]">{badge.title}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-[#8c5360]">{badge.description}</p>
-              <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#b52b50]"><span aria-hidden="true">▣</span> {new Date(badge.unlocked_at).toLocaleDateString("pt-BR")}</p>
+              <p className="mt-3 line-clamp-2 text-sm font-semibold leading-tight text-foreground">{badge.title}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{badge.description}</p>
+              <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-primary"><span aria-hidden="true">▣</span> {new Date(badge.unlocked_at).toLocaleDateString("pt-BR")}</p>
             </div>
           )) : <p className="col-span-full py-6 text-center text-sm text-[#8c5360]">As medalhas conquistadas aparecerão aqui conforme você completar suas metas de leitura.</p>}
         </div>
         <div className="mt-5 flex justify-center">
-          <Link to="/desafios" className="inline-flex items-center gap-2 rounded-full border border-[#a51d40] px-6 py-2.5 text-sm font-semibold text-[#8b1737] transition-colors hover:bg-[#8b1737] hover:text-white">
+          <Link to="/desafios" className="inline-flex items-center gap-2 rounded-full border border-primary/30 px-6 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
             Ver todas as conquistas <span aria-hidden="true">›</span>
           </Link>
         </div>
