@@ -59,8 +59,8 @@ export function BookPicker({
           <NewBookForm
             initialTitle={q}
             onCancel={() => setCreating(false)}
-            onCreated={async (book) => {
-              await onSelect(book);
+            onCreated={async (book, details) => {
+              await onSelect(book, details);
               setCreating(false);
               onOpenChange(false);
             }}
