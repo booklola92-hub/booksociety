@@ -52,6 +52,20 @@ function DesafiosPage() {
     },
   });
 
+  const { data: earnedAchievements = [], isLoading: achievementsLoading } = useQuery({
+    queryKey: ["my-profile-achievements", userData?.id],
+    enabled: Boolean(userData?.id),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("profile_achievements")
+        .select("id, achievement_key, title, description, unlocked_at")
+        .eq("user_id", userData!.id)
+        .order("unlocked_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as { id: string; achievement_key: string; title: string; description: string; unlocked_at: string }[];
+    },
+  });
+
   async function removeChallenge(challenge: ReadingChallenge) {
     if (!window.confirm("Tem certeza de que deseja excluir este desafio?")) return;
     const { error } = await (supabase as any)
@@ -86,21 +100,25 @@ function DesafiosPage() {
         <h2 className="font-display flex items-center gap-3 text-2xl text-primary">
           <Trophy className="h-6 w-6" /> Conquistas de leitura
         </h2>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            "Primeira leitura",
-            "10 livros lidos",
-            "25 livros lidos",
-            "50 livros lidos",
-          ].map((achievement) => (
-            <div key={achievement} className="rounded-xl border border-primary/30 bg-secondary/50 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Trophy className="h-5 w-5 shrink-0 text-primary" />
-                {achievement}
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          {achievementsLoading ? (
+            <p className="col-span-full py-5 text-center text-sm text-muted-foreground">Carregando suas medalhas...</p>
+          ) : earnedAchievements.length ? earnedAchievements.map((achievement, index) => (
+            <div key={achievement.id} className="flex flex-col items-center rounded-2xl border border-[#efc9c1] bg-gradient-to-b from-[#fff9f5] to-[#ffe9e3] p-4 text-center">
+              <div className={`flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-[#d9a45e] bg-gradient-to-br ${["from-[#ffe5a8] to-[#c66b25]","from-[#f4e9e5] to-[#76615d]","from-[#fff0a8] to-[#d68a2d]","from-[#ffc4d2] to-[#b52657]","from-[#b6d8ff] to-[#245da6]"][index % 5]} shadow-inner`}>
+                <Trophy className="h-8 w-8 text-white drop-shadow" />
               </div>
-              <p className="mt-3 text-sm text-muted-foreground">Conquista desbloqueada</p>
+              <p className="mt-3 text-sm font-semibold text-foreground">{achievement.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{achievement.description}</p>
+              <p className="mt-2 text-xs text-primary">{new Date(achievement.unlocked_at).toLocaleDateString("pt-BR")}</p>
             </div>
-          ))}
+          )) : (
+            <div className="col-span-full rounded-xl border border-dashed border-primary/25 bg-secondary/20 px-4 py-7 text-center">
+              <Trophy className="mx-auto h-9 w-9 text-primary/50" />
+              <p className="mt-2 font-medium text-foreground">Sua primeira medalha está esperando por você</p>
+              <p className="mt-1 text-sm text-muted-foreground">Quando uma conquista for desbloqueada, ela aparecerá aqui e também no seu perfil.</p>
+            </div>
+          )}
         </div>
       </section>
 
