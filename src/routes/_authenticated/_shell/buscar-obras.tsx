@@ -50,7 +50,7 @@ async function searchInternalCatalog(q: string, category: CatalogCategory, limit
 async function searchExternalCatalog(q: string, category: CatalogCategory): Promise<CatalogItem[]> {
   if (!q.trim()) return [];
   const results: CatalogItem[] = [];
-  if (["todos", "livros", "novels", "bl"].includes(category)) {
+  if (["todos", "livros"].includes(category)) {
     try {
       const params = new URLSearchParams({ q, maxResults: "20", printType: "books" });
       const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
@@ -104,7 +104,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
 
 async function searchCatalog(q: string, category: CatalogCategory, limit: number, offset: number) {
   const [internal, external] = await Promise.all([
-    searchInternalCatalog(q, category, limit, offset),
+    searchInternalCatalog(q, category, offset === 0 ? Math.min(limit, 12) : limit, offset),
     offset === 0 ? searchExternalCatalog(q, category) : Promise.resolve([]),
   ]);
   const seen = new Set(internal.map((item) => item.title.toLowerCase()));
