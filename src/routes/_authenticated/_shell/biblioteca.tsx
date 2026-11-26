@@ -614,7 +614,7 @@ function GoodreadsTransfer() {
   }
 
   // Mantém a busca de capas ativa enquanto a Biblioteca estiver aberta.
-  // Uma nova rodada começa 60 segundos após a anterior terminar; nunca há duas simultâneas.
+  // Uma nova rodada começa 30 segundos após a anterior terminar; nunca há duas simultâneas.
   coverScanRunner.current = findMissingCovers;
   useEffect(() => {
     if (!me?.id) return;
@@ -628,7 +628,7 @@ function GoodreadsTransfer() {
           await coverScanRunner.current();
         }
         scheduleNext();
-      }, 60_000);
+      }, 30_000);
     };
     timer = window.setTimeout(async () => {
       if (!cancelled && document.visibilityState === "visible") {
