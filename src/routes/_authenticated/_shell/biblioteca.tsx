@@ -134,7 +134,7 @@ async function canLoadPublicCover(url: string): Promise<boolean> {
     const timeout = window.setTimeout(() => {
       image.src = "";
       resolve(false);
-    }, 3000);
+    }, 10000);
     image.onload = () => { window.clearTimeout(timeout); resolve(image.naturalWidth > 0 && image.naturalHeight > 0); };
     image.onerror = () => { window.clearTimeout(timeout); resolve(false); };
     image.src = url;
@@ -537,7 +537,7 @@ function GoodreadsTransfer() {
             const canReplace = Boolean(replacementCover) && (!oldCoverIsOpenLibrary || replacementIsInternetArchive);
 
             // Nunca apaga o livro: só troca uma capa quebrada ou limpa seu endereço inválido.
-            const nextCover = canReplace ? replacementCover : null;
+            const nextCover = canReplace ? replacementCover : (currentCover || null);
             if (currentCover !== nextCover) {
               const { data: updated, error } = await supabase
                 .from("books")
@@ -547,17 +547,14 @@ function GoodreadsTransfer() {
                 .maybeSingle();
               if (error) throw error;
 
-              if (updated?.id) {
-                if (nextCover) {
-                  found += 1;
-                  toast.success(`Capa de “${book.title}” salva!`);
-                } else if (currentCover) {
-                  removed += 1;
-                }
-                // Recarrega os dados logo após cada gravação, sem esperar os demais livros.
-                await invalidate("shelf");
-                await invalidate("books");
+              if (!updated?.id) {
+                throw new Error(`A capa de “${book.title}” foi encontrada, mas o banco não confirmou a gravação. Verifique a conexão e as permissões da Biblioteca.`);
               }
+              found += 1;
+              toast.success(`Capa de “${book.title}” salva na Biblioteca!`);
+              // Atualiza a Biblioteca imediatamente após cada gravação, sem esperar os demais livros.
+              await invalidate("shelf");
+              await invalidate("books");
             }
           } catch (searchError) {
             console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
