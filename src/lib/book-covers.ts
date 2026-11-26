@@ -1,5 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape */
+import { fetchPrivateObject } from "@/lib/media";
+
 function normalize(value: string): string {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/\\s+/g, " ").trim();
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 export async function canLoadPublicCover(url: string): Promise<boolean> {
