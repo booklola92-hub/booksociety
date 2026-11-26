@@ -98,7 +98,7 @@ async function findBookCover(title: string, author: string): Promise<string | nu
     const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString(), {
       signal: AbortSignal.timeout(5000),
     });
-    if (!response.ok) return null;
+    if (!response.ok) throw new Error("Google Books indisponível");
     const payload = await response.json();
     const match = (payload.items ?? []).find((volume: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { extraLarge?: string; large?: string; thumbnail?: string; smallThumbnail?: string } } }) => {
       const info = volume.volumeInfo ?? {};
@@ -106,10 +106,34 @@ async function findBookCover(title: string, author: string): Promise<string | nu
     });
     const imageLinks = match?.volumeInfo?.imageLinks;
     const image = imageLinks?.extraLarge ?? imageLinks?.large ?? imageLinks?.thumbnail ?? imageLinks?.smallThumbnail;
-    return image ? String(image).replace("http://", "https://").replace("&edge=curl", "") : null;
-  } catch {
-    return null;
-  }
+    if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
+  } catch { /* tenta Open Library */ }
+
+  // Open Library como último catálogo público para livros sem capa no Google Books.
+  try {
+    const searches = [
+      "title=" + encodeURIComponent(title.trim()) + (author.trim() ? "&author=" + encodeURIComponent(author.trim()) : ""),
+      "title=" + encodeURIComponent(title.trim()),
+    ];
+    for (const search of [...new Set(searches)]) {
+      const response = await fetch(
+        "https://openlibrary.org/search.json?" + search + "&limit=30&fields=title,author_name,cover_i",
+        { signal: AbortSignal.timeout(5000) },
+      );
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const docs = Array.isArray(payload.docs) ? payload.docs : [];
+      const match = docs.find((doc: any) =>
+        titleMatches(String(doc.title ?? "")) &&
+        authorMatches(Array.isArray(doc.author_name) ? doc.author_name.map(String) : []),
+      );
+      if (match?.cover_i) {
+        return "https://covers.openlibrary.org/b/id/" + encodeURIComponent(String(match.cover_i)) + "-L.jpg";
+      }
+    }
+  } catch { /* sem capa disponível nos catálogos públicos */ }
+
+  return null;
 }
 
 export function useBookSearch(q: string, limit = 20) {
