@@ -333,6 +333,29 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     }
   } catch (error) { console.warn("Google Books não respondeu:", error); }
 
+  // Open Library: última alternativa, somente depois do Internet Archive,
+  // AniList e Google Books não encontrarem uma capa válida.
+  try {
+    const searches = isbn
+      ? ["isbn=" + encodeURIComponent(isbn)]
+      : titleVariants.flatMap((variant) => [
+          "title=" + encodeURIComponent(variant) + (author ? "&author=" + encodeURIComponent(author) : ""),
+          "title=" + encodeURIComponent(variant),
+        ]);
+    for (const search of [...new Set(searches)]) {
+      const response = await fetch("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const docs = Array.isArray(payload.docs) ? payload.docs : [];
+      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
+        Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
+      if (match?.cover_i) {
+        const coverUrl = "https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg";
+        if (await canLoadPublicCover(coverUrl)) return coverUrl;
+      }
+    }
+  } catch (error) { console.warn("Open Library não respondeu:", error); }
+
   return null;
 }
 function GoodreadsTransfer() {
