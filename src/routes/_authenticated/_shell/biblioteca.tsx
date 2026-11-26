@@ -546,7 +546,13 @@ function GoodreadsTransfer() {
                   .select("id")
                   .maybeSingle();
                 if (updateError) throw updateError;
-                if (updated?.id) found += 1;
+                if (updated?.id) {
+                  found += 1;
+                  // Atualiza a Biblioteca assim que cada capa é salva,
+                  // sem esperar o lote inteiro terminar.
+                  await invalidate("shelf");
+                  await invalidate("books");
+                }
               }
             } catch (searchError) {
               console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
@@ -641,7 +647,7 @@ function GoodreadsTransfer() {
       <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="font-semibold">Capas dos seus livros</p>
-          <p className="text-sm text-muted-foreground">Procure e salve automaticamente capas que ainda não aparecem na sua Biblioteca.</p>
+          <p className="text-sm text-muted-foreground">Cada capa encontrada é salva e aparece na Biblioteca imediatamente, sem esperar a pesquisa terminar.</p>
           {coverBusy ? <p className="text-xs text-primary" role="status" aria-live="polite">Buscando capas nos catálogos públicos…</p> : null}
         </div>
         <Button type="button" className="shrink-0" disabled={coverBusy || !me?.id} onClick={() => void findMissingCovers()}>
