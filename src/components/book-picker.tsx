@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { BookCover } from "@/components/book-cover";
-import { findPublicCover } from "@/lib/book-covers";
+import { findPublicCover, inspectPublicCover, inspectStoredCover } from "@/lib/book-covers";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ export function BookPicker({
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const { data: books = [], isLoading } = useBookSearch(q);
+  const invalidate = useInvalidate();
 
   return (
     <Dialog
@@ -88,7 +89,36 @@ export function BookPicker({
                   key={b.id}
                   type="button"
                   onClick={async () => {
-                    await onSelect(b);
+                    let selectedBook = b;
+                    try {
+                      const currentCover = b.cover_url?.trim() ?? "";
+                      const isPrivatePath = Boolean(currentCover) && !/^https?:\/\//i.test(currentCover);
+                      const coverStatus = currentCover
+                        ? (isPrivatePath ? await inspectStoredCover(currentCover) : await inspectPublicCover(currentCover))
+                        : "broken";
+
+                      if (coverStatus === "broken") {
+                        const replacementCover = await findPublicCover(b.title, b.author ?? "", "", "");
+                        if (replacementCover) {
+                          const { data, error } = await supabase
+                            .from("books")
+                            .update({ cover_url: replacementCover })
+                            .eq("id", b.id)
+                            .select("*")
+                            .maybeSingle();
+                          if (!error && data) {
+                            selectedBook = data as Book;
+                            await invalidate("books");
+                            toast.success(`Capa de “${b.title}” adicionada!`);
+                          } else {
+                            console.warn(`A capa de "${b.title}" foi encontrada, mas a gravação não foi confirmada.`, error);
+                          }
+                        }
+                      }
+                    } catch (coverError) {
+                      console.warn(`Não foi possível recuperar a capa de "${b.title}".`, coverError);
+                    }
+                    await onSelect(selectedBook);
                     onOpenChange(false);
                   }}
                   className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent"
