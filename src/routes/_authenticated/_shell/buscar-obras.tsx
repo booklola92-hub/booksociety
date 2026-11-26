@@ -239,12 +239,12 @@ function BuscarObras() {
               <p className="font-medium text-foreground">Nenhum livro encontrado. Tente outra pesquisa.</p>
               {categoryProbe.data === false && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A categoria {categoryLabel} ainda não tem obras cadastradas no catálogo do Book Society.
+                  Não encontramos resultados nessa categoria agora. Tente outro título ou autor.
                 </p>
               )}
               {categoryProbe.data === true && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A busca mostra apenas obras já cadastradas no catálogo do Book Society.
+                  A busca também consulta catálogos de livros e mangás automaticamente. Tente variar os termos da pesquisa.
                 </p>
               )}
             </div>
