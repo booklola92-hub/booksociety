@@ -533,7 +533,7 @@ function GoodreadsTransfer() {
 
             const replacementCover = await findPublicCover(book.title, book.author ?? "", "", "");
             const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(currentCover);
-            const replacementIsInternetArchive = /^https?:\\/\\/(?:www\\.)?archive\\.org\\//i.test(replacementCover ?? "");
+            const replacementIsInternetArchive = /^https?:\/\/(?:www\.)?archive\.org\//i.test(replacementCover ?? "");
             const canReplace = Boolean(replacementCover) && (!oldCoverIsOpenLibrary || replacementIsInternetArchive);
 
             // Nunca apaga o livro: só troca uma capa quebrada ou limpa seu endereço inválido.
