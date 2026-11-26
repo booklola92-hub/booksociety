@@ -163,6 +163,7 @@ function PublicProfilePage() {
         if (insertError) throw insertError;
       }
       await queryClient.invalidateQueries({ queryKey: ["profile-genres", profileId] });
+      await genresQuery.refetch();
       setEditingGenres(false);
       toast.success("Seus gêneros favoritos foram atualizados!");
     } catch (error) {
@@ -183,27 +184,22 @@ function PublicProfilePage() {
   }
 
   async function handleFriendAction() {
-    if (!profileId || isOwnProfile) return;
+    if (!profileId || !me?.id || isOwnProfile || busy) return;
     setBusy("friend");
-    let state = friendship.data;
     try {
-      if (!state) {
-        const refreshed = await friendship.refetch();
-        if (refreshed.error || !refreshed.data) {
-          throw refreshed.error ?? new Error("Não foi possível verificar a amizade. Tente novamente.");
-        }
-        state = refreshed.data;
+      const refreshed = await friendship.refetch();
+      if (refreshed.error || !refreshed.data) {
+        throw refreshed.error ?? new Error("Não foi possível verificar a amizade. Tente novamente.");
       }
-    try {
+      const state = refreshed.data;
+
       if (state.kind === "none") {
         const myId = await getMyId();
         if (state.request) {
-          const { error } = await supabase.from("friend_requests").delete().eq("id", state.request.id);
-          if (error) throw error;
+          const { error: removeError } = await supabase.from("friend_requests").delete().eq("id", state.request.id);
+          if (removeError) throw removeError;
         }
-        const { error } = await supabase.from("friend_requests").insert({
-          requester_id: myId, addressee_id: profileId, status: "pending",
-        });
+        const { error } = await supabase.from("friend_requests").insert({ requester_id: myId, addressee_id: profileId, status: "pending" });
         if (error) throw error;
         toast.success("Solicitação de amizade enviada!");
       } else if (state.kind === "incoming") {
@@ -215,10 +211,13 @@ function PublicProfilePage() {
         if (error) throw error;
         toast.success(state.kind === "friends" ? "Amizade desfeita." : "Solicitação cancelada.");
       }
-      await queryClient.invalidateQueries({ queryKey: ["friendship", me?.id, profileId] });
+      await queryClient.invalidateQueries({ queryKey: ["friendship", me.id, profileId] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a amizade.");
-    } finally { setBusy(null); }
+    } finally {
+      setBusy(null);
+    }
   }
 
   if (profile.isLoading) return <div className="rounded-3xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">Carregando perfil...</div>;
@@ -253,10 +252,10 @@ function PublicProfilePage() {
             </div>
             <div className="flex flex-wrap gap-2 self-end sm:max-w-[310px] sm:justify-end">
               {!isOwnProfile ? <>
-                <Button variant="outline" className="rounded-full border-border bg-card/80 text-foreground hover:bg-accent hover:text-accent-foreground" disabled={busy !== null || friendship.isLoading} onClick={handleFriendAction}>
+                <Button variant="outline" className="rounded-full border-border bg-card/80 text-foreground hover:bg-accent hover:text-accent-foreground" disabled={!me?.id || busy !== null || friendship.isLoading} onClick={handleFriendAction}>
                   {friendState === "friends" ? <><UserCheck className="mr-2 h-4 w-4" /> Amigos</> : friendState === "incoming" ? <><Check className="mr-2 h-4 w-4" /> Aceitar Amizade</> : friendState === "outgoing" ? <><UserX className="mr-2 h-4 w-4" /> Pedido enviado</> : <><UserPlus className="mr-2 h-4 w-4" /> Adicionar Amizade</>}
                 </Button>
-                <Button className="rounded-full border-primary bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy !== null || followStats.isLoading} onClick={toggleFollow}>
+                <Button className="rounded-full border-primary bg-primary text-primary-foreground hover:bg-primary/90" disabled={!me?.id || busy !== null || followStats.isLoading} onClick={toggleFollow}>
                   {followStats.data?.iFollow ? <Check className="mr-2 h-4 w-4" /> : <Star className="mr-2 h-4 w-4" />}
                   {followStats.data?.iFollow ? "Seguindo" : "Seguir"}
                 </Button>
