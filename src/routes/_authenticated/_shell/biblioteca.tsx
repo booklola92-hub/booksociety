@@ -261,6 +261,39 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
 
+  // AniList: alternativa pública para mangás, manhwas e novels (inclui BL).
+  // Usa a capa publicada no catálogo; não baixa nem re-hospeda o arquivo.
+  try {
+    for (const variant of titleVariants) {
+      const response = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          query: `query ($search: String) {
+            Page(page: 1, perPage: 20) {
+              media(search: $search, type: MANGA) {
+                title { romaji english native }
+                coverImage { extraLarge large }
+                staff(perPage: 10) { edges { role node { name { full } } } }
+              }
+            }
+          }`,
+          variables: { search: variant },
+        }),
+      });
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const items = payload.data?.Page?.media ?? [];
+      const match = pickBest(items, (item: any) =>
+        [item.title?.romaji, item.title?.english, item.title?.native].filter(Boolean).join(" "),
+        (item: any) => (item.staff?.edges ?? [])
+          .filter((edge: any) => /story|art|original creator|author/i.test(String(edge.role ?? "")))
+          .map((edge: any) => String(edge.node?.name?.full ?? "")));
+      const image = match?.coverImage?.extraLarge ?? match?.coverImage?.large;
+      if (image && await canLoadPublicCover(String(image))) return String(image);
+    }
+  } catch (error) { console.warn("AniList não respondeu:", error); }
+
   // Google Books: título + autor, depois título isolado e variações sem subtítulo.
   try {
     const queries = isbn
