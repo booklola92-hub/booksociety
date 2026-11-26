@@ -475,13 +475,9 @@ function GoodreadsTransfer() {
     setCoverBusy(true);
     try {
       const userId = await getMyId();
-
-      // Busca primeiro os IDs da biblioteca e depois os livros diretamente.
-      // Isso evita falhas de relacionamento aninhado que podem impedir a leitura das capas.
-      // Pagina a biblioteca para não perder livros quando o Supabase aplica
-      // um limite máximo de linhas por consulta.
       const shelfRows: Array<{ book_id: string }> = [];
       const pageSize = 500;
+
       for (let offset = 0; ; offset += pageSize) {
         const { data, error } = await supabase
           .from("shelf_items")
@@ -500,105 +496,85 @@ function GoodreadsTransfer() {
         return;
       }
 
-      // Consulta os livros em lotes menores para suportar bibliotecas grandes.
       const books: Array<{ id: string; title: string; author: string | null; cover_url: string | null }> = [];
       for (let offset = 0; offset < bookIds.length; offset += 200) {
-        const batchIds = bookIds.slice(offset, offset + 200);
         const { data, error } = await supabase
           .from("books")
           .select("id,title,author,cover_url")
-          .in("id", batchIds);
+          .in("id", bookIds.slice(offset, offset + 200));
         if (error) throw error;
         books.push(...(data ?? []));
-      }
-
-      // URLs externas antigas podem estar salvas no banco mesmo quando a imagem
-      // já foi removida. Testa o carregamento real antes de considerar a capa válida.
-      const missing: typeof books = [];
-      // Valida em pequenos grupos para não abrir centenas de imagens ao mesmo tempo.
-      for (let offset = 0; offset < books.length; offset += 20) {
-        const checked = await Promise.all(books.slice(offset, offset + 20).map(async (book) => {
-          const cover = book.cover_url?.trim() ?? "";
-          if (!cover) return book;
-          // Só coloca na fila capas que realmente não carregam.
-          // Capas válidas da Open Library também devem ser preservadas.
-          const isPrivateStoragePath = !/^https?:\/\//i.test(cover);
-          const isValid = isPrivateStoragePath
-            ? await canLoadStoredCover(cover)
-            : await canLoadPublicCover(cover);
-          return isValid ? null : book;
-        }));
-        missing.push(...checked.filter((book): book is typeof books[number] => book !== null));
-      }
-      if (!missing.length) {
-        await invalidate("shelf");
-        toast.success("Todos os livros da sua Biblioteca já têm capa.");
-        return;
       }
 
       let found = 0;
       let removed = 0;
       let processed = 0;
-      const batchSize = 20;
-      const concurrency = 20;
-      toast.info(`Buscando capas em lotes de 20 livros. Internet Archive será consultado primeiro.`);
+      let cursor = 0;
+      const concurrency = 4;
 
-      // Processa 20 livros por rodada; só inicia o próximo lote quando o atual termina.
-      for (let batchStart = 0; batchStart < missing.length; batchStart += batchSize) {
-        const batch = missing.slice(batchStart, batchStart + batchSize);
-        let cursor = 0;
+      toast.info(`Verificando as capas de ${books.length} livros. Cada capa encontrada será salva imediatamente.`);
 
-        const worker = async () => {
-          while (true) {
-            const index = cursor++;
-            if (index >= batch.length) return;
-            const book = batch[index];
-            if (!book) return;
-            try {
-              const cover = await findPublicCover(book.title, book.author ?? "", "", "");
-              const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(book.cover_url ?? "");
-              // Para capas antigas da Open Library, só substitui quando encontra
-              // uma imagem hospedada no Internet Archive; nunca troca por outro fallback.
-              const isInternetArchiveCover = /^https?:\/\/(?:www\.)?archive\.org\//i.test(cover ?? "");
-              const replacementIsAllowed = Boolean(cover) && (!oldCoverIsOpenLibrary || isInternetArchiveCover);
-              // Se a capa antiga já falhou ao carregar e nenhuma substituta adequada
-              // foi encontrada, remove somente o endereço quebrado. Capas válidas
-              // que não entraram nesta fila permanecem intactas.
-              if (replacementIsAllowed || book.cover_url) {
-                const nextCover = replacementIsAllowed ? cover : null;
-                const { data: updated, error: updateError } = await supabase
-                  .from("books")
-                  .update({ cover_url: nextCover })
-                  .eq("id", book.id)
-                  .select("id")
-                  .maybeSingle();
-                if (updateError) throw updateError;
-                if (updated?.id) {
-                  if (nextCover) found += 1;
-                  else removed += 1;
-                  // Atualiza a Biblioteca assim que cada alteração é salva.
-                  await invalidate("shelf");
-                  await invalidate("books");
+      const worker = async () => {
+        while (true) {
+          const index = cursor++;
+          if (index >= books.length) return;
+          const book = books[index];
+          if (!book) continue;
+
+          try {
+            const currentCover = book.cover_url?.trim() ?? "";
+            const isPrivateStoragePath = Boolean(currentCover) && !/^https?:\\/\\//i.test(currentCover);
+            const currentCoverWorks = currentCover
+              ? (isPrivateStoragePath ? await canLoadStoredCover(currentCover) : await canLoadPublicCover(currentCover))
+              : false;
+
+            // Mantém intactas todas as capas que carregam normalmente.
+            if (currentCoverWorks) continue;
+
+            const replacementCover = await findPublicCover(book.title, book.author ?? "", "", "");
+            const oldCoverIsOpenLibrary = /^https?:\\/\\/(?:covers\\.)?openlibrary\\.org\\//i.test(currentCover);
+            const replacementIsInternetArchive = /^https?:\\/\\/(?:www\\.)?archive\\.org\\//i.test(replacementCover ?? "");
+            const canReplace = Boolean(replacementCover) && (!oldCoverIsOpenLibrary || replacementIsInternetArchive);
+
+            // Nunca apaga o livro: só troca uma capa quebrada ou limpa seu endereço inválido.
+            const nextCover = canReplace ? replacementCover : null;
+            if (currentCover !== nextCover) {
+              const { data: updated, error } = await supabase
+                .from("books")
+                .update({ cover_url: nextCover })
+                .eq("id", book.id)
+                .select("id")
+                .maybeSingle();
+              if (error) throw error;
+
+              if (updated?.id) {
+                if (nextCover) {
+                  found += 1;
+                  toast.success(`Capa de “${book.title}” salva!`);
+                } else if (currentCover) {
+                  removed += 1;
                 }
+                // Recarrega os dados logo após cada gravação, sem esperar os demais livros.
+                await invalidate("shelf");
+                await invalidate("books");
               }
-            } catch (searchError) {
-              console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
-            } finally {
-              processed += 1;
             }
+          } catch (searchError) {
+            console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
+          } finally {
+            processed += 1;
           }
-        };
+        }
+      };
 
-        await Promise.all(Array.from({ length: Math.min(concurrency, batch.length) }, () => worker()));
-        await invalidate("shelf");
-        await invalidate("books");
-      }
+      await Promise.all(Array.from({ length: Math.min(concurrency, books.length) }, () => worker()));
       await invalidate("shelf");
       await invalidate("books");
+
       if (found === 0 && removed === 0) {
-        toast.warning(`Não encontramos capas para os ${processed} livros consultados. Nenhuma capa foi alterada.`);
+        toast.warning(`Busca concluída. Nenhuma capa nova foi encontrada entre os ${processed} livros verificados; todos continuam na Biblioteca.`);
       } else {
-        toast.success(`Concluído: ${found} capas recuperadas e ${removed} endereços de capas quebradas removidos. Capas que carregavam normalmente foram preservadas.`);
+        toast.success(`Busca concluída: ${found} capas recuperadas e ${removed} endereços quebrados removidos. Nenhum livro foi excluído.`);
       }
     } catch (error) {
       console.error("Erro na busca automática de capas:", error);
