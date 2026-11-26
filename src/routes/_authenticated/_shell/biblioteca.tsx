@@ -520,6 +520,8 @@ function GoodreadsTransfer() {
         const checked = await Promise.all(books.slice(offset, offset + 20).map(async (book) => {
           const cover = book.cover_url?.trim() ?? "";
           if (!cover) return book;
+          // Só coloca na fila capas que realmente não carregam.
+          // Capas válidas da Open Library também devem ser preservadas.
           const isPrivateStoragePath = !/^https?:\/\//i.test(cover);
           const isValid = isPrivateStoragePath
             ? await canLoadStoredCover(cover)
@@ -535,6 +537,7 @@ function GoodreadsTransfer() {
       }
 
       let found = 0;
+      let removed = 0;
       let processed = 0;
       const batchSize = 20;
       const concurrency = 20;
@@ -553,18 +556,27 @@ function GoodreadsTransfer() {
             if (!book) return;
             try {
               const cover = await findPublicCover(book.title, book.author ?? "", "", "");
-              if (cover) {
+              const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(book.cover_url ?? "");
+              // Para capas antigas da Open Library, só substitui quando encontra
+              // uma imagem hospedada no Internet Archive; nunca troca por outro fallback.
+              const isInternetArchiveCover = /^https?:\/\/(?:www\.)?archive\.org\//i.test(cover ?? "");
+              const replacementIsAllowed = Boolean(cover) && (!oldCoverIsOpenLibrary || isInternetArchiveCover);
+              // Se a capa antiga já falhou ao carregar e nenhuma substituta adequada
+              // foi encontrada, remove somente o endereço quebrado. Capas válidas
+              // que não entraram nesta fila permanecem intactas.
+              if (replacementIsAllowed || book.cover_url) {
+                const nextCover = replacementIsAllowed ? cover : null;
                 const { data: updated, error: updateError } = await supabase
                   .from("books")
-                  .update({ cover_url: cover })
+                  .update({ cover_url: nextCover })
                   .eq("id", book.id)
                   .select("id")
                   .maybeSingle();
                 if (updateError) throw updateError;
                 if (updated?.id) {
-                  found += 1;
-                  // Atualiza a Biblioteca assim que cada capa é salva,
-                  // sem esperar o lote inteiro terminar.
+                  if (nextCover) found += 1;
+                  else removed += 1;
+                  // Atualiza a Biblioteca assim que cada alteração é salva.
                   await invalidate("shelf");
                   await invalidate("books");
                 }
@@ -583,10 +595,10 @@ function GoodreadsTransfer() {
       }
       await invalidate("shelf");
       await invalidate("books");
-      if (found === 0) {
-        toast.warning(`Não encontramos capas para os ${processed} livros consultados. Os livros continuam na Biblioteca; tente novamente mais tarde.`);
+      if (found === 0 && removed === 0) {
+        toast.warning(`Não encontramos capas para os ${processed} livros consultados. Nenhuma capa foi alterada.`);
       } else {
-        toast.success(`Pesquisa concluída: ${found} capas encontradas de ${processed} livros. As capas foram salvas automaticamente.`);
+        toast.success(`Concluído: ${found} capas recuperadas e ${removed} endereços de capas quebradas removidos. Capas que carregavam normalmente foram preservadas.`);
       }
     } catch (error) {
       console.error("Erro na busca automática de capas:", error);
