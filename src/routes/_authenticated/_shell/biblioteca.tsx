@@ -710,7 +710,7 @@ function GoodreadsTransfer() {
           <p className="text-sm text-muted-foreground">Consulte uma estante pública pelo nome de usuário. Não precisa conectar sua conta nem informar senha.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_190px_auto]">
-          <Input value={goodreadsUsername} onChange={(event) => setGoodreadsUsername(event.target.value)} placeholder="Usuário Goodreads (ex.: 50993735-emma-watson)" aria-label="Nome de usuário do Goodreads" />
+          <Input value={goodreadsUsername} onChange={(event) => setGoodreadsUsername(event.target.value)} placeholder="Informe seu usuário do Goodreads" aria-label="Informe seu usuário do Goodreads" />
           <Select value={goodreadsShelf} onValueChange={setGoodreadsShelf}>
             <SelectTrigger aria-label="Estante do Goodreads"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -721,6 +721,7 @@ function GoodreadsTransfer() {
           </Select>
           <Button disabled={goodreadsSearchBusy || busy} onClick={() => void searchPublicGoodreads()}>{goodreadsSearchBusy ? "Buscando..." : "Buscar estante"}</Button>
         </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">Informe seu nome de usuário do Goodreads, não seu e-mail nem sua senha. Você encontra esse usuário no endereço do seu perfil: copie apenas a parte depois de <span className="font-medium">/user/show/</span> (por exemplo: <span className="font-medium">50993735-emma-watson</span>). A estante precisa estar pública.</p>
         {goodreadsBooks.length > 0 ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
