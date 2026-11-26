@@ -773,6 +773,9 @@ export type Database = {
         Row: {
           avatar_url: string | null
           banner_url: string | null
+          banner_pos_x: number
+          banner_pos_y: number
+          banner_zoom: number
           bio: string
           created_at: string
           discoverable: boolean
@@ -784,6 +787,9 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           banner_url?: string | null
+          banner_pos_x?: number
+          banner_pos_y?: number
+          banner_zoom?: number
           bio?: string
           created_at?: string
           discoverable?: boolean
