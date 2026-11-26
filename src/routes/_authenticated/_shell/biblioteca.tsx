@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape -- validação defensiva de respostas JSON externas e sanitização CSV. */
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, BookOpen, Bookmark, CheckCircle2, Download, FileUp, Heart, Library, Plus, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BookPicker } from "@/components/book-picker";
@@ -353,7 +353,6 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
 }
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
-  const autoCoverStarted = useRef(false);
   const [busy, setBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
   const invalidate = useInvalidate();
@@ -576,11 +575,6 @@ function GoodreadsTransfer() {
     }
   }
 
-  useEffect(() => {
-    if (!me?.id || autoCoverStarted.current) return;
-    autoCoverStarted.current = true;
-    void findMissingCovers();
-  }, [me?.id]);
 
   async function exportGoodreads() {
     setBusy(true);
@@ -643,6 +637,16 @@ function GoodreadsTransfer() {
           <h2 className="font-display text-2xl font-semibold">Importar e exportar</h2>
           <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
         </div>
+      </div>
+      <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="font-semibold">Capas dos seus livros</p>
+          <p className="text-sm text-muted-foreground">Procure e salve automaticamente capas que ainda não aparecem na sua Biblioteca.</p>
+          {coverBusy ? <p className="text-xs text-primary" role="status" aria-live="polite">Buscando capas nos catálogos públicos…</p> : null}
+        </div>
+        <Button type="button" className="shrink-0" disabled={coverBusy || !me?.id} onClick={() => void findMissingCovers()}>
+          <Search className="h-4 w-4" /> {coverBusy ? "Buscando capas…" : "Buscar capas automaticamente"}
+        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
