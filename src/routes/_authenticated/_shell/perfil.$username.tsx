@@ -11,6 +11,7 @@ import { EmptyState, PageTitle } from "@/components/empty-state";
 import { Feed } from "@/components/feed";
 import { UserAvatar } from "@/components/user-avatar";
 import { EditAvatarButton } from "@/components/edit-avatar-button";
+import { useMediaUrl } from "@/lib/media";
 import { BookCover } from "@/components/book-cover";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,7 @@ type PublicProfile = {
   display_name: string;
   avatar_url: string | null;
   bio: string | null;
+  banner_url: string | null;
 };
 
 type ShelfBook = {
@@ -62,7 +64,7 @@ function PublicProfilePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio")
+        .select("id, username, display_name, avatar_url, bio, banner_url")
         .eq("username", username)
         .single();
       if (error) throw error;
@@ -225,6 +227,7 @@ function PublicProfilePage() {
   if (!profile.data) return <EmptyState title="Perfil não encontrado">Essa pessoa não foi encontrada no Book Society.</EmptyState>;
 
   const person = profile.data;
+  const bannerImage = useMediaUrl(person.banner_url);
   const friendState = friendship.data?.kind ?? "none";
   const entries = shelf.data ?? [];
   const readCount = entries.filter((item) => item.status === "read").length;
@@ -237,7 +240,7 @@ function PublicProfilePage() {
       <PageTitle title="Perfil" subtitle="Um cantinho para compartilhar sua história e suas leituras." />
 
       <section className="relative overflow-hidden rounded-[1.6rem] border border-primary/15 bg-card shadow-sm">
-        <div className="relative min-h-[210px] overflow-hidden bg-gradient-to-r from-secondary via-background to-muted px-5 py-7 text-foreground sm:min-h-[245px] sm:px-8">
+        <div className="relative min-h-[210px] overflow-hidden bg-gradient-to-r from-secondary via-background to-muted bg-cover bg-center px-5 py-7 text-foreground sm:min-h-[245px] sm:px-8" style={bannerImage ? { backgroundImage: `linear-gradient(rgba(255,248,237,.58), rgba(255,248,237,.72)), url("${bannerImage}")` } : undefined}>
           <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "radial-gradient(circle at 82% 20%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 24%), linear-gradient(0deg, color-mix(in oklch, var(--primary) 5%, transparent), transparent)" }} />
           <div className="pointer-events-none absolute -right-8 -top-12 text-[170px] leading-none text-primary/10" aria-hidden="true">✦</div>
           <div className="relative flex h-full flex-col gap-4 sm:flex-row sm:items-center">
