@@ -12,6 +12,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { uploadMedia } from "@/lib/media";
 import { getMyId, useInvalidate, type Book } from "@/lib/social";
 
+async function findBookCover(title: string, author: string): Promise<string | null> {
+  try {
+    const terms = [title.trim(), author.trim()].filter(Boolean).join(" ");
+    const params = new URLSearchParams({ q: terms, maxResults: "8", printType: "books" });
+    const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString(), {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\\s+/g, " ").trim();
+    const wantedTitle = normalize(title);
+    const wantedAuthor = normalize(author);
+    const match = (payload.items ?? []).find((volume: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }) => {
+      const info = volume.volumeInfo ?? {};
+      const candidateTitle = normalize(info.title ?? "");
+      const candidateAuthors = normalize((info.authors ?? []).join(" "));
+      return candidateTitle === wantedTitle &&
+        (!wantedAuthor || !candidateAuthors || candidateAuthors.includes(wantedAuthor) || wantedAuthor.includes(candidateAuthors));
+    });
+    const image = match?.volumeInfo?.imageLinks?.thumbnail ?? match?.volumeInfo?.imageLinks?.smallThumbnail;
+    return image ? image.replace("http://", "https://").replace("&edge=curl", "") : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useBookSearch(q: string, limit = 20) {
   const clean = q.replace(/[%,()*]/g, " ").trim();
   return useQuery({
@@ -142,7 +168,9 @@ function NewBookForm({
         setBusy(true);
         try {
           const me = await getMyId();
-          const coverPath = cover ? await uploadMedia(me, cover, "covers") : null;
+          const coverPath = cover
+            ? await uploadMedia(me, cover, "covers")
+            : await findBookCover(title, author);
           const { data, error } = await supabase
             .from("books")
             .insert({
