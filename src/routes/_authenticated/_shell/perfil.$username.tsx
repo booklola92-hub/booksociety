@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Award, BookOpen, Bookmark, Check, Crown, Heart, MessageCircle, MoonStar,
@@ -230,28 +230,29 @@ function PublicProfilePage() {
       <PageTitle title="Perfil" subtitle="Um cantinho para compartilhar sua história e suas leituras." />
 
       <section className="relative overflow-hidden rounded-[1.6rem] border border-primary/15 bg-card shadow-sm">
-        <div className="relative min-h-[190px] overflow-hidden bg-gradient-to-r from-[#4c1b19] via-[#7a3026] to-[#2e1715] px-5 py-7 text-white sm:min-h-[220px] sm:px-8">
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "repeating-linear-gradient(90deg, transparent 0 38px, rgba(255,220,170,.18) 39px 42px), linear-gradient(0deg, rgba(25,10,8,.7), transparent)" }} />
+        <div className="relative min-h-[210px] overflow-hidden bg-gradient-to-r from-[#ffe0dc] via-[#fff0e9] to-[#f8c9c2] px-5 py-7 text-[#74172f] sm:min-h-[245px] sm:px-8">
+          <div className="absolute inset-0 opacity-50" style={{ backgroundImage: "radial-gradient(circle at 82% 20%, rgba(161,24,57,.16), transparent 22%), repeating-linear-gradient(90deg, transparent 0 46px, rgba(142,45,56,.07) 47px 49px), linear-gradient(0deg, rgba(255,255,255,.28), transparent)" }} />
+          <div className="pointer-events-none absolute -right-8 -top-12 text-[170px] leading-none text-[#a21c43]/10" aria-hidden="true">❀</div>
           <div className="relative flex h-full flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative shrink-0 self-start rounded-full border-4 border-[#fff3e8] shadow-lg">
+            <div className="relative shrink-0 self-start rounded-full border-4 border-[#fffaf5] shadow-[0_8px_28px_rgba(116,23,47,.22)]">
               <UserAvatar profile={person} className="h-32 w-32 border-0 sm:h-40 sm:w-40" />
               {me?.id === person.id ? <EditAvatarButton className="absolute bottom-1 right-1" /> : null}
             </div>
             <div className="min-w-0 flex-1 self-center">
-              <h1 className="font-display text-3xl font-semibold text-white sm:text-4xl">{person.display_name || person.username}</h1>
-              <p className="mt-1 text-sm text-white/85">@{person.username}</p>
-              <p className="mt-4 font-display text-lg italic text-[#ffe5c4]">“Sonhe, leia, compartilhe...” ♡</p>
+              <h1 className="font-display text-3xl font-semibold text-[#74172f] sm:text-4xl">{person.display_name || person.username}</h1>
+              <p className="mt-1 text-sm font-medium text-[#8c2943]">@{person.username}</p>
+              <p className="mt-4 font-display text-lg italic text-[#7c2940]">“Sonhe, leia, compartilhe...” ♡</p>
             </div>
             <div className="flex flex-wrap gap-2 self-end sm:max-w-[310px] sm:justify-end">
               {!isOwnProfile ? <>
-                <Button variant="outline" className="rounded-full border-white/70 bg-black/20 text-white hover:bg-white/15 hover:text-white" disabled={busy !== null || friendship.isLoading || friendship.isError} onClick={handleFriendAction}>
+                <Button variant="outline" className="rounded-full border-[#a52b4d]/45 bg-white/65 text-[#74172f] hover:bg-white hover:text-[#74172f]" disabled={busy !== null || friendship.isLoading || friendship.isError} onClick={handleFriendAction}>
                   {friendState === "friends" ? <><UserCheck className="mr-2 h-4 w-4" /> Amigos</> : friendState === "incoming" ? <><Check className="mr-2 h-4 w-4" /> Aceitar Amizade</> : friendState === "outgoing" ? <><UserX className="mr-2 h-4 w-4" /> Pedido enviado</> : <><UserPlus className="mr-2 h-4 w-4" /> Adicionar Amizade</>}
                 </Button>
-                <Button className="rounded-full border border-white/70 bg-[#8d1d2d] text-white hover:bg-[#741625]" disabled={busy !== null || followStats.isLoading} onClick={toggleFollow}>
+                <Button className="rounded-full border border-[#8d1d2d] bg-[#8d1d2d] text-white hover:bg-[#741625]" disabled={busy !== null || followStats.isLoading} onClick={toggleFollow}>
                   {followStats.data?.iFollow ? <Check className="mr-2 h-4 w-4" /> : <Star className="mr-2 h-4 w-4" />}
                   {followStats.data?.iFollow ? "Seguindo" : "Seguir"}
                 </Button>
-              </> : <span className="rounded-full border border-white/60 bg-black/20 px-4 py-2 text-sm text-white">Este é o seu perfil</span>}
+              </> : <span className="rounded-full border border-[#a52b4d]/30 bg-white/55 px-4 py-2 text-sm text-[#74172f]">Este é o seu perfil</span>}
             </div>
           </div>
         </div>
@@ -278,21 +279,44 @@ function PublicProfilePage() {
         </section>
       </div>
 
-      <section className="rounded-[1.4rem] border border-primary/15 bg-card p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-primary"><Award className="h-5 w-5" /> Medalhas | Conquistas</h2>
-          <span className="text-xs font-medium text-primary">Ver todas →</span>
-        </div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {achievementsQuery.isLoading ? <p className="col-span-full py-5 text-center text-sm text-muted-foreground">Carregando conquistas...</p> : badges.length ? badges.map((badge) => (
-            <div key={badge.id} className="flex min-w-0 flex-col items-center border-r border-primary/10 px-1 text-center last:border-0">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#d9a85d] bg-gradient-to-br from-[#fff0d7] to-[#e7c18b] shadow-inner sm:h-20 sm:w-20">
-                <Award className="h-8 w-8 text-amber-700" />
-              </div>
-              <p className="mt-2 text-xs font-semibold leading-tight text-foreground">{badge.title}</p>
-              <p className="mt-1 hidden text-[10px] leading-tight text-muted-foreground sm:block">{badge.description}</p>
+      <section className="overflow-hidden rounded-[1.5rem] border border-[#eebdb8] bg-gradient-to-br from-[#fff8f3] via-[#fff0eb] to-[#ffe3df] p-4 shadow-[0_8px_24px_rgba(128,32,55,.07)] sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#ffe5ae] to-[#c87929] text-white shadow-inner sm:h-20 sm:w-20">
+              <Award className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.5} />
             </div>
-          )) : <p className="col-span-full py-5 text-center text-sm text-muted-foreground">As conquistas desbloqueadas aparecerão aqui.</p>}
+            <div>
+              <h2 className="font-display text-2xl font-semibold text-[#74172f] sm:text-3xl">Minhas Conquistas</h2>
+              <p className="mt-1 text-sm text-[#8c5360]">Cada medalha conta um capítulo da sua jornada.</p>
+            </div>
+          </div>
+          <span className="rounded-full border border-[#f3b7b6] bg-[#ffd8d6] px-4 py-2 text-sm font-semibold text-[#8b1737]">
+            <Star className="mr-1 inline h-4 w-4 fill-current" /> {badges.length} {badges.length === 1 ? "conquista" : "conquistas"}
+          </span>
+        </div>
+        <div className="my-5 flex items-center gap-3 text-[#b72a51]">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#e68a91] to-[#b72a51]" />
+          <Heart className="h-5 w-5 fill-current" />
+          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#e68a91] to-[#b72a51]" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          {achievementsQuery.isLoading ? <p className="col-span-full py-5 text-center text-sm text-muted-foreground">Carregando medalhas...</p> : badges.length ? badges.slice(0, 5).map((badge, index) => (
+            <div key={badge.id} className="flex min-w-0 flex-col items-center rounded-2xl border border-[#f1cbc3] bg-white/55 px-2 py-4 text-center">
+              <div className={`relative flex h-[76px] w-[76px] items-center justify-center rounded-full border-[3px] border-[#d9a45e] bg-gradient-to-br ${["from-[#ffe5a8] to-[#c66b25]","from-[#f4e9e5] to-[#76615d]","from-[#fff0a8] to-[#d68a2d]","from-[#ffc4d2] to-[#b52657]","from-[#b6d8ff] to-[#245da6]"][index % 5]} shadow-[inset_0_2px_8px_rgba(255,255,255,.7),0_4px_10px_rgba(111,35,49,.12)] sm:h-[92px] sm:w-[92px]`}>
+                <span className="absolute -top-2 text-lg text-[#9b2542]">✦</span>
+                <Award className="h-9 w-9 text-white drop-shadow sm:h-11 sm:w-11" strokeWidth={1.7} />
+                <span className="absolute -bottom-2 text-lg text-[#9b2542]">✦</span>
+              </div>
+              <p className="mt-3 line-clamp-2 text-sm font-semibold leading-tight text-[#501d2b]">{badge.title}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-[#8c5360]">{badge.description}</p>
+              <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#b52b50]"><span aria-hidden="true">▣</span> {new Date(badge.unlocked_at).toLocaleDateString("pt-BR")}</p>
+            </div>
+          )) : <p className="col-span-full py-6 text-center text-sm text-[#8c5360]">As medalhas conquistadas aparecerão aqui conforme você completar suas metas de leitura.</p>}
+        </div>
+        <div className="mt-5 flex justify-center">
+          <Link to="/desafios" className="inline-flex items-center gap-2 rounded-full border border-[#a51d40] px-6 py-2.5 text-sm font-semibold text-[#8b1737] transition-colors hover:bg-[#8b1737] hover:text-white">
+            Ver todas as conquistas <span aria-hidden="true">›</span>
+          </Link>
         </div>
       </section>
 
