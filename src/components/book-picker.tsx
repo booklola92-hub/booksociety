@@ -213,7 +213,7 @@ export function BookPicker({
                   }}
                   className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent"
                 >
-                  <BookCover book={b} className="w-10" />
+                  <BookCover book={b} className="w-10" interactive={false} />
                   <div className="min-w-0">
                     <p className="truncate font-medium">{b.title}</p>
                     <p className="truncate text-sm text-muted-foreground">{b.author}</p>
