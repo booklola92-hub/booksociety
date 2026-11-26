@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, BookOpen, Bookmark, CheckCircle2, Download, FileUp, Heart, Library, Plus, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BookPicker } from "@/components/book-picker";
@@ -313,6 +313,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
 }
 function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const autoCoverStarted = useRef(false);
   const [busy, setBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
   const invalidate = useInvalidate();
@@ -535,6 +536,12 @@ function GoodreadsTransfer() {
     }
   }
 
+  useEffect(() => {
+    if (!me?.id || autoCoverStarted.current) return;
+    autoCoverStarted.current = true;
+    void findMissingCovers();
+  }, [me?.id]);
+
   async function exportGoodreads() {
     setBusy(true);
     try {
@@ -597,16 +604,6 @@ function GoodreadsTransfer() {
           <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
         </div>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        disabled={coverBusy || busy}
-        onClick={() => void findMissingCovers()}
-      >
-        <Search className="h-4 w-4" />
-        {coverBusy ? "Buscando capas..." : "Buscar capas"}
-      </Button>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 font-semibold"><Upload className="h-4 w-4 text-primary" /> Importar do Goodreads</div>
