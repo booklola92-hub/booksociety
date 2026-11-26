@@ -507,12 +507,15 @@ function GoodreadsTransfer() {
       }
 
       let found = 0;
-      let removed = 0;
+      let saved = 0;
+      let blocked = 0;
+      let failed = 0;
+      let notFound = 0;
       let processed = 0;
       let cursor = 0;
       const concurrency = 4;
 
-      toast.info(`Verificando as capas de ${books.length} livros. Cada capa encontrada será salva imediatamente.`);
+      toast.info(\`Verificando as capas de \${books.length} livros. Cada capa encontrada será salva imediatamente.\`);
 
       const worker = async () => {
         while (true) {
@@ -532,32 +535,74 @@ function GoodreadsTransfer() {
             if (currentCoverWorks) continue;
 
             const replacementCover = await findPublicCover(book.title, book.author ?? "", "", "");
-            const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(currentCover);
-            const replacementIsInternetArchive = /^https?:\/\/(?:www\.)?archive\.org\//i.test(replacementCover ?? "");
-            const canReplace = Boolean(replacementCover) && (!oldCoverIsOpenLibrary || replacementIsInternetArchive);
+            if (!replacementCover) {
+              notFound += 1;
+              continue;
+            }
 
-            // Nunca apaga o livro: só troca uma capa quebrada ou limpa seu endereço inválido.
-            const nextCover = canReplace ? replacementCover : (currentCover || null);
-            if (currentCover !== nextCover) {
+            found += 1;
+            toast.info(\`Capa encontrada para “\${book.title}”. Tentando salvar na Biblioteca…\`);
+
+            const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(currentCover);
+            const replacementIsInternetArchive = /^https?:\/\/(?:www\.)?archive\.org\//i.test(replacementCover);
+            const canReplace = !oldCoverIsOpenLibrary || replacementIsInternetArchive;
+
+            if (!canReplace) {
+              failed += 1;
+              toast.warning(\`A capa de “\${book.title}” foi encontrada, mas não foi salva porque a regra de segurança só permite substituir essa capa antiga por uma imagem do Internet Archive.\`);
+              continue;
+            }
+
+            try {
               const { data: updated, error } = await supabase
                 .from("books")
-                .update({ cover_url: nextCover })
+                .update({ cover_url: replacementCover })
                 .eq("id", book.id)
                 .select("id")
                 .maybeSingle();
-              if (error) throw error;
+
+              if (error) {
+                const databaseBlocked = error.code === "42501" ||
+                  /permission denied|row.level security|rls|policy|not allowed/i.test(
+                    [error.message, error.details, error.hint].filter(Boolean).join(" "),
+                  );
+                if (databaseBlocked) {
+                  blocked += 1;
+                  toast.error(\`A capa de “\${book.title}” foi encontrada, mas o banco bloqueou a gravação por falta de permissão (RLS/policy).\`);
+                } else {
+                  failed += 1;
+                  toast.error(\`A capa de “\${book.title}” foi encontrada, mas ocorreu um erro ao salvar: \${error.message}\`);
+                }
+                console.error(\`Erro do banco ao salvar a capa de "\${book.title}":\`, error);
+                continue;
+              }
 
               if (!updated?.id) {
-                throw new Error(`A capa de “${book.title}” foi encontrada, mas o banco não confirmou a gravação. Verifique a conexão e as permissões da Biblioteca.`);
+                blocked += 1;
+                toast.error(\`A capa de “\${book.title}” foi encontrada, mas o banco não autorizou/confirmou a gravação. Verifique a política de acesso (RLS) da tabela books.\`);
+                continue;
               }
-              found += 1;
-              toast.success(`Capa de “${book.title}” salva na Biblioteca!`);
-              // Atualiza a Biblioteca imediatamente após cada gravação, sem esperar os demais livros.
-              await invalidate("shelf");
-              await invalidate("books");
+
+              saved += 1;
+              toast.success(\`Capa de “\${book.title}” salva na Biblioteca!\`);
+
+              // Atualiza a Biblioteca imediatamente após cada gravação confirmada.
+              try {
+                await invalidate("shelf");
+                await invalidate("books");
+              } catch (refreshError) {
+                console.warn("A capa foi salva, mas a Biblioteca não conseguiu atualizar a tela imediatamente:", refreshError);
+                toast.warning(\`A capa de “\${book.title}” foi salva no banco. Atualize a página para vê-la.\`);
+              }
+            } catch (saveError) {
+              failed += 1;
+              console.error(\`Falha inesperada ao gravar a capa de "\${book.title}":\`, saveError);
+              toast.error(\`A capa de “\${book.title}” foi encontrada, mas não foi possível concluir a gravação.\`);
             }
           } catch (searchError) {
-            console.warn(`Falha ao buscar capa de "${book.title}":`, searchError);
+            failed += 1;
+            console.error(\`Falha ao buscar/processar a capa de "\${book.title}":\`, searchError);
+            toast.error(\`Não foi possível verificar a capa de “\${book.title}”. Veja o console para detalhes.\`);
           } finally {
             processed += 1;
           }
@@ -568,11 +613,9 @@ function GoodreadsTransfer() {
       await invalidate("shelf");
       await invalidate("books");
 
-      if (found === 0 && removed === 0) {
-        toast.warning(`Busca concluída. Nenhuma capa nova foi encontrada entre os ${processed} livros verificados; todos continuam na Biblioteca.`);
-      } else {
-        toast.success(`Busca concluída: ${found} capas recuperadas e ${removed} endereços quebrados removidos. Nenhum livro foi excluído.`);
-      }
+      toast.success(
+        \`Busca concluída: \${found} capas encontradas, \${saved} salvas, \${blocked} bloqueadas pelo banco, \${failed} com erro e \${notFound} sem capa localizada. Nenhum livro foi excluído.\`,
+      );
     } catch (error) {
       console.error("Erro na busca automática de capas:", error);
       toast.error(error instanceof Error ? `Não foi possível carregar as capas: ${error.message}` : "Não foi possível pesquisar as capas.");
