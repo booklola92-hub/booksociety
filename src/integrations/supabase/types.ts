@@ -33,7 +33,6 @@ export type Database = {
           created_by?: string | null
           description?: string
           genre?: string
-          genre?: string
           id?: string
           pages?: number | null
           title: string
@@ -44,6 +43,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string
+          genre?: string
           id?: string
           pages?: number | null
           title?: string
