@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { BookCover } from "@/components/book-cover";
+import { findPublicCover, inspectPublicCover, inspectStoredCover } from "@/lib/book-covers";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,127 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { uploadMedia } from "@/lib/media";
 import { getMyId, useInvalidate, type Book } from "@/lib/social";
 
-async function findBookCover(title: string, author: string): Promise<string | null> {
-  const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ").trim();
-  const wantedTitle = normalize(title);
-  const wantedAuthor = normalize(author);
-  const titleMatches = (candidate: string) => {
-    const normalized = normalize(candidate);
-    return Boolean(normalized && wantedTitle) && (normalized === wantedTitle || normalized.includes(wantedTitle) || wantedTitle.includes(normalized));
-  };
-  const authorMatches = (authors: string[]) => {
-    if (!wantedAuthor || !authors.length) return true;
-    return authors.some((name) => {
-      const candidate = normalize(name);
-      return candidate === wantedAuthor || candidate.includes(wantedAuthor) || wantedAuthor.includes(candidate);
-    });
-  };
-
-  // Internet Archive primeiro: consulta registros públicos e usa a miniatura oficial.
-  try {
-    const query = author
-      ? `title:("${title.replace(/["\\\\]/g, " ")}") AND creator:("${author.replace(/["\\\\]/g, " ")}") AND mediatype:texts`
-      : `title:("${title.replace(/["\\\\]/g, " ")}") AND mediatype:texts`;
-    const response = await fetch("https://archive.org/advancedsearch.php?q=" + encodeURIComponent(query) +
-      "&fl[]=identifier,title,creator&rows=20&page=1&output=json", { signal: AbortSignal.timeout(5000) });
-    if (response.ok) {
-      const payload = await response.json();
-      const docs = payload.response?.docs ?? [];
-      const match = docs.find((doc: any) =>
-        titleMatches(String(doc.title ?? "")) &&
-        authorMatches(Array.isArray(doc.creator) ? doc.creator.map(String) : [String(doc.creator ?? "")]));
-      if (match?.identifier) {
-        const cover = "https://archive.org/services/img/" + encodeURIComponent(String(match.identifier));
-        const image = new Image();
-        const loaded = await new Promise<boolean>((resolve) => {
-          image.onload = () => resolve(image.naturalWidth > 0);
-          image.onerror = () => resolve(false);
-          image.src = cover;
-          setTimeout(() => resolve(false), 3000);
-        });
-        if (loaded) return cover;
-      }
-    }
-  } catch { /* tenta a próxima fonte */ }
-
-  // AniList para mangás, manhwas, novels e títulos BL.
-  try {
-    const response = await fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        query: `query ($search: String) {
-          Page(page: 1, perPage: 20) {
-            media(search: $search, type: MANGA) {
-              title { romaji english native }
-              coverImage { extraLarge large }
-              staff(perPage: 10) { edges { role node { name { full } } } }
-            }
-          }
-        }`,
-        variables: { search: title },
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (response.ok) {
-      const payload = await response.json();
-      const items = payload.data?.Page?.media ?? [];
-      const match = items.find((item: any) =>
-        [item.title?.romaji, item.title?.english, item.title?.native].some((name: string) => name && titleMatches(name)) &&
-        authorMatches((item.staff?.edges ?? [])
-          .filter((edge: any) => /story|art|original creator|author/i.test(String(edge.role ?? "")))
-          .map((edge: any) => String(edge.node?.name?.full ?? ""))));
-      const image = match?.coverImage?.extraLarge ?? match?.coverImage?.large;
-      if (image) return String(image);
-    }
-  } catch { /* tenta Google Books */ }
-
-  // Google Books para livros tradicionais.
-  try {
-    const terms = [title.trim(), author.trim()].filter(Boolean).join(" ");
-    const params = new URLSearchParams({ q: terms, maxResults: "20", printType: "books" });
-    const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString(), {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) throw new Error("Google Books indisponível");
-    const payload = await response.json();
-    const match = (payload.items ?? []).find((volume: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { extraLarge?: string; large?: string; thumbnail?: string; smallThumbnail?: string } } }) => {
-      const info = volume.volumeInfo ?? {};
-      return titleMatches(info.title ?? "") && authorMatches(info.authors ?? []);
-    });
-    const imageLinks = match?.volumeInfo?.imageLinks;
-    const image = imageLinks?.extraLarge ?? imageLinks?.large ?? imageLinks?.thumbnail ?? imageLinks?.smallThumbnail;
-    if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
-  } catch { /* tenta Open Library */ }
-
-  // Open Library como último catálogo público para livros sem capa no Google Books.
-  try {
-    const searches = [
-      "title=" + encodeURIComponent(title.trim()) + (author.trim() ? "&author=" + encodeURIComponent(author.trim()) : ""),
-      "title=" + encodeURIComponent(title.trim()),
-    ];
-    for (const search of [...new Set(searches)]) {
-      const response = await fetch(
-        "https://openlibrary.org/search.json?" + search + "&limit=30&fields=title,author_name,cover_i",
-        { signal: AbortSignal.timeout(5000) },
-      );
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const docs = Array.isArray(payload.docs) ? payload.docs : [];
-      const match = docs.find((doc: any) =>
-        titleMatches(String(doc.title ?? "")) &&
-        authorMatches(Array.isArray(doc.author_name) ? doc.author_name.map(String) : []),
-      );
-      if (match?.cover_i) {
-        return "https://covers.openlibrary.org/b/id/" + encodeURIComponent(String(match.cover_i)) + "-L.jpg";
-      }
-    }
-  } catch { /* sem capa disponível nos catálogos públicos */ }
-
-  return null;
-}
 
 export function useBookSearch(q: string, limit = 20) {
   const clean = q.replace(/[%,()*]/g, " ").trim();
@@ -164,6 +44,7 @@ export function BookPicker({
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const { data: books = [], isLoading } = useBookSearch(q);
+  const invalidate = useInvalidate();
 
   return (
     <Dialog
@@ -208,7 +89,36 @@ export function BookPicker({
                   key={b.id}
                   type="button"
                   onClick={async () => {
-                    await onSelect(b);
+                    let selectedBook = b;
+                    try {
+                      const currentCover = b.cover_url?.trim() ?? "";
+                      const isPrivatePath = Boolean(currentCover) && !/^https?:\/\//i.test(currentCover);
+                      const coverStatus = currentCover
+                        ? (isPrivatePath ? await inspectStoredCover(currentCover) : await inspectPublicCover(currentCover))
+                        : "broken";
+
+                      if (coverStatus === "broken") {
+                        const replacementCover = await findPublicCover(b.title, b.author ?? "", "", "");
+                        if (replacementCover) {
+                          const { data, error } = await supabase
+                            .from("books")
+                            .update({ cover_url: replacementCover })
+                            .eq("id", b.id)
+                            .select("*")
+                            .maybeSingle();
+                          if (!error && data) {
+                            selectedBook = data as Book;
+                            await invalidate("books");
+                            toast.success(`Capa de “${b.title}” adicionada!`);
+                          } else {
+                            console.warn(`A capa de "${b.title}" foi encontrada, mas a gravação não foi confirmada.`, error);
+                          }
+                        }
+                      }
+                    } catch (coverError) {
+                      console.warn(`Não foi possível recuperar a capa de "${b.title}".`, coverError);
+                    }
+                    await onSelect(selectedBook);
                     onOpenChange(false);
                   }}
                   className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent"
@@ -268,7 +178,7 @@ function NewBookForm({
           const me = await getMyId();
           const coverPath = cover
             ? await uploadMedia(me, cover, "covers")
-            : await findBookCover(title, author);
+            : await findPublicCover(title, author, "", "");
           const { data, error } = await supabase
             .from("books")
             .insert({
