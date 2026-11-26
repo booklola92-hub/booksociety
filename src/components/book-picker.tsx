@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape -- validação defensiva de respostas JSON externas e sanitização CSV. */
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { useState } from "react";
@@ -14,26 +15,98 @@ import { uploadMedia } from "@/lib/media";
 import { getMyId, useInvalidate, type Book } from "@/lib/social";
 
 async function findBookCover(title: string, author: string): Promise<string | null> {
+  const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ").trim();
+  const wantedTitle = normalize(title);
+  const wantedAuthor = normalize(author);
+  const titleMatches = (candidate: string) => {
+    const normalized = normalize(candidate);
+    return Boolean(normalized && wantedTitle) && (normalized === wantedTitle || normalized.includes(wantedTitle) || wantedTitle.includes(normalized));
+  };
+  const authorMatches = (authors: string[]) => {
+    if (!wantedAuthor || !authors.length) return true;
+    return authors.some((name) => {
+      const candidate = normalize(name);
+      return candidate === wantedAuthor || candidate.includes(wantedAuthor) || wantedAuthor.includes(candidate);
+    });
+  };
+
+  // Internet Archive primeiro: consulta registros públicos e usa a miniatura oficial.
+  try {
+    const query = author
+      ? `title:("${title.replace(/["\\\\]/g, " ")}") AND creator:("${author.replace(/["\\\\]/g, " ")}") AND mediatype:texts`
+      : `title:("${title.replace(/["\\\\]/g, " ")}") AND mediatype:texts`;
+    const response = await fetch("https://archive.org/advancedsearch.php?q=" + encodeURIComponent(query) +
+      "&fl[]=identifier,title,creator&rows=20&page=1&output=json", { signal: AbortSignal.timeout(5000) });
+    if (response.ok) {
+      const payload = await response.json();
+      const docs = payload.response?.docs ?? [];
+      const match = docs.find((doc: any) =>
+        titleMatches(String(doc.title ?? "")) &&
+        authorMatches(Array.isArray(doc.creator) ? doc.creator.map(String) : [String(doc.creator ?? "")]));
+      if (match?.identifier) {
+        const cover = "https://archive.org/services/img/" + encodeURIComponent(String(match.identifier));
+        const image = new Image();
+        const loaded = await new Promise<boolean>((resolve) => {
+          image.onload = () => resolve(image.naturalWidth > 0);
+          image.onerror = () => resolve(false);
+          image.src = cover;
+          setTimeout(() => resolve(false), 3000);
+        });
+        if (loaded) return cover;
+      }
+    }
+  } catch { /* tenta a próxima fonte */ }
+
+  // AniList para mangás, manhwas, novels e títulos BL.
+  try {
+    const response = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        query: `query ($search: String) {
+          Page(page: 1, perPage: 20) {
+            media(search: $search, type: MANGA) {
+              title { romaji english native }
+              coverImage { extraLarge large }
+              staff(perPage: 10) { edges { role node { name { full } } } }
+            }
+          }
+        }`,
+        variables: { search: title },
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (response.ok) {
+      const payload = await response.json();
+      const items = payload.data?.Page?.media ?? [];
+      const match = items.find((item: any) =>
+        [item.title?.romaji, item.title?.english, item.title?.native].some((name: string) => name && titleMatches(name)) &&
+        authorMatches((item.staff?.edges ?? [])
+          .filter((edge: any) => /story|art|original creator|author/i.test(String(edge.role ?? "")))
+          .map((edge: any) => String(edge.node?.name?.full ?? ""))));
+      const image = match?.coverImage?.extraLarge ?? match?.coverImage?.large;
+      if (image) return String(image);
+    }
+  } catch { /* tenta Google Books */ }
+
+  // Google Books para livros tradicionais.
   try {
     const terms = [title.trim(), author.trim()].filter(Boolean).join(" ");
-    const params = new URLSearchParams({ q: terms, maxResults: "8", printType: "books" });
+    const params = new URLSearchParams({ q: terms, maxResults: "20", printType: "books" });
     const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString(), {
       signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) return null;
     const payload = await response.json();
-    const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\\s+/g, " ").trim();
-    const wantedTitle = normalize(title);
-    const wantedAuthor = normalize(author);
-    const match = (payload.items ?? []).find((volume: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { thumbnail?: string; smallThumbnail?: string } } }) => {
+    const match = (payload.items ?? []).find((volume: { volumeInfo?: { title?: string; authors?: string[]; imageLinks?: { extraLarge?: string; large?: string; thumbnail?: string; smallThumbnail?: string } } }) => {
       const info = volume.volumeInfo ?? {};
-      const candidateTitle = normalize(info.title ?? "");
-      const candidateAuthors = normalize((info.authors ?? []).join(" "));
-      return candidateTitle === wantedTitle &&
-        (!wantedAuthor || !candidateAuthors || candidateAuthors.includes(wantedAuthor) || wantedAuthor.includes(candidateAuthors));
+      return titleMatches(info.title ?? "") && authorMatches(info.authors ?? []);
     });
-    const image = match?.volumeInfo?.imageLinks?.thumbnail ?? match?.volumeInfo?.imageLinks?.smallThumbnail;
-    return image ? image.replace("http://", "https://").replace("&edge=curl", "") : null;
+    const imageLinks = match?.volumeInfo?.imageLinks;
+    const image = imageLinks?.extraLarge ?? imageLinks?.large ?? imageLinks?.thumbnail ?? imageLinks?.smallThumbnail;
+    return image ? String(image).replace("http://", "https://").replace("&edge=curl", "") : null;
   } catch {
     return null;
   }
