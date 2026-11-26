@@ -870,11 +870,11 @@ function MyLibrary() {
 
       <ReadingSummary shelf={shelf} />
 
-      <BookPicker open={picking} onOpenChange={setPicking} title="Adicionar livro à biblioteca" onSelect={async (book) => {
+      <BookPicker open={picking} onOpenChange={setPicking} title="Adicionar livro à biblioteca" onSelect={async (book, details) => {
         try {
-          await addToShelf(book.id, "want");
+          if (!details) await addToShelf(book.id, "want");
           await invalidate("shelf");
-          toast.success(`“${book.title}” foi adicionado em Quero ler.`);
+          toast.success(details ? `“${book.title}” foi salvo na sua biblioteca.` : `“${book.title}” foi adicionado em Quero ler.`);
         } catch (error) {
           toast.error(error instanceof Error ? error.message : "Não foi possível adicionar o livro.");
         }
