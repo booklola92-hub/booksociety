@@ -230,29 +230,29 @@ function PublicProfilePage() {
       <PageTitle title="Perfil" subtitle="Um cantinho para compartilhar sua história e suas leituras." />
 
       <section className="relative overflow-hidden rounded-[1.6rem] border border-primary/15 bg-card shadow-sm">
-        <div className="relative min-h-[210px] overflow-hidden bg-gradient-to-r from-[#ffe0dc] via-[#fff0e9] to-[#f8c9c2] px-5 py-7 text-[#74172f] sm:min-h-[245px] sm:px-8">
-          <div className="absolute inset-0 opacity-50" style={{ backgroundImage: "radial-gradient(circle at 82% 20%, rgba(161,24,57,.16), transparent 22%), repeating-linear-gradient(90deg, transparent 0 46px, rgba(142,45,56,.07) 47px 49px), linear-gradient(0deg, rgba(255,255,255,.28), transparent)" }} />
-          <div className="pointer-events-none absolute -right-8 -top-12 text-[170px] leading-none text-[#a21c43]/10" aria-hidden="true">❀</div>
+        <div className="relative min-h-[210px] overflow-hidden bg-gradient-to-r from-secondary via-background to-muted px-5 py-7 text-foreground sm:min-h-[245px] sm:px-8">
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "radial-gradient(circle at 82% 20%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 24%), linear-gradient(0deg, color-mix(in oklch, var(--primary) 5%, transparent), transparent)" }} />
+          <div className="pointer-events-none absolute -right-8 -top-12 text-[170px] leading-none text-primary/10" aria-hidden="true">✦</div>
           <div className="relative flex h-full flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative shrink-0 self-start rounded-full border-4 border-[#fffaf5] shadow-[0_8px_28px_rgba(116,23,47,.22)]">
+            <div className="relative shrink-0 self-start rounded-full border-4 border-background shadow-[0_8px_28px_rgba(70,30,25,.18)]">
               <UserAvatar profile={person} className="h-32 w-32 border-0 sm:h-40 sm:w-40" />
               {me?.id === person.id ? <EditAvatarButton className="absolute bottom-1 right-1" /> : null}
             </div>
             <div className="min-w-0 flex-1 self-center">
-              <h1 className="font-display text-3xl font-semibold text-[#74172f] sm:text-4xl">{person.display_name || person.username}</h1>
-              <p className="mt-1 text-sm font-medium text-[#8c2943]">@{person.username}</p>
-              <p className="mt-4 font-display text-lg italic text-[#7c2940]">“Sonhe, leia, compartilhe...” ♡</p>
+              <h1 className="font-display text-3xl font-semibold text-primary sm:text-4xl">{person.display_name || person.username}</h1>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">@{person.username}</p>
+              <p className="mt-4 font-display text-lg italic text-primary">“Sonhe, leia, compartilhe...” ♡</p>
             </div>
             <div className="flex flex-wrap gap-2 self-end sm:max-w-[310px] sm:justify-end">
               {!isOwnProfile ? <>
-                <Button variant="outline" className="rounded-full border-[#a52b4d]/45 bg-white/65 text-[#74172f] hover:bg-white hover:text-[#74172f]" disabled={busy !== null || friendship.isLoading || friendship.isError} onClick={handleFriendAction}>
+                <Button variant="outline" className="rounded-full border-border bg-card/80 text-foreground hover:bg-accent hover:text-accent-foreground" disabled={busy !== null || friendship.isLoading || friendship.isError} onClick={handleFriendAction}>
                   {friendState === "friends" ? <><UserCheck className="mr-2 h-4 w-4" /> Amigos</> : friendState === "incoming" ? <><Check className="mr-2 h-4 w-4" /> Aceitar Amizade</> : friendState === "outgoing" ? <><UserX className="mr-2 h-4 w-4" /> Pedido enviado</> : <><UserPlus className="mr-2 h-4 w-4" /> Adicionar Amizade</>}
                 </Button>
-                <Button className="rounded-full border border-[#8d1d2d] bg-[#8d1d2d] text-white hover:bg-[#741625]" disabled={busy !== null || followStats.isLoading} onClick={toggleFollow}>
+                <Button className="rounded-full border-primary bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy !== null || followStats.isLoading} onClick={toggleFollow}>
                   {followStats.data?.iFollow ? <Check className="mr-2 h-4 w-4" /> : <Star className="mr-2 h-4 w-4" />}
                   {followStats.data?.iFollow ? "Seguindo" : "Seguir"}
                 </Button>
-              </> : <span className="rounded-full border border-[#a52b4d]/30 bg-white/55 px-4 py-2 text-sm text-[#74172f]">Este é o seu perfil</span>}
+              </> : <span className="rounded-full border border-border bg-card/80 px-4 py-2 text-sm text-foreground">Este é o seu perfil</span>}
             </div>
           </div>
         </div>
