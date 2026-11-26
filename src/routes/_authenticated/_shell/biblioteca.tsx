@@ -870,13 +870,28 @@ function MyLibrary() {
 
       <ReadingSummary shelf={shelf} />
 
-      <BookPicker open={picking} onOpenChange={setPicking} title="Adicionar livro à biblioteca" onSelect={async (book) => {
+      <BookPicker open={picking} onOpenChange={setPicking} title="Adicionar livro à biblioteca" onSelect={async (book, details) => {
         try {
-          await addToShelf(book.id, "want");
+          if (details) {
+            const me = await getMyId();
+            const { error } = await supabase.from("shelf_items").upsert({
+              user_id: me,
+              book_id: book.id,
+              status: details.status,
+              rating: details.rating,
+              started_at: details.started_at,
+              finished_at: details.finished_at,
+              review: details.review,
+            }, { onConflict: "user_id,book_id" });
+            if (error) throw error;
+          } else {
+            await addToShelf(book.id, "want");
+          }
           await invalidate("shelf");
-          toast.success(`“${book.title}” foi adicionado em Quero ler.`);
+          toast.success(`“${book.title}” foi adicionado à sua biblioteca.`);
         } catch (error) {
           toast.error(error instanceof Error ? error.message : "Não foi possível adicionar o livro.");
+          throw error;
         }
       }} />
     </div>
