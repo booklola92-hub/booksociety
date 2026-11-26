@@ -24,6 +24,7 @@ export interface CatalogItem {
   is_bl: boolean;
   alt_titles: string[];
   language?: string | null;
+  genres?: string[];
 }
 
 export function catalogKindLabel(kind: string): string {

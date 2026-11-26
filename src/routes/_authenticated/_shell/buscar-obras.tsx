@@ -45,7 +45,13 @@ async function searchInternalCatalog(q: string, category: CatalogCategory, limit
     _offset: offset,
   });
   if (error) throw error;
-  return (data ?? []) as CatalogItem[];
+  return (data ?? []).map((row) => {
+    const item = row as CatalogItem & { genre?: string | null; genres?: string[] };
+    const genres = Array.isArray(item.genres)
+      ? item.genres
+      : String(item.genre ?? "").split(/[,;|]/).map((value) => value.trim()).filter(Boolean);
+    return { ...item, genres };
+  });
 }
 
 async function searchExternalCatalog(q: string, category: CatalogCategory): Promise<CatalogItem[]> {
@@ -64,7 +70,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
             id: "google-" + volume.id, origin: "external", title: info.title,
             authors: Array.isArray(info.authors) ? info.authors : [],
             cover_url: info.imageLinks?.thumbnail?.replace("http://", "https://") ?? null,
-            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [],
+            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [], genres: Array.isArray(info.categories) ? info.categories : [],
             language: ({ pt: "Português", en: "Inglês", es: "Espanhol", ko: "Coreano" } as Record<string, string>)[info.language] ?? info.language ?? null,
           });
         }
@@ -93,7 +99,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
             authors: (media.staff?.edges ?? []).filter((edge: { role: string }) => /story|art/i.test(edge.role)).slice(0, 3).map((edge: { node: { name: { full: string } } }) => edge.node.name.full),
             cover_url: media.coverImage?.large ?? media.coverImage?.medium ?? null,
             synopsis: media.description?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 1000) ?? null,
-            kind, is_bl: isBl, alt_titles: (media.synonyms ?? []).slice(0, 5),
+            kind, is_bl: isBl, alt_titles: (media.synonyms ?? []).slice(0, 5), genres: names,
             language: country === "KR" ? "Coreano" : country === "JP" ? "Japonês" : country === "CN" ? "Chinês" : null,
           });
         }
@@ -123,6 +129,8 @@ function BuscarObras() {
   const [query, setQuery] = useState("");
   const [searched, setSearched] = useState("");
   const [category, setCategory] = useState<CatalogCategory>("todos");
+  const [includeGenres, setIncludeGenres] = useState("");
+  const [excludeGenres, setExcludeGenres] = useState("");
 
   const results = useInfiniteQuery({
     queryKey: ["catalog-search", searched, category],
@@ -143,7 +151,16 @@ function BuscarObras() {
     return true;
   });
 
-  const noMatches = Boolean(searched) && results.isSuccess && items.length === 0;
+  const parseGenres = (value: string) => value.split(/[,;\n]/).map((genre) => genre.trim().toLocaleLowerCase("pt-BR")).filter(Boolean);
+  const included = parseGenres(includeGenres);
+  const excluded = parseGenres(excludeGenres);
+  const filteredItems = items.filter((item) => {
+    const genres = (item.genres ?? []).map((genre) => genre.toLocaleLowerCase("pt-BR"));
+    const hasIncluded = included.length === 0 || included.some((wanted) => genres.some((genre) => genre.includes(wanted)));
+    const hasExcluded = excluded.some((blocked) => genres.some((genre) => genre.includes(blocked)));
+    return hasIncluded && !hasExcluded;
+  });
+  const noMatches = Boolean(searched) && results.isSuccess && filteredItems.length === 0;
   // When nothing matches, check whether the category itself has any record yet.
   const categoryProbe = useQuery({
     queryKey: ["catalog-search", "category-has-items", category],
@@ -205,6 +222,16 @@ function BuscarObras() {
             );
           })}
         </div>
+        <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
+          <label className="space-y-1.5 text-sm font-medium">Incluir gêneros
+            <Input value={includeGenres} onChange={(event) => setIncludeGenres(event.target.value)} placeholder="Ex.: Romance, Fantasia" aria-label="Gêneros para incluir" />
+            <span className="block text-xs font-normal text-muted-foreground">Separe os gêneros por vírgula. Mostra obras com pelo menos um deles.</span>
+          </label>
+          <label className="space-y-1.5 text-sm font-medium">Excluir gêneros
+            <Input value={excludeGenres} onChange={(event) => setExcludeGenres(event.target.value)} placeholder="Ex.: Terror, Tragédia" aria-label="Gêneros para excluir" />
+            <span className="block text-xs font-normal text-muted-foreground">Obras com qualquer um desses gêneros serão ocultadas.</span>
+          </label>
+        </div>
       </form>
 
       {searched && (
@@ -235,7 +262,7 @@ function BuscarObras() {
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center text-sm text-muted-foreground">
               Não foi possível consultar o catálogo agora. Tente novamente.
             </div>
-          ) : items.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
               <p className="font-medium text-foreground">Nenhum livro encontrado. Tente outra pesquisa.</p>
               {categoryProbe.data === false && (
@@ -251,7 +278,7 @@ function BuscarObras() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <CatalogCard key={`${item.origin}-${item.id}`} item={item} onAdded={() => queryClient.invalidateQueries({ queryKey: ["shelf"] })} />
               ))}
             </div>
