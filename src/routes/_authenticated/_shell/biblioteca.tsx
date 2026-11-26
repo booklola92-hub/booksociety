@@ -152,7 +152,7 @@ async function canLoadStoredCover(path: string): Promise<boolean> {
   }
 }
 
-async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
+async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string, archiveOnly = false): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
   const cleanTitle = (value: string) => value
@@ -273,7 +273,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
 
-  // AniList: alternativa pública para mangás, manhwas e novels (inclui BL).
+  // Quando solicitado, não usa outros catálogos: Internet Archive tem prioridade absoluta.\n  if (archiveOnly) return null;\n\n  // AniList: alternativa pública para mangás, manhwas e novels (inclui BL).
   // Usa a capa publicada no catálogo; não baixa nem re-hospeda o arquivo.
   try {
     for (const variant of titleVariants) {
@@ -528,16 +528,32 @@ function GoodreadsTransfer() {
               ? (isPrivateStoragePath ? await canLoadStoredCover(currentCover) : await canLoadPublicCover(currentCover))
               : false;
 
-            // Mantém intactas todas as capas que carregam normalmente.
+            // Prioridade absoluta ao Internet Archive: procura uma edição correspondente
+            // mesmo quando já existe uma capa válida de outro catálogo.
+            const archiveCover = await findPublicCover(book.title, book.author ?? "", "", "", true);
+            if (archiveCover && archiveCover !== currentCover) {
+              const { data: updated, error } = await supabase
+                .from("books")
+                .update({ cover_url: archiveCover })
+                .eq("id", book.id)
+                .select("id")
+                .maybeSingle();
+              if (error) throw error;
+              if (updated?.id) {
+                found += 1;
+                toast.success(`Capa do Internet Archive salva para “${book.title}”!`);
+                await invalidate("shelf");
+                await invalidate("books");
+              }
+              continue;
+            }
+
+            // Se o Archive não tiver uma capa correspondente, preserva a atual se estiver funcionando.
             if (currentCoverWorks) continue;
 
+            // Só usa os demais catálogos como alternativa quando o Archive não oferece capa.
             const replacementCover = await findPublicCover(book.title, book.author ?? "", "", "");
-            const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(currentCover);
-            const replacementIsInternetArchive = /^https?:\/\/(?:www\.)?archive\.org\//i.test(replacementCover ?? "");
-            const canReplace = Boolean(replacementCover) && (!oldCoverIsOpenLibrary || replacementIsInternetArchive);
-
-            // Nunca apaga o livro: só troca uma capa quebrada ou limpa seu endereço inválido.
-            const nextCover = canReplace ? replacementCover : null;
+            const nextCover = replacementCover;
             if (currentCover !== nextCover) {
               const { data: updated, error } = await supabase
                 .from("books")
