@@ -16,6 +16,7 @@ export async function inspectPublicCover(url: string): Promise<CoverStatus> {
   return new Promise((resolve) => {
     const image = new Image();
     let settled = false;
+    let timeout: number;
     const finish = (status: CoverStatus) => {
       if (settled) return;
       settled = true;
@@ -24,7 +25,7 @@ export async function inspectPublicCover(url: string): Promise<CoverStatus> {
       image.onerror = null;
       resolve(status);
     };
-    const timeout = window.setTimeout(() => {
+    timeout = window.setTimeout(() => {
       image.src = "";
       finish("unknown");
     }, 1500);
