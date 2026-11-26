@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape -- validação defensiva de respostas JSON externas e sanitização CSV. */
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, BookOpen, Bookmark, CheckCircle2, Download, FileUp, Heart, Library, Plus, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BookPicker } from "@/components/book-picker";
@@ -408,6 +408,8 @@ function GoodreadsTransfer() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
+  const coverScanLock = useRef(false);
+  const coverScanRunner = useRef<() => Promise<void>>(async () => {});
   const invalidate = useInvalidate();
   const { data: me } = useMe();
 
@@ -514,7 +516,8 @@ function GoodreadsTransfer() {
 
 
   async function findMissingCovers() {
-    if (coverBusy) return;
+    if (coverScanLock.current) return;
+    coverScanLock.current = true;
     setCoverBusy(true);
     try {
       const userId = await getMyId();
@@ -605,9 +608,39 @@ function GoodreadsTransfer() {
       console.error("Não foi possível concluir a busca de capas:", error);
       toast.info("A busca de capas foi interrompida. Seus livros e capas existentes foram preservados; tente novamente mais tarde.");
     } finally {
+      coverScanLock.current = false;
       setCoverBusy(false);
     }
   }
+
+  // Mantém a busca de capas ativa enquanto a Biblioteca estiver aberta.
+  // Uma nova rodada começa 60 segundos após a anterior terminar; nunca há duas simultâneas.
+  coverScanRunner.current = findMissingCovers;
+  useEffect(() => {
+    if (!me?.id) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const scheduleNext = () => {
+      if (cancelled) return;
+      timer = window.setTimeout(async () => {
+        if (cancelled) return;
+        if (document.visibilityState === "visible") {
+          await coverScanRunner.current();
+        }
+        scheduleNext();
+      }, 60_000);
+    };
+    timer = window.setTimeout(async () => {
+      if (!cancelled && document.visibilityState === "visible") {
+        await coverScanRunner.current();
+      }
+      scheduleNext();
+    }, 1_500);
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [me?.id]);
 
   async function exportGoodreads() {
     setBusy(true);
