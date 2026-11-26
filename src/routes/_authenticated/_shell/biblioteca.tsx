@@ -721,7 +721,15 @@ function GoodreadsTransfer() {
           </Select>
           <Button disabled={goodreadsSearchBusy || busy} onClick={() => void searchPublicGoodreads()}>{goodreadsSearchBusy ? "Buscando..." : "Buscar estante"}</Button>
         </div>
-        <p className="text-xs leading-relaxed text-muted-foreground">Informe seu nome de usuário do Goodreads, não seu e-mail nem sua senha. Você encontra esse usuário no endereço do seu perfil: copie apenas a parte depois de <span className="font-medium">/user/show/</span> (por exemplo: <span className="font-medium">50993735-emma-watson</span>). A estante precisa estar pública.</p>
+        <div className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+          <p>Informe seu nome de usuário do Goodreads, não seu e-mail nem sua senha. Você encontra esse usuário no endereço do seu perfil: copie apenas a parte depois de <span className="font-medium">/user/show/</span> (por exemplo: <span className="font-medium">50993735-emma-watson</span>). A estante precisa estar pública.</p>
+          <p className="font-medium text-foreground">Como importar seus livros:</p>
+          <ol className="list-inside list-decimal space-y-1">
+            <li>Clique em <span className="font-medium text-foreground">Buscar estante</span>.</li>
+            <li>Selecione os livros que deseja importar.</li>
+            <li>Clique em <span className="font-medium text-foreground">Importar livros selecionados</span>.</li>
+          </ol>
+        </div>
         {goodreadsBooks.length > 0 ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
