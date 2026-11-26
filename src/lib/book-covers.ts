@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape */
 import { fetchPrivateObject } from "@/lib/media";
 
