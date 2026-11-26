@@ -503,7 +503,6 @@ function GoodreadsTransfer() {
                   .from("books")
                   .update({ cover_url: cover })
                   .eq("id", book.id)
-                  .or('cover_url.is.null,cover_url.eq.""')
                   .select("id")
                   .maybeSingle();
                 if (updateError) throw updateError;
