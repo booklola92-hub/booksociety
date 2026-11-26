@@ -29,6 +29,9 @@ type PublicProfile = {
   avatar_url: string | null;
   bio: string | null;
   banner_url: string | null;
+  banner_pos_x?: number;
+  banner_pos_y?: number;
+  banner_zoom?: number;
 };
 
 type ShelfBook = {
@@ -64,7 +67,7 @@ function PublicProfilePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, bio, banner_url")
+        .select("id, username, display_name, avatar_url, bio, banner_url, banner_pos_x, banner_pos_y, banner_zoom")
         .eq("username", username)
         .single();
       if (error) throw error;
@@ -240,7 +243,7 @@ function PublicProfilePage() {
       <PageTitle title="Perfil" subtitle="Um cantinho para compartilhar sua história e suas leituras." />
 
       <section className="relative overflow-hidden rounded-[1.6rem] border border-primary/15 bg-card shadow-sm">
-        <div className="relative min-h-[210px] overflow-hidden bg-gradient-to-r from-secondary via-background to-muted bg-cover bg-center px-5 py-7 text-foreground sm:min-h-[245px] sm:px-8" style={bannerImage ? { backgroundImage: `linear-gradient(rgba(255,248,237,.58), rgba(255,248,237,.72)), url("${bannerImage}")` } : undefined}>
+        <div className="relative min-h-[210px] overflow-hidden bg-gradient-to-r from-secondary via-background to-muted bg-cover bg-center px-5 py-7 text-foreground sm:min-h-[245px] sm:px-8" style={bannerImage ? { backgroundImage: `linear-gradient(rgba(255,248,237,.58), rgba(255,248,237,.72)), url("${bannerImage}")`, backgroundSize: `cover, ${person.banner_zoom ?? 100}%`, backgroundPosition: `center, ${person.banner_pos_x ?? 50}% ${person.banner_pos_y ?? 50}%` } : undefined}>
           <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "radial-gradient(circle at 82% 20%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 24%), linear-gradient(0deg, color-mix(in oklch, var(--primary) 5%, transparent), transparent)" }} />
           <div className="pointer-events-none absolute -right-8 -top-12 text-[170px] leading-none text-primary/10" aria-hidden="true">✦</div>
           <div className="relative flex h-full flex-col gap-4 sm:flex-row sm:items-center">
