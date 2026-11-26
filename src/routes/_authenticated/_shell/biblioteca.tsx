@@ -127,7 +127,9 @@ function parseDate(value: string): string | null {
 
 
 
-const COVER_CHECK_TIMEOUT_MS = 1500;
+// Catálogos externos (especialmente Open Library) podem responder lentamente.
+// Um timeout curto classificava capas válidas como desconhecidas e impedia a recuperação.
+const COVER_CHECK_TIMEOUT_MS = 10000;
 
 type CoverCheck = "valid" | "broken" | "unknown";
 
