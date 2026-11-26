@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-control-regex, no-useless-escape */
 import { fetchPrivateObject } from "@/lib/media";
 
+async function fetchCoverSource(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, { ...init, signal: AbortSignal.timeout(5000) });
+}
+
 function normalize(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -104,7 +108,7 @@ export async function findPublicCover(title: string, author: string, isbn10: str
         });
     for (const query of [...new Set(queries)]) {
       const url = "https://archive.org/advancedsearch.php?q=" + encodeURIComponent(query) + "&fl[]=identifier,title,creator&rows=50&page=1&output=json";
-      const response = await fetch(url);
+      const response = await fetchCoverSource(url);
       if (!response.ok) continue;
       const payload = await response.json();
       const docs = payload.response?.docs ?? [];
@@ -114,7 +118,7 @@ export async function findPublicCover(title: string, author: string, isbn10: str
 
       const identifier = String(match.identifier);
       try {
-        const metadataResponse = await fetch("https://archive.org/metadata/" + encodeURIComponent(identifier));
+        const metadataResponse = await fetchCoverSource("https://archive.org/metadata/" + encodeURIComponent(identifier));
         if (metadataResponse.ok) {
           const metadata = await metadataResponse.json();
           const files = Array.isArray(metadata.files) ? metadata.files : [];
@@ -157,7 +161,7 @@ export async function findPublicCover(title: string, author: string, isbn10: str
   // Usa a capa publicada no catálogo; não baixa nem re-hospeda o arquivo.
   try {
     for (const variant of titleVariants) {
-      const response = await fetch("https://graphql.anilist.co", {
+      const response = await fetchCoverSource("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
@@ -196,7 +200,7 @@ export async function findPublicCover(title: string, author: string, isbn10: str
           '"' + variant + '"',
         ]);
     for (const query of [...new Set(queries)]) {
-      const response = await fetch("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=40&orderBy=relevance");
+      const response = await fetchCoverSource("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent(query) + "&maxResults=40&orderBy=relevance");
       if (!response.ok) continue;
       const payload = await response.json();
       const items = Array.isArray(payload.items) ? payload.items : [];
@@ -222,7 +226,7 @@ export async function findPublicCover(title: string, author: string, isbn10: str
           "title=" + encodeURIComponent(variant),
         ]);
     for (const search of [...new Set(searches)]) {
-      const response = await fetch("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
+      const response = await fetchCoverSource("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
       if (!response.ok) continue;
       const payload = await response.json();
       const docs = Array.isArray(payload.docs) ? payload.docs : [];
