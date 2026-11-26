@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, Loader2, Plus, Search } from "lucide-react";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/_shell/buscar-obras")({
   component: BuscarObras,
 });
 
-async function searchCatalog(q: string, category: CatalogCategory, limit: number, offset: number) {
+async function searchInternalCatalog(q: string, category: CatalogCategory, limit: number, offset: number) {
   const { data, error } = await supabase.rpc("search_catalog", {
     _q: q,
     _qn: "",
@@ -45,6 +46,76 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
   });
   if (error) throw error;
   return (data ?? []) as CatalogItem[];
+}
+
+async function searchExternalCatalog(q: string, category: CatalogCategory): Promise<CatalogItem[]> {
+  if (!q.trim()) return [];
+  const results: CatalogItem[] = [];
+  if (["todos", "livros"].includes(category)) {
+    try {
+      const params = new URLSearchParams({ q, maxResults: "20", printType: "books" });
+      const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
+      if (response.ok) {
+        const payload = await response.json();
+        for (const volume of payload.items ?? []) {
+          const info = volume.volumeInfo ?? {};
+          if (!info.title) continue;
+          results.push({
+            id: "google-" + volume.id, origin: "external", title: info.title,
+            authors: Array.isArray(info.authors) ? info.authors : [],
+            cover_url: info.imageLinks?.thumbnail?.replace("http://", "https://") ?? null,
+            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [],
+            language: ({ pt: "Português", en: "Inglês", es: "Espanhol", ko: "Coreano" } as Record<string, string>)[info.language] ?? info.language ?? null,
+          });
+        }
+      }
+    } catch (error) { console.warn("Google Books indisponível:", error); }
+  }
+  if (["todos", "novels", "mangas", "manhwas", "bl"].includes(category)) {
+    try {
+      const query = "query ($search: String) { Page(page: 1, perPage: 25) { media(search: $search, type: MANGA, sort: SEARCH_MATCH) { id format countryOfOrigin description title { romaji english native } synonyms coverImage { large medium } staff { edges { role node { name { full } } } } genres tags { name } } } }";
+      const response = await fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify({ query, variables: { search: q } }) });
+      if (response.ok) {
+        const payload = await response.json();
+        for (const media of payload.data?.Page?.media ?? []) {
+          const country = String(media.countryOfOrigin ?? "");
+          const kind = media.format === "NOVEL" ? "novel" : country === "KR" ? "manhwa" : country === "CN" ? "manhua" : "manga";
+          const names = [...(media.genres ?? []), ...(media.tags ?? []).map((tag: { name: string }) => tag.name)];
+          const isBl = names.some((name: string) => /boys.? love|yaoi|bl\b/i.test(name));
+          if (category === "novels" && kind !== "novel") continue;
+          if (category === "mangas" && kind !== "manga") continue;
+          if (category === "manhwas" && kind !== "manhwa") continue;
+          if (category === "bl" && !isBl) continue;
+          const title = media.title?.english || media.title?.romaji || media.title?.native;
+          if (!title) continue;
+          results.push({
+            id: "anilist-" + media.id, origin: "external", title,
+            authors: (media.staff?.edges ?? []).filter((edge: { role: string }) => /story|art/i.test(edge.role)).slice(0, 3).map((edge: { node: { name: { full: string } } }) => edge.node.name.full),
+            cover_url: media.coverImage?.large ?? media.coverImage?.medium ?? null,
+            synopsis: media.description?.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 1000) ?? null,
+            kind, is_bl: isBl, alt_titles: (media.synonyms ?? []).slice(0, 5),
+            language: country === "KR" ? "Coreano" : country === "JP" ? "Japonês" : country === "CN" ? "Chinês" : null,
+          });
+        }
+      }
+    } catch (error) { console.warn("AniList indisponível:", error); }
+  }
+  return results;
+}
+
+async function searchCatalog(q: string, category: CatalogCategory, limit: number, offset: number) {
+  const [internal, external] = await Promise.all([
+    searchInternalCatalog(q, category, offset === 0 ? Math.min(limit, 12) : limit, offset),
+    offset === 0 ? searchExternalCatalog(q, category) : Promise.resolve([]),
+  ]);
+  const seen = new Set(internal.map((item) => item.title.toLowerCase()));
+  const unique = external.filter((item) => {
+    const key = item.title.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return [...internal, ...unique].slice(offset, offset + limit);
 }
 
 function BuscarObras() {
@@ -169,12 +240,12 @@ function BuscarObras() {
               <p className="font-medium text-foreground">Nenhum livro encontrado. Tente outra pesquisa.</p>
               {categoryProbe.data === false && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A categoria {categoryLabel} ainda não tem obras cadastradas no catálogo do Book Society.
+                  Não encontramos resultados nessa categoria agora. Tente outro título ou autor.
                 </p>
               )}
               {categoryProbe.data === true && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A busca mostra apenas obras já cadastradas no catálogo do Book Society.
+                  A busca também consulta catálogos de livros e mangás automaticamente. Tente variar os termos da pesquisa.
                 </p>
               )}
             </div>
@@ -224,6 +295,7 @@ async function ensureBookId(item: CatalogItem): Promise<string> {
     author,
     description: item.synopsis ?? "",
     cover_url: item.cover_url,
+    created_by: (await supabase.auth.getUser()).data.user?.id,
   }).select("id").single();
   if (error) throw error;
   return data.id;
@@ -262,6 +334,7 @@ function CatalogCard({ item, onAdded }: { item: CatalogItem; onAdded: () => void
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
           <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{catalogKindLabel(item.kind)}</span>
           {item.is_bl && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">BL</span>}
+          {"language" in item && item.language && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{item.language}</span>}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select aria-label={`Status de ${item.title}`} value={status} onChange={(event) => setStatus(event.target.value as ShelfStatus)} disabled={busy || added}

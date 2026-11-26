@@ -15,7 +15,7 @@ export const CATALOG_PAGE_SIZE = 24;
 
 export interface CatalogItem {
   id: string;
-  origin: "book" | "work";
+  origin: "book" | "work" | "external";
   title: string;
   authors: string[];
   cover_url: string | null;
@@ -23,6 +23,7 @@ export interface CatalogItem {
   kind: string;
   is_bl: boolean;
   alt_titles: string[];
+  language?: string | null;
 }
 
 export function catalogKindLabel(kind: string): string {
