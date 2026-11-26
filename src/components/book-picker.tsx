@@ -311,11 +311,11 @@ function NewBookForm({
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="nb-start">Início</Label>
+          <Label htmlFor="nb-start">Data de início</Label>
           <Input id="nb-start" type="date" value={startedAt} onChange={(e) => setStartedAt(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="nb-finish">Conclusão</Label>
+          <Label htmlFor="nb-finish">Data de conclusão</Label>
           <Input id="nb-finish" type="date" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)} />
         </div>
       </div>
