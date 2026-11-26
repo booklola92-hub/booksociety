@@ -31,7 +31,7 @@ export function BookCover({ book, className, interactive = true }: { book: BookI
   }
 
   return <>
-    {interactive ? <button type="button" onClick={() => void showDetails()} aria-label={`Ver detalhes de ${book.title}`} className="shrink-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{image}</button> : image}
+    {interactive ? <button type="button" onClick={() => void showDetails()} aria-label={`Ver detalhes de ${book.title}`} className={cn("block shrink-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>{image}</button> : image}
     {interactive ? <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle className="font-display text-2xl text-primary">{details.title}</DialogTitle></DialogHeader>
