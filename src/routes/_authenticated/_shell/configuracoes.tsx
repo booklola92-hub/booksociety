@@ -26,6 +26,9 @@ function SettingsPage() {
   const [readingGoal, setReadingGoal] = useState("12");
   const [isPrivate, setIsPrivate] = useState(false);
   const [bannerSaving, setBannerSaving] = useState(false);
+  const [bannerX, setBannerX] = useState(50);
+  const [bannerY, setBannerY] = useState(50);
+  const [bannerZoom, setBannerZoom] = useState(100);
   const bannerInput = useRef<HTMLInputElement>(null);
   const bannerPreview = useMediaUrl((me as any)?.banner_url);
 
@@ -37,6 +40,9 @@ function SettingsPage() {
     setBirthDate(me.birth_date ?? "");
     setReadingGoal(String(me.reading_goal ?? 12));
     setIsPrivate(Boolean(me.is_private));
+    setBannerX(Number((me as any).banner_pos_x ?? 50));
+    setBannerY(Number((me as any).banner_pos_y ?? 50));
+    setBannerZoom(Number((me as any).banner_zoom ?? 100));
   }, [me]);
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -85,6 +91,19 @@ function SettingsPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o banner.");
     } finally { setBannerSaving(false); if (bannerInput.current) bannerInput.current.value = ""; }
+  }
+
+  async function saveBannerAdjustment() {
+    try {
+      const id = await getMyId();
+      const { error } = await (supabase as any).from("profiles").update({ banner_pos_x: bannerX, banner_pos_y: bannerY, banner_zoom: bannerZoom }).eq("id", id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      await queryClient.invalidateQueries({ queryKey: ["public-profile"] });
+      toast.success("Enquadramento do banner salvo!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível ajustar o banner.");
+    }
   }
 
   async function toggleDiscoverable(next: boolean) {
@@ -146,13 +165,19 @@ function SettingsPage() {
         <div className="space-y-2">
           <label className="text-sm font-medium">Banner do perfil</label>
           <div className="overflow-hidden rounded-2xl border border-border bg-muted">
-            <div className="h-36 w-full bg-cover bg-center sm:h-44" style={bannerPreview ? { backgroundImage: `url("${bannerPreview}")` } : undefined}>
+            <div className="h-36 w-full bg-no-repeat sm:h-44" style={bannerPreview ? { backgroundImage: `url("${bannerPreview}")`, backgroundSize: `${bannerZoom}%`, backgroundPosition: `${bannerX}% ${bannerY}%` } : undefined}>
               {!bannerPreview ? <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Nenhum banner escolhido</div> : null}
             </div>
             <div className="p-3">
               <input ref={bannerInput} type="file" accept="image/*" className="hidden" onChange={(e) => void uploadBanner(e.target.files?.[0])} />
               <Button type="button" variant="outline" disabled={bannerSaving} onClick={() => bannerInput.current?.click()}>{bannerSaving ? "Enviando..." : "Escolher banner"}</Button>
-              <p className="mt-2 text-xs text-muted-foreground">Escolha uma imagem de até 10 MB. Ela aparecerá no topo do seu perfil.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Escolha uma imagem de até 10 MB. Ajuste o enquadramento abaixo para escolher a parte que aparece no perfil.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <label className="text-xs font-medium">Zoom: {bannerZoom}%<input aria-label="Zoom do banner" type="range" min="100" max="200" step="5" value={bannerZoom} onChange={(e) => setBannerZoom(Number(e.target.value))} className="mt-2 w-full accent-primary" /></label>
+                <label className="text-xs font-medium">Posição horizontal: {bannerX}%<input aria-label="Posição horizontal do banner" type="range" min="0" max="100" value={bannerX} onChange={(e) => setBannerX(Number(e.target.value))} className="mt-2 w-full accent-primary" /></label>
+                <label className="text-xs font-medium">Posição vertical: {bannerY}%<input aria-label="Posição vertical do banner" type="range" min="0" max="100" value={bannerY} onChange={(e) => setBannerY(Number(e.target.value))} className="mt-2 w-full accent-primary" /></label>
+              </div>
+              <Button type="button" className="mt-3" onClick={() => void saveBannerAdjustment()}>Salvar ajuste do banner</Button>
             </div>
           </div>
         </div>
