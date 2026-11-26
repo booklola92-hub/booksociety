@@ -126,6 +126,20 @@ function parseDate(value: string): string | null {
 
 
 
+async function canLoadPublicCover(url: string): Promise<boolean> {
+  if (!/^https?:\/\//i.test(url)) return true;
+  return new Promise((resolve) => {
+    const image = new Image();
+    const timeout = window.setTimeout(() => {
+      image.src = "";
+      resolve(false);
+    }, 8000);
+    image.onload = () => { window.clearTimeout(timeout); resolve(image.naturalWidth > 0 && image.naturalHeight > 0); };
+    image.onerror = () => { window.clearTimeout(timeout); resolve(false); };
+    image.src = url;
+  });
+}
+
 async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
@@ -231,14 +245,18 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
             });
           const selected = imageFiles[0]?.name;
           if (selected) {
-            return "https://archive.org/download/" + encodeURIComponent(identifier) + "/" +
+            const coverUrl = "https://archive.org/download/" + encodeURIComponent(identifier) + "/" +
               String(selected).split("/").map(encodeURIComponent).join("/");
+            if (await canLoadPublicCover(coverUrl)) return coverUrl;
           }
         }
       } catch (metadataError) {
         console.warn("Não foi possível consultar os arquivos do Internet Archive:", metadataError);
       }
-      return "https://archive.org/services/img/" + encodeURIComponent(identifier);
+      const thumbnailUrl = "https://archive.org/services/img/" + encodeURIComponent(identifier);
+      if (await canLoadPublicCover(thumbnailUrl)) return thumbnailUrl;
+      // Uma miniatura indisponível no Archive não deve impedir a tentativa
+      // nos outros catálogos (Open Library e Google Books).
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
@@ -257,7 +275,10 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
       const docs = Array.isArray(payload.docs) ? payload.docs : [];
       const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
         Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
-      if (match?.cover_i) return "https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg";
+      if (match?.cover_i) {
+        const coverUrl = "https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg";
+        if (await canLoadPublicCover(coverUrl)) return coverUrl;
+      }
     }
   } catch (error) { console.warn("Open Library não respondeu:", error); }
 
@@ -281,7 +302,10 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
       }, (item: any) => Array.isArray(item.volumeInfo?.authors) ? item.volumeInfo.authors : []);
       const links = match?.volumeInfo?.imageLinks;
       const image = links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.smallThumbnail;
-      if (image) return String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
+      if (image) {
+        const coverUrl = String(image).replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
+        if (await canLoadPublicCover(coverUrl)) return coverUrl;
+      }
     }
   } catch (error) { console.warn("Google Books não respondeu:", error); }
 
@@ -438,7 +462,14 @@ function GoodreadsTransfer() {
         books.push(...(data ?? []));
       }
 
-      const missing = books.filter((book) => !book.cover_url?.trim());
+      // URLs externas antigas podem estar salvas no banco mesmo quando a imagem
+      // já foi removida. Testa o carregamento real antes de considerar a capa válida.
+      const missing = [];
+      for (const book of books) {
+        const cover = book.cover_url?.trim() ?? "";
+        const isPrivateStoragePath = Boolean(cover) && !/^https?:\/\//i.test(cover);
+        if (!cover || (!isPrivateStoragePath && !(await canLoadPublicCover(cover)))) missing.push(book);
+      }
       if (!missing.length) {
         await invalidate("shelf");
         toast.success("Todos os livros da sua Biblioteca já têm capa.");
