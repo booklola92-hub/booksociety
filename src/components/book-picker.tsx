@@ -15,8 +15,8 @@ import { getMyId, useInvalidate, type Book } from "@/lib/social";
 
 async function findBookCover(title: string, author: string): Promise<string | null> {
   const normalize = (value: string) => value.toLocaleLowerCase().normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\\s+/g, " ").trim();
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ").trim();
   const wantedTitle = normalize(title);
   const wantedAuthor = normalize(author);
   const titleMatches = (candidate: string) => {
@@ -105,7 +105,7 @@ async function findBookCover(title: string, author: string): Promise<string | nu
     });
     const imageLinks = match?.volumeInfo?.imageLinks;
     const image = imageLinks?.extraLarge ?? imageLinks?.large ?? imageLinks?.thumbnail ?? imageLinks?.smallThumbnail;
-    return image ? String(image).replace(/^http:\\/\\//i, "https://").replace("&edge=curl", "") : null;
+    return image ? String(image).replace("http://", "https://").replace("&edge=curl", "") : null;
   } catch {
     return null;
   }
