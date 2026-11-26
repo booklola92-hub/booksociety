@@ -515,7 +515,7 @@ function GoodreadsTransfer() {
       let cursor = 0;
       const concurrency = 4;
 
-      toast.info(\`Verificando as capas de \${books.length} livros. Cada capa encontrada será salva imediatamente.\`);
+      toast.info(`Verificando as capas de ${books.length} livros. Cada capa encontrada será salva imediatamente.`);
 
       const worker = async () => {
         while (true) {
@@ -541,7 +541,7 @@ function GoodreadsTransfer() {
             }
 
             found += 1;
-            toast.info(\`Capa encontrada para “\${book.title}”. Tentando salvar na Biblioteca…\`);
+            toast.info(`Capa encontrada para “${book.title}”. Tentando salvar na Biblioteca…`);
 
             const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(currentCover);
             const replacementIsInternetArchive = /^https?:\/\/(?:www\.)?archive\.org\//i.test(replacementCover);
@@ -549,7 +549,7 @@ function GoodreadsTransfer() {
 
             if (!canReplace) {
               failed += 1;
-              toast.warning(\`A capa de “\${book.title}” foi encontrada, mas não foi salva porque a regra de segurança só permite substituir essa capa antiga por uma imagem do Internet Archive.\`);
+              toast.warning(`A capa de “${book.title}” foi encontrada, mas não foi salva porque a regra de segurança só permite substituir essa capa antiga por uma imagem do Internet Archive.`);
               continue;
             }
 
@@ -568,23 +568,23 @@ function GoodreadsTransfer() {
                   );
                 if (databaseBlocked) {
                   blocked += 1;
-                  toast.error(\`A capa de “\${book.title}” foi encontrada, mas o banco bloqueou a gravação por falta de permissão (RLS/policy).\`);
+                  toast.error(`A capa de “${book.title}” foi encontrada, mas o banco bloqueou a gravação por falta de permissão (RLS/policy).`);
                 } else {
                   failed += 1;
-                  toast.error(\`A capa de “\${book.title}” foi encontrada, mas ocorreu um erro ao salvar: \${error.message}\`);
+                  toast.error(`A capa de “${book.title}” foi encontrada, mas ocorreu um erro ao salvar: ${error.message}`);
                 }
-                console.error(\`Erro do banco ao salvar a capa de "\${book.title}":\`, error);
+                console.error(`Erro do banco ao salvar a capa de "${book.title}":`, error);
                 continue;
               }
 
               if (!updated?.id) {
                 blocked += 1;
-                toast.error(\`A capa de “\${book.title}” foi encontrada, mas o banco não autorizou/confirmou a gravação. Verifique a política de acesso (RLS) da tabela books.\`);
+                toast.error(`A capa de “${book.title}” foi encontrada, mas o banco não autorizou/confirmou a gravação. Verifique a política de acesso (RLS) da tabela books.`);
                 continue;
               }
 
               saved += 1;
-              toast.success(\`Capa de “\${book.title}” salva na Biblioteca!\`);
+              toast.success(`Capa de “${book.title}” salva na Biblioteca!`);
 
               // Atualiza a Biblioteca imediatamente após cada gravação confirmada.
               try {
@@ -592,17 +592,17 @@ function GoodreadsTransfer() {
                 await invalidate("books");
               } catch (refreshError) {
                 console.warn("A capa foi salva, mas a Biblioteca não conseguiu atualizar a tela imediatamente:", refreshError);
-                toast.warning(\`A capa de “\${book.title}” foi salva no banco. Atualize a página para vê-la.\`);
+                toast.warning(`A capa de “${book.title}” foi salva no banco. Atualize a página para vê-la.`);
               }
             } catch (saveError) {
               failed += 1;
-              console.error(\`Falha inesperada ao gravar a capa de "\${book.title}":\`, saveError);
-              toast.error(\`A capa de “\${book.title}” foi encontrada, mas não foi possível concluir a gravação.\`);
+              console.error(`Falha inesperada ao gravar a capa de "${book.title}":`, saveError);
+              toast.error(`A capa de “${book.title}” foi encontrada, mas não foi possível concluir a gravação.`);
             }
           } catch (searchError) {
             failed += 1;
-            console.error(\`Falha ao buscar/processar a capa de "\${book.title}":\`, searchError);
-            toast.error(\`Não foi possível verificar a capa de “\${book.title}”. Veja o console para detalhes.\`);
+            console.error(`Falha ao buscar/processar a capa de "${book.title}":`, searchError);
+            toast.error(`Não foi possível verificar a capa de “${book.title}”. Veja o console para detalhes.`);
           } finally {
             processed += 1;
           }
@@ -614,7 +614,7 @@ function GoodreadsTransfer() {
       await invalidate("books");
 
       toast.success(
-        \`Busca concluída: \${found} capas encontradas, \${saved} salvas, \${blocked} bloqueadas pelo banco, \${failed} com erro e \${notFound} sem capa localizada. Nenhum livro foi excluído.\`,
+        `Busca concluída: ${found} capas encontradas, ${saved} salvas, ${blocked} bloqueadas pelo banco, ${failed} com erro e ${notFound} sem capa localizada. Nenhum livro foi excluído.`,
       );
     } catch (error) {
       console.error("Erro na busca automática de capas:", error);
