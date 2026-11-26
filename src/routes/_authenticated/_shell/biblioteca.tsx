@@ -267,8 +267,8 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
       }
       const thumbnailUrl = "https://archive.org/services/img/" + encodeURIComponent(identifier);
       if (await canLoadPublicCover(thumbnailUrl)) return thumbnailUrl;
-      // Uma miniatura indisponível no Archive não deve impedir a tentativa
-      // nos outros catálogos (Open Library e Google Books).
+      // Se o Internet Archive não tiver uma imagem válida, tenta o AniList
+      // e depois o Google Books. Open Library não é usado como fonte de capas.
     }
   } catch (error) { console.warn("Internet Archive não respondeu:", error); }
 
@@ -332,33 +332,6 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
       }
     }
   } catch (error) { console.warn("Google Books não respondeu:", error); }
-
-  // Open Library: pesquisa título + autor e repete sem autor/subtítulo.
-  try {
-    const searches = isbn
-      ? ["isbn=" + encodeURIComponent(isbn)]
-      : titleVariants.flatMap((variant) => [
-          "title=" + encodeURIComponent(variant) + (author ? "&author=" + encodeURIComponent(author) : ""),
-          "title=" + encodeURIComponent(variant),
-        ]);
-    for (const search of [...new Set(searches)]) {
-      const response = await fetch("https://openlibrary.org/search.json?" + search + "&limit=50&fields=title,author_name,cover_i,isbn,edition_key");
-      if (!response.ok) continue;
-      const payload = await response.json();
-      const docs = Array.isArray(payload.docs) ? payload.docs : [];
-      const match = pickBest(docs, (doc: any) => String(doc.title ?? ""), (doc: any) =>
-        Array.isArray(doc.author_name) ? doc.author_name.map(String) : []);
-      if (match?.cover_i) {
-        const coverUrl = "https://covers.openlibrary.org/b/id/" + match.cover_i + "-L.jpg";
-        if (await canLoadPublicCover(coverUrl)) return coverUrl;
-      }
-    }
-  } catch (error) { console.warn("Open Library não respondeu:", error); }
-
-
-
-
-
 
   return null;
 }
@@ -533,10 +506,6 @@ function GoodreadsTransfer() {
             if (!replacementCover) continue;
 
             found += 1;
-            const oldCoverIsOpenLibrary = /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(currentCover);
-            const replacementIsInternetArchive = /^https?:\/\/(?:www\.)?archive\.org\//i.test(replacementCover);
-            if (oldCoverIsOpenLibrary && !replacementIsInternetArchive) continue;
-
             // Salva cada capa assim que é encontrada, sem esperar a busca dos outros livros.
             const { data: updated, error } = await supabase
               .from("books")
@@ -575,8 +544,8 @@ function GoodreadsTransfer() {
         toast.info("A busca encontrou imagens, mas nenhuma gravação foi confirmada. Os livros continuam na Biblioteca.");
       }
     } catch (error) {
+      // Falhas gerais ficam registradas no console; não exibe alertas de erro na tela.
       console.error("Erro na busca automática de capas:", error);
-      toast.error(error instanceof Error ? `Não foi possível carregar as capas: ${error.message}` : "Não foi possível pesquisar as capas.");
     } finally {
       setCoverBusy(false);
     }
