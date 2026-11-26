@@ -288,7 +288,7 @@ function GoodreadsTransfer() {
 
           try {
             const currentCover = book.cover_url?.trim() ?? "";
-            const isPrivateStoragePath = Boolean(currentCover) && !/^https?:\\/\\//i.test(currentCover);
+            const isPrivateStoragePath = Boolean(currentCover) && !/^https?:\/\//i.test(currentCover);
             const currentCoverWorks = currentCover
               ? (isPrivateStoragePath ? await canLoadStoredCover(currentCover) : await canLoadPublicCover(currentCover))
               : false;
