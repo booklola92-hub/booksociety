@@ -183,9 +183,17 @@ function PublicProfilePage() {
   }
 
   async function handleFriendAction() {
-    if (!profileId || !friendship.data) return;
-    const state = friendship.data;
+    if (!profileId || isOwnProfile) return;
     setBusy("friend");
+    let state = friendship.data;
+    try {
+      if (!state) {
+        const refreshed = await friendship.refetch();
+        if (refreshed.error || !refreshed.data) {
+          throw refreshed.error ?? new Error("Não foi possível verificar a amizade. Tente novamente.");
+        }
+        state = refreshed.data;
+      }
     try {
       if (state.kind === "none") {
         const myId = await getMyId();
@@ -245,7 +253,7 @@ function PublicProfilePage() {
             </div>
             <div className="flex flex-wrap gap-2 self-end sm:max-w-[310px] sm:justify-end">
               {!isOwnProfile ? <>
-                <Button variant="outline" className="rounded-full border-border bg-card/80 text-foreground hover:bg-accent hover:text-accent-foreground" disabled={busy !== null || friendship.isLoading || friendship.isError} onClick={handleFriendAction}>
+                <Button variant="outline" className="rounded-full border-border bg-card/80 text-foreground hover:bg-accent hover:text-accent-foreground" disabled={busy !== null || friendship.isLoading} onClick={handleFriendAction}>
                   {friendState === "friends" ? <><UserCheck className="mr-2 h-4 w-4" /> Amigos</> : friendState === "incoming" ? <><Check className="mr-2 h-4 w-4" /> Aceitar Amizade</> : friendState === "outgoing" ? <><UserX className="mr-2 h-4 w-4" /> Pedido enviado</> : <><UserPlus className="mr-2 h-4 w-4" /> Adicionar Amizade</>}
                 </Button>
                 <Button className="rounded-full border-primary bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy !== null || followStats.isLoading} onClick={toggleFollow}>
