@@ -217,7 +217,20 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
       ratings_count: previous.ratings_count ?? item.ratings_count ?? null,
     });
   }
-  return [...merged.values()].slice(0, limit);
+  const allItems = [...merged.values()];
+  const internalItems = allItems.filter((item) => item.origin !== "external");
+  const externalItems = allItems.filter((item) => item.origin === "external");
+  const portuguese = externalItems.filter((item) => item.language === "Português");
+  const english = externalItems.filter((item) => item.language === "Inglês");
+  const other = externalItems.filter((item) => item.language !== "Português" && item.language !== "Inglês");
+  const balancedExternal: CatalogItem[] = [];
+  const max = Math.max(portuguese.length, english.length, other.length);
+  for (let index = 0; index < max; index++) {
+    if (portuguese[index]) balancedExternal.push(portuguese[index]);
+    if (english[index]) balancedExternal.push(english[index]);
+    if (other[index]) balancedExternal.push(other[index]);
+  }
+  return [...internalItems, ...balancedExternal].slice(0, limit);
 }
 
 function BuscarObras() {
