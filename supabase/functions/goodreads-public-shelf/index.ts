@@ -37,6 +37,8 @@ function parseItem(item: Element) {
   return {
     title: title.slice(0, 200),
     author: author.slice(0, 120),
+    isbn10: field(description, "ISBN").replace(/[^0-9Xx]/g, "").slice(0, 10),
+    isbn13: field(description, "ISBN13").replace(/[^0-9]/g, "").slice(0, 13),
     imageLink: /^https:\/\//i.test(imageLink) ? imageLink : "",
     bookLink: /^https:\/\/www\.goodreads\.com\//i.test(bookLink) ? bookLink : "",
     rating: parseRating(ratingText),
