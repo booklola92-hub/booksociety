@@ -76,6 +76,26 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
         }
       }
     } catch (error) { console.warn("Google Books indisponível:", error); }
+
+    // Busca complementar na web: os títulos encontrados são enriquecidos pela capa automática do BookCover.
+    try {
+      const { data, error } = await supabase.functions.invoke("google-web-search", {
+        body: { query: q, limit: 8 },
+      });
+      if (error) throw error;
+      for (const [index, result] of (data?.results ?? []).entries()) {
+        const title = String(result.title ?? "").trim();
+        if (!title) continue;
+        const normalizedTitle = title.replace(/\\s*[|–—-]\\s*.*$/, "").trim();
+        if (!normalizedTitle || results.some((item) => item.title.toLocaleLowerCase("pt-BR") === normalizedTitle.toLocaleLowerCase("pt-BR"))) continue;
+        results.push({
+          id: "web-" + index + "-" + normalizedTitle.toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-"),
+          origin: "external", title: normalizedTitle, authors: [],
+          cover_url: null, synopsis: String(result.description ?? "").slice(0, 1000) || null,
+          kind: "livro", is_bl: false, alt_titles: [], genres: [], language: null,
+        });
+      }
+    } catch (error) { console.warn("Busca complementar na web indisponível:", error); }
   }
   if (["todos", "novels", "mangas", "manhwas", "bl"].includes(category)) {
     try {
