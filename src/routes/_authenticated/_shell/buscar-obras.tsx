@@ -67,6 +67,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         const chunks = await Promise.all(Array.from({ length: 13 }, async (_, chunk) => {
           const params = new URLSearchParams({
             q,
+            ...(code === "pt" ? { country: "BR" } : {}),
             maxResults: "40",
             startIndex: String(Math.max(offset, 0) + chunk * 40),
             printType: "books",
@@ -94,6 +95,12 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
               rating: typeof info.averageRating === "number" ? info.averageRating : null,
               ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
               language: label,
+              publisher: info.publisher ?? null,
+              isbn: (info.industryIdentifiers ?? []).find((entry: any) => entry.type === "ISBN_13")?.identifier
+                ?? (info.industryIdentifiers ?? []).find((entry: any) => entry.type === "ISBN_10")?.identifier
+                ?? null,
+              published_date: info.publishedDate ?? null,
+              source_url: info.infoLink ?? null,
             }];
           });
         }));
@@ -117,7 +124,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
               q: q + " language:" + code,
               limit: "100",
               offset: String(Math.max(offset, 0) + chunk * 100),
-              fields: "key,title,author_name,cover_i,first_publish_year,edition_count,subject,isbn,language",
+              fields: "key,title,author_name,cover_i,first_publish_year,edition_count,subject,isbn,language,publisher,publish_date",
             });
             const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
             if (!response.ok) return [];
@@ -137,6 +144,10 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
                 alt_titles: [],
                 genres: Array.isArray(doc.subject) ? doc.subject.slice(0, 12) : [],
                 language: label,
+                publisher: Array.isArray(doc.publisher) ? doc.publisher[0] ?? null : null,
+                isbn: Array.isArray(doc.isbn) ? doc.isbn.find((value: string) => /^97[89]/.test(value)) ?? doc.isbn[0] ?? null : null,
+                published_date: Array.isArray(doc.publish_date) ? doc.publish_date[0] ?? null : doc.publish_date ?? null,
+                source_url: doc.key ? "https://openlibrary.org" + doc.key : null,
               }];
             });
           }));
@@ -569,6 +580,9 @@ function CatalogCard({ item, onAdded }: { item: CatalogItem; onAdded: () => void
           {item.authors.length ? item.authors.join(", ") : "Autor(a) não informado(a)"}
         </p>
         {item.alt_titles.length > 0 && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">Também conhecido como: {item.alt_titles.join(", ")}</p>}
+        {item.publisher && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">Editora: {item.publisher}</p>}
+        {item.isbn && <p className="mt-0.5 text-xs text-muted-foreground">ISBN: {item.isbn}</p>}
+        {item.published_date && <p className="mt-0.5 text-xs text-muted-foreground">Publicação: {item.published_date}</p>}
         {item.synopsis && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>}
         {typeof item.rating === "number" && <p className="mt-1 text-xs font-medium text-amber-700">★ {item.rating.toFixed(2)}{typeof item.ratings_count === "number" ? ` · ${item.ratings_count.toLocaleString("pt-BR")} avaliações` : ""}</p>}
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
