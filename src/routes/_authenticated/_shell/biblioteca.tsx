@@ -634,7 +634,7 @@ function GoodreadsTransfer() {
       let saved = 0;
       let cursor = 0;
       const concurrency = 4;
-      toast.info(`Verificando ${books.length} livros. Cada capa encontrada será salva imediatamente.`);
+      toast.info(`Verificando ${books.length} livros no Goodreads. Cada capa encontrada será salva imediatamente.`);
 
       const worker = async () => {
         while (true) {
@@ -652,8 +652,7 @@ function GoodreadsTransfer() {
             // para livros sem capa ou cuja imagem realmente retornou erro.
             if (currentState === "valid" || currentState === "unknown") continue;
 
-            // A função consulta Internet Archive + Google Books em paralelo,
-            // depois Open Library e, por último, AniList para mangás/manhwas.
+            // A função prioriza Goodreads via Piloterr e usa outros catálogos apenas como alternativa.
             const replacementCover = await findPublicCover(book.title, book.author ?? "", "", "");
             if (!replacementCover || replacementCover === currentCover) continue;
 
@@ -841,8 +840,8 @@ function GoodreadsTransfer() {
       <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="font-semibold">Capas dos seus livros</p>
-          <p className="text-sm text-muted-foreground">Busque capas para os livros que já estão na sua Biblioteca. Cada capa encontrada é salva automaticamente.</p>
-          {coverBusy ? <p className="text-xs text-primary" role="status" aria-live="polite">Buscando capas nos catálogos públicos…</p> : null}
+          <p className="text-sm text-muted-foreground">Busque primeiro as capas originais no Goodreads para os livros da sua Biblioteca. Cada capa encontrada é salva no Book Society.</p>
+          {coverBusy ? <p className="text-xs text-primary" role="status" aria-live="polite">Buscando capas no Goodreads…</p> : null}
         </div>
         <Button type="button" variant="outline" className="shrink-0" disabled={coverBusy || busy} onClick={() => void findMissingCovers()}>
           <Search className="h-4 w-4" /> {coverBusy ? "Buscando capas..." : "Buscar capas que faltam"}
@@ -851,7 +850,7 @@ function GoodreadsTransfer() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 font-semibold"><Upload className="h-4 w-4 text-primary" /> Importar do Goodreads</div>
-          <p className="text-sm leading-relaxed text-muted-foreground">Selecione o CSV do Goodreads e, junto com ele, as imagens originais das capas. Nomeie cada imagem com o Goodreads Book Id (por exemplo: 260068020.jpg). Os livros, avaliações e resenhas serão importados; capas fornecidas serão associadas pelo ID.</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">Selecione o CSV do Goodreads e, junto com ele, as imagens originais das capas. Nomeie cada imagem com o Goodreads Book Id (por exemplo: 260068020.jpg). Os livros, avaliações e resenhas serão importados. Depois, o Book Society procura as capas no Goodreads automaticamente.</p>
           <Button className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}><FileUp className="h-4 w-4" /> {busy ? "Processando..." : "Escolher arquivo CSV"}</Button>
           <input ref={fileRef} type="file" accept=".csv,text/csv,image/*" multiple className="hidden" onChange={(event) => { const files = event.target.files; if (files?.length) void importGoodreads(files); }} />
           <a className="text-sm text-primary underline underline-offset-4" href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer">Abrir exportação do Goodreads</a>
