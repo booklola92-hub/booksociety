@@ -764,7 +764,7 @@ function GoodreadsTransfer() {
         <div className="rounded-2xl bg-primary/10 p-3 text-primary"><Library className="h-6 w-6" /></div>
         <div>
           <h2 className="font-display text-2xl font-semibold">Importar e exportar</h2>
-          <p className="text-sm text-muted-foreground">Transfira sua lista de leitura usando o arquivo CSV do Goodreads.</p>
+          <p className="text-sm text-muted-foreground">Importe sua estante diretamente do Goodreads pelo nome de usuário, sem arquivo CSV.</p>
         </div>
       </div>
       <div className="space-y-4 rounded-2xl border border-primary/25 bg-primary/5 p-4">
@@ -834,19 +834,10 @@ function GoodreadsTransfer() {
           <Search className="h-4 w-4" /> {coverBusy ? "Buscando capas..." : "Buscar capas que faltam"}
         </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-3 rounded-2xl border border-border p-4">
-          <div className="flex items-center gap-2 font-semibold"><Upload className="h-4 w-4 text-primary" /> Importar do Goodreads</div>
-          <p className="text-sm leading-relaxed text-muted-foreground">Selecione apenas o arquivo CSV exportado do Goodreads. Os livros, avaliações e resenhas serão importados, e o Book Society buscará automaticamente as capas originais no Goodreads; se alguma não estiver disponível, tentará outras fontes.</p>
-          <Button className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}><FileUp className="h-4 w-4" /> {busy ? "Importando..." : "Importar estante pelo CSV"}</Button>
-          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => { const files = event.target.files; if (files?.length) void importGoodreads(files); }} />
-          <a className="text-sm text-primary underline underline-offset-4" href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer">Abrir exportação do Goodreads</a>
-        </div>
-        <div className="space-y-3 rounded-2xl border border-border p-4">
-          <div className="flex items-center gap-2 font-semibold"><Download className="h-4 w-4 text-primary" /> Exportar do Book Society</div>
-          <p className="text-sm leading-relaxed text-muted-foreground">Baixe um ZIP com a planilha CSV, as capas disponíveis e um índice que relaciona cada imagem ao livro.</p>
-          <Button variant="outline" className="w-full" disabled={busy} onClick={() => void exportGoodreads()}><Download className="h-4 w-4" /> Baixar livros + capas (ZIP)</Button>
-        </div>
+      <div className="space-y-3 rounded-2xl border border-border p-4">
+        <div className="flex items-center gap-2 font-semibold"><Download className="h-4 w-4 text-primary" /> Exportar do Book Society</div>
+        <p className="text-sm leading-relaxed text-muted-foreground">Baixe um ZIP com a planilha CSV, as capas disponíveis e um índice que relaciona cada imagem ao livro.</p>
+        <Button variant="outline" className="w-full" disabled={busy} onClick={() => void exportGoodreads()}><Download className="h-4 w-4" /> Baixar livros + capas (ZIP)</Button>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">A importação apenas acrescenta livros que ainda não estão na sua biblioteca; ela não apaga nem substitui seus registros atuais. O Book Society não acessa sua conta ou senha do Goodreads.</p>
     </section>
