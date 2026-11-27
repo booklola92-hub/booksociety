@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const SOURCES = [
+  { domain: "leituramanga.net", name: "Leitura Manga", kind: "manga", language: "Português", categories: ["todos", "mangas", "manhwas", "bl"] },
+  { domain: "viralikigai.radiot.space", name: "Viral Ikigai", kind: "novel", language: null, categories: ["todos", "novels", "bl"] },
+  { domain: "ridibooks.com", name: "RidiBooks", kind: "novel", language: "Coreano", categories: ["todos", "novels", "manhwas", "bl"] },
+  { domain: "webtoons.com", name: "WEBTOON", kind: "manhwa", language: "Inglês", categories: ["todos", "mangas", "manhwas", "bl"] },
+  { domain: "series.naver.com", name: "Naver Series", kind: "novel", language: "Coreano", categories: ["todos", "novels", "manhwas", "bl"] },
+] as const;
+
 function decodeHtml(value: string): string {
   return value
     .replace(/&amp;/g, "&")
@@ -19,9 +27,82 @@ function decodeHtml(value: string): string {
 }
 
 function cleanText(value: string): string {
-  return decodeHtml(value.replace(/<[^>]*>/g, " "))
-    .replace(/\s+/g, " ")
-    .trim();
+  return decodeHtml(value.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+function metaContent(html: string, keys: string[]): string | null {
+  for (const key of keys) {
+    const escaped = key.replace(/[.*+?^\x24{}()|[\]\\]/g, "\\$&");
+    const patterns = [
+      new RegExp('<meta[^>]+(?:property|name)=["\\']' + escaped + '["\\'][^>]+content=["\\']([^"\\']+)["\\']', "i"),
+      new RegExp('<meta[^>]+content=["\\']([^"\\']+)["\\'][^>]+(?:property|name)=["\\']' + escaped + '["\\']', "i"),
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) return cleanText(match[1]);
+    }
+  }
+  return null;
+}
+
+async function pageMetadata(url: string, allowedDomain: string): Promise<{ image: string | null; author: string | null; description: string | null }> {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || !(parsed.hostname === allowedDomain || parsed.hostname.endsWith("." + allowedDomain))) {
+      return { image: null, author: null, description: null };
+    }
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BookSocietySearch/1.0)", "Accept": "text/html" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return { image: null, author: null, description: null };
+    const html = (await response.text()).slice(0, 500_000);
+    const rawImage = metaContent(html, ["og:image", "twitter:image"]);
+    let image: string | null = null;
+    if (rawImage) {
+      try {
+        const parsedImage = new URL(rawImage, url);
+        if (parsedImage.protocol === "https:") image = parsedImage.toString();
+      } catch { /* ignore invalid image metadata */ }
+    }
+    return {
+      image,
+      author: metaContent(html, ["book:author", "article:author", "author", "dc.creator"]),
+      description: metaContent(html, ["og:description", "description"]),
+    };
+  } catch {
+    return { image: null, author: null, description: null };
+  }
+}
+
+async function searchGoogle(query: string, domain: string, limit: number) {
+  const response = await fetch("https://www.google.com/search?" + new URLSearchParams({
+    q: query + " site:" + domain,
+    num: String(Math.min(limit, 8)),
+    hl: "pt-BR",
+  }), {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+      "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) return [];
+  const html = await response.text();
+  const matches: { title: string; url: string; description: string }[] = [];
+  const pattern = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)<\/a>/gi;
+  for (const match of html.matchAll(pattern)) {
+    const url = decodeHtml(match[1]);
+    let hostname = "";
+    try { hostname = new URL(url).hostname.toLowerCase(); } catch { continue; }
+    if (!(hostname === domain || hostname.endsWith("." + domain))) continue;
+    const title = cleanText(match[3]);
+    const description = cleanText(match[4]).slice(0, 500);
+    if (!title || matches.some((item) => item.url === url)) continue;
+    matches.push({ title, url, description });
+    if (matches.length >= limit) break;
+  }
+  return matches;
 }
 
 Deno.serve(async (req: Request) => {
@@ -37,47 +118,44 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const query = String(body.query ?? "").trim().slice(0, 160);
+    const category = String(body.category ?? "todos");
     const limit = Math.max(1, Math.min(8, Number.parseInt(String(body.limit ?? "5"), 10) || 5));
     if (query.length < 2) return json({ error: "Digite pelo menos 2 caracteres." }, 400);
 
-    const searchQuery = query + " livro autor book";
-    const response = await fetch("https://www.google.com/search?" + new URLSearchParams({
-      q: searchQuery,
-      num: String(limit),
-      hl: "pt-BR",
-    }), {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-      },
-      signal: AbortSignal.timeout(12000),
-    });
+    const selectedSources = SOURCES.filter((source) => source.categories.includes(category as never));
+    const searches = await Promise.all(selectedSources.map(async (source) => {
+      try {
+        const found = await searchGoogle(query, source.domain, Math.min(limit, 5));
+        const enriched = await Promise.all(found.slice(0, 3).map(async (result) => ({
+          ...result,
+          ...(await pageMetadata(result.url, source.domain)),
+        })));
+        return enriched.map((result) => ({
+          ...result,
+          source: source.name,
+          domain: source.domain,
+          kind: source.kind,
+          language: source.language,
+          authors: result.author ? [result.author] : [],
+          image: result.image,
+          description: result.description || result.description,
+        }));
+      } catch (error) {
+        console.warn("Fonte " + source.name + " indisponível:", error);
+        return [];
+      }
+    }));
 
-    if (!response.ok) return json({ results: [], warning: "Google respondeu HTTP " + response.status + "." });
-    const html = await response.text();
-    const results: { title: string; url: string; description: string }[] = [];
-    const pattern = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)<\/a>/gi;
-
-    for (const match of html.matchAll(pattern)) {
-      const url = decodeHtml(match[1]);
-      let hostname = "";
-      try { hostname = new URL(url).hostname.toLowerCase(); } catch { continue; }
-      if (!url.startsWith("https://") || /(^|\.)((google)|(youtube)|(webcache))\./.test(hostname)) continue;
-      const title = cleanText(match[3]);
-      const description = cleanText(match[4]).slice(0, 500);
-      if (!title || results.some((item) => item.url === url)) continue;
-      results.push({ title, url, description });
-      if (results.length >= limit) break;
-    }
-
+    const results = searches.flat();
     return json({
       results,
-      warning: results.length ? null : "O Google não retornou resultados legíveis. A estrutura da página pode ter mudado ou a busca pode ter sido bloqueada.",
+      sources: selectedSources.map((source) => source.name),
+      warning: results.length ? null : "As fontes não retornaram resultados públicos indexados para esta pesquisa.",
     });
   } catch (error) {
     const message = error instanceof Error && error.name === "TimeoutError"
-      ? "A busca na web demorou demais."
-      : "Não foi possível consultar a busca na web agora.";
+      ? "A busca nas fontes demorou demais."
+      : "Não foi possível consultar as fontes de busca agora.";
     return json({ results: [], warning: message });
   }
 });
