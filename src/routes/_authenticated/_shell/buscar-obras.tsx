@@ -58,51 +58,68 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
   if (!q.trim()) return [];
   const results: CatalogItem[] = [];
   if (["todos", "livros"].includes(category)) {
-    try {
-      const params = new URLSearchParams({
-        q,
-        maxResults: String(Math.min(Math.max(Math.ceil(limit / 2), 1), 40)),
-        startIndex: String(Math.max(Math.floor(offset / 2), 0)),
-        printType: "books",
-        orderBy: "relevance",
-        projection: "full",
-      });
-      const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
-      if (response.ok) {
+    // Busca edições em português e inglês no Google Books.
+    const googleSearches = await Promise.all(["pt", "en"].map(async (language) => {
+      try {
+        const params = new URLSearchParams({
+          q,
+          maxResults: String(Math.min(Math.max(limit, 1), 40)),
+          startIndex: String(Math.max(offset, 0)),
+          printType: "books",
+          orderBy: "relevance",
+          projection: "full",
+          langRestrict: language,
+        });
+        const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
+        if (!response.ok) return [];
         const payload = await response.json();
-        for (const volume of payload.items ?? []) {
+        return (payload.items ?? []).flatMap((volume: any) => {
           const info = volume.volumeInfo ?? {};
-          if (!info.title) continue;
-          results.push({
-            id: "google-" + volume.id, origin: "external", title: info.title,
+          if (!info.title) return [];
+          return [{
+            id: "google-" + volume.id,
+            origin: "external" as const,
+            title: info.title,
             authors: Array.isArray(info.authors) ? info.authors : [],
             cover_url: info.imageLinks?.thumbnail?.replace("http://", "https://") ?? null,
-            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [], genres: Array.isArray(info.categories) ? info.categories : [],
+            synopsis: info.description ?? null,
+            kind: "livro",
+            is_bl: false,
+            alt_titles: [],
+            genres: Array.isArray(info.categories) ? info.categories : [],
             rating: typeof info.averageRating === "number" ? info.averageRating : null,
             ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
-            language: ({ pt: "Português", en: "Inglês", es: "Espanhol", ko: "Coreano" } as Record<string, string>)[info.language] ?? info.language ?? null,
-          });
-        }
+            language: language === "pt" ? "Português" : "Inglês",
+          }];
+        });
+      } catch (error) {
+        console.warn("Google Books (" + language + ") indisponível:", error);
+        return [];
       }
-    } catch (error) { console.warn("Google Books indisponível:", error); }
+    }));
+    results.push(...googleSearches.flat());
 
-    // Open Library: segunda fonte aberta para edições, ISBNs, assuntos e capas.
-    try {
-      const params = new URLSearchParams({
-        q,
-        limit: String(Math.min(Math.max(limit, 1), 40)),
-        offset: String(Math.max(offset, 0)),
-        fields: "key,title,author_name,cover_i,first_publish_year,edition_count,subject,isbn,language",
-      });
-      const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
-      if (response.ok) {
+    // Open Library também é consultada separadamente para edições em português e inglês.
+    const openLibrarySearches = await Promise.all([
+      { code: "por", label: "Português" },
+      { code: "eng", label: "Inglês" },
+    ].map(async ({ code, label }) => {
+      try {
+        const params = new URLSearchParams({
+          q: q + " language:" + code,
+          limit: String(Math.min(Math.max(limit, 1), 100)),
+          offset: String(Math.max(offset, 0)),
+          fields: "key,title,author_name,cover_i,first_publish_year,edition_count,subject,isbn,language",
+        });
+        const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
+        if (!response.ok) return [];
         const payload = await response.json();
-        for (const doc of payload.docs ?? []) {
+        return (payload.docs ?? []).flatMap((doc: any) => {
           const title = String(doc.title ?? "").trim();
-          if (!title) continue;
-          results.push({
+          if (!title) return [];
+          return [{
             id: "openlibrary-" + String(doc.key ?? title),
-            origin: "external",
+            origin: "external" as const,
             title,
             authors: Array.isArray(doc.author_name) ? doc.author_name.slice(0, 5) : [],
             cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
@@ -111,11 +128,15 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
             is_bl: false,
             alt_titles: [],
             genres: Array.isArray(doc.subject) ? doc.subject.slice(0, 12) : [],
-            language: Array.isArray(doc.language) ? doc.language[0] ?? null : null,
-          });
-        }
+            language: label,
+          }];
+        });
+      } catch (error) {
+        console.warn("Open Library (" + code + ") indisponível:", error);
+        return [];
       }
-    } catch (error) { console.warn("Open Library indisponível:", error); }
+    }));
+    results.push(...openLibrarySearches.flat());
 
     // Busca complementar na web: os títulos encontrados são enriquecidos pela capa automática do BookCover.
     try {
@@ -196,7 +217,7 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
       ratings_count: previous.ratings_count ?? item.ratings_count ?? null,
     });
   }
-  return [...merged.values()];
+  return [...merged.values()].slice(0, limit);
 }
 
 function BuscarObras() {
