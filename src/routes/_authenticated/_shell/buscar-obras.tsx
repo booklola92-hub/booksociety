@@ -58,96 +58,107 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
   if (!q.trim()) return [];
   const results: CatalogItem[] = [];
   if (["todos", "livros"].includes(category)) {
-    // Busca edições em português e inglês no Google Books.
-    const googleSearches = await Promise.all(["pt", "en"].map(async (language) => {
+  if (["todos", "livros", "novels"].includes(category)) {
+    // Livros: português/inglês. Novels: inglês/coreano/espanhol.
+    const languageSearches = category === "novels"
+      ? [{ code: "en", label: "Inglês" }, { code: "ko", label: "Coreano" }, { code: "es", label: "Espanhol" }]
+      : [{ code: "pt", label: "Português" }, { code: "en", label: "Inglês" }];
+    const googleSearches = await Promise.all(languageSearches.map(async ({ code, label }) => {
       try {
-        const params = new URLSearchParams({
-          q,
-          maxResults: String(Math.min(Math.max(limit, 1), 40)),
-          startIndex: String(Math.max(offset, 0)),
-          printType: "books",
-          orderBy: "relevance",
-          projection: "full",
-          langRestrict: language,
-        });
-        const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
-        if (!response.ok) return [];
-        const payload = await response.json();
-        return (payload.items ?? []).flatMap((volume: any) => {
-          const info = volume.volumeInfo ?? {};
-          if (!info.title) return [];
-          return [{
-            id: "google-" + volume.id,
-            origin: "external" as const,
-            title: info.title,
-            authors: Array.isArray(info.authors) ? info.authors : [],
-            cover_url: info.imageLinks?.thumbnail?.replace("http://", "https://") ?? null,
-            synopsis: info.description ?? null,
-            kind: "livro",
-            is_bl: false,
-            alt_titles: [],
-            genres: Array.isArray(info.categories) ? info.categories : [],
-            rating: typeof info.averageRating === "number" ? info.averageRating : null,
-            ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
-            language: language === "pt" ? "Português" : "Inglês",
-          }];
-        });
+        const chunks = await Promise.all(Array.from({ length: 5 }, async (_, chunk) => {
+          const params = new URLSearchParams({
+            q,
+            maxResults: "40",
+            startIndex: String(Math.max(offset, 0) + chunk * 40),
+            printType: "books",
+            orderBy: "relevance",
+            projection: "full",
+            langRestrict: code,
+          });
+          const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
+          if (!response.ok) return [];
+          const payload = await response.json();
+          return (payload.items ?? []).flatMap((volume: any) => {
+            const info = volume.volumeInfo ?? {};
+            if (!info.title) return [];
+            return [{
+              id: "google-" + volume.id,
+              origin: "external" as const,
+              title: info.title,
+              authors: Array.isArray(info.authors) ? info.authors : [],
+              cover_url: info.imageLinks?.thumbnail?.replace("http://", "https://") ?? null,
+              synopsis: info.description ?? null,
+              kind: category === "novels" ? "novel" : "livro",
+              is_bl: false,
+              alt_titles: [],
+              genres: Array.isArray(info.categories) ? info.categories : [],
+              rating: typeof info.averageRating === "number" ? info.averageRating : null,
+              ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
+              language: label,
+            }];
+          });
+        }));
+        return chunks.flat();
       } catch (error) {
-        console.warn("Google Books (" + language + ") indisponível:", error);
+        console.warn("Google Books (" + code + ") indisponível:", error);
         return [];
       }
     }));
     results.push(...googleSearches.flat());
 
-    // Open Library também é consultada separadamente para edições em português e inglês.
-    const openLibrarySearches = await Promise.all([
-      { code: "por", label: "Português" },
-      { code: "eng", label: "Inglês" },
-    ].map(async ({ code, label }) => {
-      try {
-        const params = new URLSearchParams({
-          q: q + " language:" + code,
-          limit: String(Math.min(Math.max(limit, 1), 100)),
-          offset: String(Math.max(offset, 0)),
-          fields: "key,title,author_name,cover_i,first_publish_year,edition_count,subject,isbn,language",
-        });
-        const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
-        if (!response.ok) return [];
-        const payload = await response.json();
-        return (payload.docs ?? []).flatMap((doc: any) => {
-          const title = String(doc.title ?? "").trim();
-          if (!title) return [];
-          return [{
-            id: "openlibrary-" + String(doc.key ?? title),
-            origin: "external" as const,
-            title,
-            authors: Array.isArray(doc.author_name) ? doc.author_name.slice(0, 5) : [],
-            cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
-            synopsis: null,
-            kind: "livro",
-            is_bl: false,
-            alt_titles: [],
-            genres: Array.isArray(doc.subject) ? doc.subject.slice(0, 12) : [],
-            language: label,
-          }];
-        });
-      } catch (error) {
-        console.warn("Open Library (" + code + ") indisponível:", error);
-        return [];
-      }
-    }));
+    // Open Library: duas páginas de até 100 resultados por idioma.
+    if (category !== "novels") {
+      const openLibrarySearches = await Promise.all([
+        { code: "por", label: "Português" },
+        { code: "eng", label: "Inglês" },
+      ].map(async ({ code, label }) => {
+        try {
+          const chunks = await Promise.all(Array.from({ length: 2 }, async (_, chunk) => {
+            const params = new URLSearchParams({
+              q: q + " language:" + code,
+              limit: "100",
+              offset: String(Math.max(offset, 0) + chunk * 100),
+              fields: "key,title,author_name,cover_i,first_publish_year,edition_count,subject,isbn,language",
+            });
+            const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
+            if (!response.ok) return [];
+            const payload = await response.json();
+            return (payload.docs ?? []).flatMap((doc: any) => {
+              const title = String(doc.title ?? "").trim();
+              if (!title) return [];
+              return [{
+                id: "openlibrary-" + String(doc.key ?? title),
+                origin: "external" as const,
+                title,
+                authors: Array.isArray(doc.author_name) ? doc.author_name.slice(0, 5) : [],
+                cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
+                synopsis: null,
+                kind: "livro",
+                is_bl: false,
+                alt_titles: [],
+                genres: Array.isArray(doc.subject) ? doc.subject.slice(0, 12) : [],
+                language: label,
+              }];
+            });
+          }));
+          return chunks.flat();
+        } catch (error) {
+          console.warn("Open Library (" + code + ") indisponível:", error);
+          return [];
+        }
+      }));
+      results.push(...openLibrarySearches.flat());
+    }
 
-    results.push(...openLibrarySearches.flat());
-
-    // Internet Archive: amplia a busca para livros e textos catalogados, por título e autor.
+    // Internet Archive amplia os resultados de livros e textos catalogados.
     try {
       const escapedQuery = q.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       const archiveQuery = `mediatype:text AND (title:("${escapedQuery}") OR creator:("${escapedQuery}"))`;
       const params = new URLSearchParams({
         q: archiveQuery,
         "fl[]": "identifier,title,creator,description,year,language",
-        rows: String(Math.min(Math.max(limit, 1), 200)),
-        page: String(Math.floor(Math.max(offset, 0) / Math.min(Math.max(limit, 1), 200)) + 1),
+        rows: "200",
+        page: String(Math.floor(Math.max(offset, 0) / 200) + 1),
         output: "json",
         "sort[]": "downloads desc",
       });
@@ -171,7 +182,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
             authors: authors.slice(0, 5),
             cover_url: identifier ? `https://archive.org/services/img/${encodeURIComponent(identifier)}` : null,
             synopsis: description.slice(0, 1000) || null,
-            kind: "livro",
+            kind: category === "novels" ? "novel" : "livro",
             is_bl: false,
             alt_titles: [],
             genres: [],
@@ -202,6 +213,49 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         });
       }
     } catch (error) { console.warn("Busca complementar na web indisponível:", error); }
+  }
+  // MangaDex fornece registros de manhwa e indica idiomas com capítulos traduzidos.
+  if (["todos", "manhwas", "bl"].includes(category)) {
+    try {
+      const languages = ["en", "ko", "es"];
+      const chunks = await Promise.all(Array.from({ length: 2 }, async (_, chunk) => {
+        const params = new URLSearchParams({
+          title: q,
+          limit: "100",
+          offset: String(Math.max(offset, 0) + chunk * 100),
+          "includes[]": "cover_art",
+          "originalLanguage[]": "ko",
+        });
+        for (const language of languages) params.append("availableTranslatedLanguage[]", language);
+        const response = await fetch("https://api.mangadex.org/manga?" + params.toString());
+        if (!response.ok) return [];
+        const payload = await response.json();
+        return (payload.data ?? []).flatMap((manga: any) => {
+          const attributes = manga.attributes ?? {};
+          const titleMap = attributes.title ?? {};
+          const title = titleMap.en || titleMap["ko-ro"] || Object.values(titleMap)[0] || "";
+          if (!title) return [];
+          const cover = (manga.relationships ?? []).find((rel: any) => rel.type === "cover_art")?.attributes?.fileName;
+          const available = (attributes.availableTranslatedLanguages ?? []).filter((language: string) => languages.includes(language));
+          return available.map((language: string) => ({
+            id: "mangadex-" + manga.id + "-" + language,
+            origin: "external" as const,
+            title: String(title),
+            authors: (manga.relationships ?? []).filter((rel: any) => rel.type === "author" || rel.type === "artist").map((rel: any) => rel.attributes?.name).filter(Boolean).slice(0, 5),
+            cover_url: cover ? `https://uploads.mangadex.org/covers/${manga.id}/${cover}.256.jpg` : null,
+            synopsis: attributes.description?.en ?? attributes.description?.ko ?? null,
+            kind: "manhwa",
+            is_bl: false,
+            alt_titles: Object.values(titleMap).map(String).filter((name: string) => name !== String(title)).slice(0, 8),
+            genres: (attributes.tags ?? []).map((tag: any) => tag.attributes?.name?.en).filter(Boolean),
+            language: language === "en" ? "Inglês" : language === "ko" ? "Coreano" : "Espanhol",
+          }));
+        });
+      }));
+      results.push(...chunks.flat());
+    } catch (error) {
+      console.warn("MangaDex indisponível:", error);
+    }
   }
   if (offset === 0 && ["todos", "novels", "mangas", "manhwas", "bl"].includes(category)) {
     try {
@@ -243,7 +297,7 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
   const normalized = (title: string) => title.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
   const merged = new Map<string, CatalogItem>();
   for (const item of [...internal, ...external]) {
-    const key = normalized(item.title);
+    const languageKey = (item.language ?? "").toLocaleLowerCase("pt-BR");\n    const key = normalized(item.title) + "|" + languageKey;
     const previous = merged.get(key);
     if (!previous) {
       merged.set(key, item);
