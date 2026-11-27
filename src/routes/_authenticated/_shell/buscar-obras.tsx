@@ -77,6 +77,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
           const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
           if (!response.ok) return [];
           const payload = await response.json();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (payload.items ?? []).flatMap((volume: any) => {
             const info = volume.volumeInfo ?? {};
             if (!info.title) return [];
@@ -95,7 +96,9 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
               ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
               language: label,
               publisher: info.publisher ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               isbn: (info.industryIdentifiers ?? []).find((entry: any) => entry.type === "ISBN_13")?.identifier
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 ?? (info.industryIdentifiers ?? []).find((entry: any) => entry.type === "ISBN_10")?.identifier
                 ?? null,
               published_date: info.publishedDate ?? null,
@@ -164,6 +167,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
             const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
             if (!response.ok) return [];
             const payload = await response.json();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (payload.docs ?? []).flatMap((doc: any) => {
               const title = String(doc.title ?? "").trim();
               if (!title) return [];
@@ -256,23 +260,27 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         const response = await fetch("https://api.mangadex.org/manga?" + params.toString());
         if (!response.ok) return [];
         const payload = await response.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (payload.data ?? []).flatMap((manga: any) => {
           const attributes = manga.attributes ?? {};
           const titleMap = attributes.title ?? {};
           const title = titleMap.en || titleMap["ko-ro"] || Object.values(titleMap)[0] || "";
           if (!title) return [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const cover = (manga.relationships ?? []).find((rel: any) => rel.type === "cover_art")?.attributes?.fileName;
           const available = (attributes.availableTranslatedLanguages ?? []).filter((language: string) => languages.includes(language));
           return available.map((language: string) => ({
             id: "mangadex-" + manga.id + "-" + language,
             origin: "external" as const,
             title: String(title),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             authors: (manga.relationships ?? []).filter((rel: any) => rel.type === "author" || rel.type === "artist").map((rel: any) => rel.attributes?.name).filter(Boolean).slice(0, 5),
             cover_url: cover ? `https://uploads.mangadex.org/covers/${manga.id}/${cover}.256.jpg` : null,
             synopsis: attributes.description?.en ?? attributes.description?.ko ?? null,
             kind: "manhwa",
             is_bl: false,
             alt_titles: Object.values(titleMap).map(String).filter((name: string) => name !== String(title)).slice(0, 8),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             genres: (attributes.tags ?? []).map((tag: any) => tag.attributes?.name?.en).filter(Boolean),
             language: language === "en" ? "Inglês" : language === "ko" ? "Coreano" : "Espanhol",
           }));
