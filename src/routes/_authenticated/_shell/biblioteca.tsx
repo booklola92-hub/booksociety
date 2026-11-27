@@ -822,7 +822,7 @@ function GoodreadsTransfer() {
             </Button>
           </div>
         ) : null}
-        <p className="text-xs text-muted-foreground">O Goodreads precisa permitir acesso público à estante. O Book Society importa no máximo 100 livros por consulta e não altera livros já cadastrados.</p>
+        <p className="text-xs text-muted-foreground">O Goodreads precisa disponibilizar a estante pública pelo RSS. O Book Society tenta buscar várias páginas (até 2.000 livros, quando o Goodreads permitir) e não altera livros já cadastrados.</p>
       </div>
       <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
