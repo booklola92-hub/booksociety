@@ -630,6 +630,17 @@ function GoodreadsTransfer() {
 
   return (
     <section className="space-y-5 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        aria-label="Selecionar arquivo CSV para importar"
+        onChange={(event) => {
+          const files = event.currentTarget.files;
+          if (files?.length) void importGoodreads(files);
+        }}
+      />
       <div className="flex items-center gap-3">
         <div className="rounded-2xl bg-primary/10 p-3 text-primary"><Library className="h-6 w-6" /></div>
         <div>
@@ -645,6 +656,13 @@ function GoodreadsTransfer() {
         </div>
         <Button type="button" variant="outline" className="shrink-0" disabled={coverBusy || busy} onClick={() => void findMissingCovers()}>
           <Search className="h-4 w-4" /> {coverBusy ? "Buscando capas..." : "Buscar capas que faltam"}
+        </Button>
+      </div>
+      <div className="space-y-3 rounded-2xl border border-border p-4">
+        <div className="flex items-center gap-2 font-semibold"><Upload className="h-4 w-4 text-primary" /> Importar para o Book Society</div>
+        <p className="text-sm leading-relaxed text-muted-foreground">Selecione um arquivo CSV do Goodreads ou um CSV exportado pelo Book Society para adicionar seus livros à Biblioteca.</p>
+        <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}>
+          <FileUp className="h-4 w-4" /> {busy ? "Importando..." : "Escolher arquivo CSV"}
         </Button>
       </div>
       <div className="space-y-3 rounded-2xl border border-border p-4">
