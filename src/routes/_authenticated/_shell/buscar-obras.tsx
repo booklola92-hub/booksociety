@@ -77,6 +77,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
           const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
           if (!response.ok) return [];
           const payload = await response.json();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (payload.items ?? []).flatMap((volume: any) => {
             const info = volume.volumeInfo ?? {};
             if (!info.title) return [];
@@ -95,7 +96,9 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
               ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
               language: label,
               publisher: info.publisher ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               isbn: (info.industryIdentifiers ?? []).find((entry: any) => entry.type === "ISBN_13")?.identifier
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 ?? (info.industryIdentifiers ?? []).find((entry: any) => entry.type === "ISBN_10")?.identifier
                 ?? null,
               published_date: info.publishedDate ?? null,
@@ -164,6 +167,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
             const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
             if (!response.ok) return [];
             const payload = await response.json();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (payload.docs ?? []).flatMap((doc: any) => {
               const title = String(doc.title ?? "").trim();
               if (!title) return [];
@@ -239,25 +243,6 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
       console.warn("Internet Archive indisponível:", error);
     }
 
-    // Busca complementar na web: os títulos encontrados são enriquecidos pela capa automática do BookCover.
-    try {
-      const { data, error } = await supabase.functions.invoke("google-web-search", {
-        body: { query: q, limit: 8 },
-      });
-      if (error) throw error;
-      for (const [index, result] of (data?.results ?? []).entries()) {
-        const title = String(result.title ?? "").trim();
-        if (!title) continue;
-        const normalizedTitle = title.replace(/\\s*[|–—-]\\s*.*$/, "").trim();
-        if (!normalizedTitle || results.some((item) => item.title.toLocaleLowerCase("pt-BR") === normalizedTitle.toLocaleLowerCase("pt-BR"))) continue;
-        results.push({
-          id: "web-" + index + "-" + normalizedTitle.toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-"),
-          origin: "external", title: normalizedTitle, authors: [],
-          cover_url: null, synopsis: String(result.description ?? "").slice(0, 1000) || null,
-          kind: "livro", is_bl: false, alt_titles: [], genres: [], language: null,
-        });
-      }
-    } catch (error) { console.warn("Busca complementar na web indisponível:", error); }
   }
   // MangaDex fornece registros de manhwa e indica idiomas com capítulos traduzidos.
   if (["todos", "manhwas", "bl"].includes(category)) {
@@ -275,23 +260,27 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         const response = await fetch("https://api.mangadex.org/manga?" + params.toString());
         if (!response.ok) return [];
         const payload = await response.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (payload.data ?? []).flatMap((manga: any) => {
           const attributes = manga.attributes ?? {};
           const titleMap = attributes.title ?? {};
           const title = titleMap.en || titleMap["ko-ro"] || Object.values(titleMap)[0] || "";
           if (!title) return [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const cover = (manga.relationships ?? []).find((rel: any) => rel.type === "cover_art")?.attributes?.fileName;
           const available = (attributes.availableTranslatedLanguages ?? []).filter((language: string) => languages.includes(language));
           return available.map((language: string) => ({
             id: "mangadex-" + manga.id + "-" + language,
             origin: "external" as const,
             title: String(title),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             authors: (manga.relationships ?? []).filter((rel: any) => rel.type === "author" || rel.type === "artist").map((rel: any) => rel.attributes?.name).filter(Boolean).slice(0, 5),
             cover_url: cover ? `https://uploads.mangadex.org/covers/${manga.id}/${cover}.256.jpg` : null,
             synopsis: attributes.description?.en ?? attributes.description?.ko ?? null,
             kind: "manhwa",
             is_bl: false,
             alt_titles: Object.values(titleMap).map(String).filter((name: string) => name !== String(title)).slice(0, 8),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             genres: (attributes.tags ?? []).map((tag: any) => tag.attributes?.name?.en).filter(Boolean),
             language: language === "en" ? "Inglês" : language === "ko" ? "Coreano" : "Espanhol",
           }));
@@ -330,6 +319,38 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         }
       }
     } catch (error) { console.warn("AniList indisponível:", error); }
+  }
+  // Google Search geral + as cinco fontes públicas solicitadas. Cada fonte falha isoladamente.
+  if (offset === 0) {
+    try {
+      const { data, error } = await supabase.functions.invoke("google-web-search", {
+        body: { query: q, category, limit: 5 },
+      });
+      if (error) throw error;
+      for (const [index, result] of (data?.results ?? []).entries()) {
+        const title = String(result.title ?? "").trim();
+        const url = String(result.url ?? "").trim();
+        if (!title || !url || results.some((item) => item.source_url === url)) continue;
+        const sourceDomain = String(result.domain ?? "");
+        const isBl = category === "bl" || /boys.?love|yaoi|shounen.?ai|\\bbl\\b/i.test(title + " " + String(result.description ?? ""));
+        results.push({
+          id: "site-" + sourceDomain + "-" + index + "-" + title.toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-"),
+          origin: "external",
+          title,
+          authors: Array.isArray(result.authors) ? result.authors.map(String).filter(Boolean).slice(0, 5) : [],
+          cover_url: typeof result.image === "string" && result.image.startsWith("https://") ? result.image : null,
+          synopsis: String(result.description ?? "").slice(0, 1000) || null,
+          kind: String(result.kind ?? (category === "novels" ? "novel" : category === "manhwas" ? "manhwa" : category === "mangas" ? "manga" : "livro")),
+          is_bl: isBl,
+          alt_titles: [],
+          genres: [],
+          language: typeof result.language === "string" ? result.language : null,
+          source_url: url,
+        });
+      }
+    } catch (error) {
+      console.warn("Google Search / fontes parceiras indisponíveis:", error);
+    }
   }
   return results;
 }
@@ -623,6 +644,7 @@ function CatalogCard({ item, onAdded }: { item: CatalogItem; onAdded: () => void
         {item.isbn && <p className="mt-0.5 text-xs text-muted-foreground">ISBN: {item.isbn}</p>}
         {item.published_date && <p className="mt-0.5 text-xs text-muted-foreground">Publicação: {item.published_date}</p>}
         {item.synopsis && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>}
+        {item.source_url && <a href={item.source_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline">Abrir na fonte original</a>}
         {typeof item.rating === "number" && <p className="mt-1 text-xs font-medium text-amber-700">★ {item.rating.toFixed(2)}{typeof item.ratings_count === "number" ? ` · ${item.ratings_count.toLocaleString("pt-BR")} avaliações` : ""}</p>}
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
           <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{catalogKindLabel(item.kind)}</span>
