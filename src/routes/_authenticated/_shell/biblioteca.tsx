@@ -507,9 +507,7 @@ function GoodreadsTransfer() {
     try {
       const selectedFiles = Array.from(files);
       const csvFile = selectedFiles.find((file) => file.name.toLowerCase().endsWith(".csv"));
-      if (!csvFile) throw new Error("Selecione o CSV do Goodreads junto com as imagens das capas.");
-      const coverFiles = selectedFiles.filter((file) => file !== csvFile && file.type.startsWith("image/"));
-      const coversByBookId = new Map(coverFiles.map((file) => [file.name.replace(/\.[^.]+$/, "").trim(), file]));
+      if (!csvFile) throw new Error("Selecione o arquivo CSV exportado do Goodreads.");
       const rows = parseCsv(await csvFile.text());
       if (!rows[0] || !("title" in rows[0])) throw new Error("Esse arquivo não parece ser uma exportação CSV do Goodreads.");
       const userId = await getMyId();
@@ -542,28 +540,6 @@ function GoodreadsTransfer() {
         for (const book of data ?? []) bookMap.set(`${normalize(book.title)}|${normalize(book.author ?? "")}`, book.id);
       }
 
-      // Associa somente as capas fornecidas pelo usuário, usando o Goodreads Book Id no nome do arquivo.
-      let importedCoverCount = 0;
-      const processedBooks = new Set<string>();
-      for (const row of rows) {
-        const title = row["title"]?.trim();
-        const goodreadsId = row["book id"]?.trim();
-        if (!title || !goodreadsId) continue;
-        const author = row["author"]?.trim() ?? "";
-        const bookId = bookMap.get(`${normalize(title)}|${normalize(author)}`);
-        const coverFile = coversByBookId.get(goodreadsId);
-        if (!bookId || !coverFile || processedBooks.has(bookId)) continue;
-        try {
-          const coverPath = await uploadMedia(userId, coverFile, "book-covers");
-          const { error } = await supabase.from("books").update({ cover_url: coverPath }).eq("id", bookId);
-          if (error) throw error;
-          processedBooks.add(bookId);
-          importedCoverCount += 1;
-        } catch (coverError) {
-          console.warn(`Não foi possível importar a capa de "${title}":`, coverError);
-        }
-      }
-
       const shelfRows: Array<Record<string, unknown>> = [];
       for (const row of rows) {
         const title = row["title"]?.trim();
@@ -594,7 +570,8 @@ function GoodreadsTransfer() {
       }
       await invalidate("shelf");
       await invalidate("books");
-      toast.success(`Importação concluída: ${shelfRows.length} livros adicionados e ${importedCoverCount} capas importadas.`);
+      toast.success(`Importação concluída: ${shelfRows.length} livros adicionados. Agora vou procurar as capas originais no Goodreads.`);
+      if (shelfRows.length > 0) await findMissingCovers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível importar o arquivo.");
     } finally {
@@ -860,9 +837,9 @@ function GoodreadsTransfer() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 font-semibold"><Upload className="h-4 w-4 text-primary" /> Importar do Goodreads</div>
-          <p className="text-sm leading-relaxed text-muted-foreground">Selecione o CSV do Goodreads e, junto com ele, as imagens originais das capas. Nomeie cada imagem com o Goodreads Book Id (por exemplo: 260068020.jpg). Os livros, avaliações e resenhas serão importados. Depois, o Book Society procura as capas no Goodreads automaticamente.</p>
-          <Button className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}><FileUp className="h-4 w-4" /> {busy ? "Processando..." : "Escolher arquivo CSV"}</Button>
-          <input ref={fileRef} type="file" accept=".csv,text/csv,image/*" multiple className="hidden" onChange={(event) => { const files = event.target.files; if (files?.length) void importGoodreads(files); }} />
+          <p className="text-sm leading-relaxed text-muted-foreground">Selecione apenas o arquivo CSV exportado do Goodreads. Os livros, avaliações e resenhas serão importados, e o Book Society buscará automaticamente as capas originais no Goodreads; se alguma não estiver disponível, tentará outras fontes.</p>
+          <Button className="w-full" disabled={busy} onClick={() => fileRef.current?.click()}><FileUp className="h-4 w-4" /> {busy ? "Importando..." : "Importar estante pelo CSV"}</Button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => { const files = event.target.files; if (files?.length) void importGoodreads(files); }} />
           <a className="text-sm text-primary underline underline-offset-4" href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer">Abrir exportação do Goodreads</a>
         </div>
         <div className="space-y-3 rounded-2xl border border-border p-4">
