@@ -11,7 +11,7 @@ export const CATALOG_CATEGORIES: { value: CatalogCategory; label: string }[] = [
   { value: "bl", label: "BL (Boys' Love)" },
 ];
 
-export const CATALOG_PAGE_SIZE = 24;
+export const CATALOG_PAGE_SIZE = 40;
 
 export interface CatalogItem {
   id: string;
