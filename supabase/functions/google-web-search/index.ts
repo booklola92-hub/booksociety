@@ -126,10 +126,10 @@ Deno.serve(async (req: Request) => {
     const searches = await Promise.all(selectedSources.map(async (source) => {
       try {
         const found = await searchGoogle(query, source.domain, Math.min(limit, 5));
-        const enriched = await Promise.all(found.slice(0, 3).map(async (result) => ({
-          ...result,
-          ...(await pageMetadata(result.url, source.domain)),
-        })));
+        const enriched = await Promise.all(found.slice(0, 3).map(async (result) => {
+          const metadata = await pageMetadata(result.url, source.domain);
+          return { ...result, ...metadata, description: metadata.description || result.description };
+        }));
         return enriched.map((result) => ({
           ...result,
           source: source.name,
@@ -138,7 +138,6 @@ Deno.serve(async (req: Request) => {
           language: source.language,
           authors: result.author ? [result.author] : [],
           image: result.image,
-          description: result.description || result.description,
         }));
       } catch (error) {
         console.warn("Fonte " + source.name + " indisponível:", error);
@@ -147,9 +146,49 @@ Deno.serve(async (req: Request) => {
     }));
 
     const results = searches.flat();
+    // Mantém também a busca geral do Google, além das cinco fontes solicitadas.
+    try {
+      const generalResponse = await fetch("https://www.google.com/search?" + new URLSearchParams({
+        q: query + " livro novel manga manhwa",
+        num: "8",
+        hl: "pt-BR",
+      }), {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (generalResponse.ok) {
+        const html = await generalResponse.text();
+        const pattern = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)<\/a>/gi;
+        for (const match of html.matchAll(pattern)) {
+          const url = decodeHtml(match[1]);
+          let hostname = "";
+          try { hostname = new URL(url).hostname.toLowerCase(); } catch { continue; }
+          if (!url.startsWith("https://") || /(^|\.)((google)|(youtube)|(webcache))\./.test(hostname)) continue;
+          const title = cleanText(match[3]);
+          if (!title || results.some((item) => item.url === url)) continue;
+          results.push({
+            title,
+            url,
+            description: cleanText(match[4]).slice(0, 500),
+            source: "Google Search",
+            domain: hostname,
+            kind: category === "novels" ? "novel" : category === "manhwas" || category === "bl" ? "manhwa" : category === "mangas" ? "manga" : "livro",
+            language: null,
+            authors: [],
+            image: null,
+          });
+          if (results.filter((item) => item.source === "Google Search").length >= limit) break;
+        }
+      }
+    } catch (error) {
+      console.warn("Google Search geral indisponível:", error);
+    }
     return json({
       results,
-      sources: selectedSources.map((source) => source.name),
+      sources: ["Google Search", ...selectedSources.map((source) => source.name)],
       warning: results.length ? null : "As fontes não retornaram resultados públicos indexados para esta pesquisa.",
     });
   } catch (error) {
