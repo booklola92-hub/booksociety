@@ -804,10 +804,12 @@ function GoodreadsTransfer() {
       <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="font-semibold">Capas dos seus livros</p>
-          <p className="text-sm text-muted-foreground">Cada capa encontrada é salva e aparece na Biblioteca imediatamente, sem esperar a pesquisa terminar.</p>
+          <p className="text-sm text-muted-foreground">Busque capas para os livros que já estão na sua Biblioteca. Cada capa encontrada é salva automaticamente.</p>
           {coverBusy ? <p className="text-xs text-primary" role="status" aria-live="polite">Buscando capas nos catálogos públicos…</p> : null}
         </div>
-        {coverBusy ? <p className="shrink-0 text-sm text-primary" role="status" aria-live="polite">Buscando capas automaticamente…</p> : null}
+        <Button type="button" variant="outline" className="shrink-0" disabled={coverBusy || busy} onClick={() => void findMissingCovers()}>
+          <Search className="h-4 w-4" /> {coverBusy ? "Buscando capas..." : "Buscar capas que faltam"}
+        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-border p-4">
