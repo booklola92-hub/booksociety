@@ -57,7 +57,6 @@ async function searchInternalCatalog(q: string, category: CatalogCategory, limit
 async function searchExternalCatalog(q: string, category: CatalogCategory, limit: number, offset: number): Promise<CatalogItem[]> {
   if (!q.trim()) return [];
   const results: CatalogItem[] = [];
-  if (["todos", "livros"].includes(category)) {
   if (["todos", "livros", "novels"].includes(category)) {
     // Livros: português/inglês. Novels: inglês/coreano/espanhol.
     const languageSearches = category === "novels"
@@ -65,7 +64,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
       : [{ code: "pt", label: "Português" }, { code: "en", label: "Inglês" }];
     const googleSearches = await Promise.all(languageSearches.map(async ({ code, label }) => {
       try {
-        const chunks = await Promise.all(Array.from({ length: 5 }, async (_, chunk) => {
+        const chunks = await Promise.all(Array.from({ length: 13 }, async (_, chunk) => {
           const params = new URLSearchParams({
             q,
             maxResults: "40",
@@ -113,7 +112,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         { code: "eng", label: "Inglês" },
       ].map(async ({ code, label }) => {
         try {
-          const chunks = await Promise.all(Array.from({ length: 2 }, async (_, chunk) => {
+          const chunks = await Promise.all(Array.from({ length: 5 }, async (_, chunk) => {
             const params = new URLSearchParams({
               q: q + " language:" + code,
               limit: "100",
@@ -157,8 +156,8 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
       const params = new URLSearchParams({
         q: archiveQuery,
         "fl[]": "identifier,title,creator,description,year,language",
-        rows: "200",
-        page: String(Math.floor(Math.max(offset, 0) / 200) + 1),
+        rows: "500",
+        page: String(Math.floor(Math.max(offset, 0) / 500) + 1),
         output: "json",
         "sort[]": "downloads desc",
       });
