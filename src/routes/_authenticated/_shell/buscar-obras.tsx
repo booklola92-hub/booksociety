@@ -67,7 +67,6 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         const chunks = await Promise.all(Array.from({ length: 13 }, async (_, chunk) => {
           const params = new URLSearchParams({
             q,
-            ...(code === "pt" ? { country: "BR" } : {}),
             maxResults: "40",
             startIndex: String(Math.max(offset, 0) + chunk * 40),
             printType: "books",
