@@ -325,6 +325,10 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
       language: previous.language || item.language,
       rating: previous.rating ?? item.rating ?? null,
       ratings_count: previous.ratings_count ?? item.ratings_count ?? null,
+      publisher: previous.publisher ?? item.publisher ?? null,
+      isbn: previous.isbn ?? item.isbn ?? null,
+      published_date: previous.published_date ?? item.published_date ?? null,
+      source_url: previous.source_url ?? item.source_url ?? null,
     });
   }
   const allItems = [...merged.values()];
