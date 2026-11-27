@@ -28,6 +28,10 @@ export interface CatalogItem {
   rating?: number | null;
   ratings_count?: number | null;
   reviews_count?: number | null;
+  publisher?: string | null;
+  isbn?: string | null;
+  published_date?: string | null;
+  source_url?: string | null;
 }
 
 export function catalogKindLabel(kind: string): string {
