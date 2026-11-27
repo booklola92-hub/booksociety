@@ -439,8 +439,18 @@ function GoodreadsTransfer() {
       for (const book of selected) {
         const key = `${normalize(book.title)}|${normalize(book.author)}`;
         const existing = bookMap.get(key);
-        let cover = book.imageLink || existing?.cover_url || null;
-        if (!cover) cover = await findPublicCover(book.title, book.author, book.isbn10 ?? "", book.isbn13 ?? "");
+        // Valida a imagem original do Goodreads antes de salvar; se estiver indisponível,
+        // procura uma capa equivalente em outras fontes públicas.
+        let cover: string | null = null;
+        if (book.imageLink && await canLoadPublicCover(book.imageLink)) {
+          cover = book.imageLink.replace(/^http:\/\//i, "https:");
+        }
+        if (!cover && existing?.cover_url) {
+          cover = existing.cover_url;
+        }
+        if (!cover) {
+          cover = await findPublicCover(book.title, book.author, book.isbn10 ?? "", book.isbn13 ?? "");
+        }
         resolvedCovers.set(key, cover);
         if (existing && !existing.cover_url && cover) {
           const { error } = await supabase.from("books").update({ cover_url: cover }).eq("id", existing.id);
