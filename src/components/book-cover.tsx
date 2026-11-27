@@ -13,12 +13,24 @@ export function BookCover({ book, className, interactive = true }: { book: BookI
   const [details, setDetails] = useState<BookInfo>(book);
   const [loading, setLoading] = useState(false);
   const storedCover = book.cover_url?.trim() || null;
-  useEffect(() => setFailed(false), [storedCover]);
+  const fallbackCover = `https://covers.openlibrary.org/b/title/${encodeURIComponent(book.title)}-M.jpg?default=false`;
+  const [usingFallback, setUsingFallback] = useState(!storedCover);
+  useEffect(() => {
+    setFailed(false);
+    setUsingFallback(!storedCover);
+  }, [storedCover, book.title]);
   const normalizedCover = storedCover?.startsWith("//") ? `https:${storedCover}` : storedCover?.startsWith("http://") ? storedCover.replace(/^http:\/\//i, "https://") : storedCover;
-  const url = useMediaUrl(normalizedCover);
+  const url = useMediaUrl(usingFallback ? fallbackCover : normalizedCover);
   const image = !url || failed
     ? <div className={cn("flex aspect-[2/3] shrink-0 items-center justify-center overflow-hidden rounded-md border border-primary/20 bg-primary p-1.5 text-center shadow-sm", className)}><span className="font-display text-xs leading-tight font-semibold text-primary-foreground">{book.title}</span></div>
-    : <img src={url} alt={`Capa de ${book.title}`} loading="lazy" onError={() => setFailed(true)} className={cn("aspect-[2/3] shrink-0 rounded-md object-cover shadow-sm", className)} />;
+    : <img src={url} alt={`Capa de ${book.title}`} loading="lazy" onError={() => {
+        if (!usingFallback) {
+          setUsingFallback(true);
+          setFailed(false);
+        } else {
+          setFailed(true);
+        }
+      }} className={cn("aspect-[2/3] shrink-0 rounded-md object-cover shadow-sm", className)} />;
 
   async function showDetails() {
     setDetails(book);
