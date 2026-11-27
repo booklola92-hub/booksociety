@@ -309,8 +309,22 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     }
   } catch (error) { console.warn("AniList não respondeu:", error); }
 
-  // Barnes & Noble e Kobo não oferecem aqui uma API pública de capas documentada.
-  // Não fazemos scraping nem contornamos proteções desses catálogos.
+  // 4. Bookcover API: fallback individual para capas Goodreads por ISBN ou título/autor.
+  try {
+    const params = new URLSearchParams({ image_size: "large" });
+    if (isbn) params.set("isbn", isbn);
+    else {
+      params.set("book_title", queryTitle);
+      if (author) params.set("author_name", author);
+    }
+    const response = await fetchWithTimeout("https://bookcover.longitood.com/bookcover?" + params.toString());
+    if (response.ok) {
+      const payload = await response.json();
+      const cover = await usable(typeof payload?.url === "string" ? payload.url : null);
+      if (cover) return cover;
+    }
+  } catch (error) { console.warn("Bookcover API não respondeu:", error); }
+
   return null;
 }
 function GoodreadsTransfer() {
@@ -323,6 +337,7 @@ function GoodreadsTransfer() {
   const { data: me } = useMe();
   type PublicGoodreadsBook = {
     title: string; author: string; imageLink: string; bookLink: string;
+    isbn10?: string; isbn13?: string;
     rating: number | null; averageRating: number | null; dateRead: string | null;
     dateAdded: string | null; review: string | null;
   };
@@ -383,12 +398,25 @@ function GoodreadsTransfer() {
       if (booksError) throw booksError;
       if (shelfError) throw shelfError;
       const bookMap = new Map((allBooks ?? []).map((book) => [`${normalize(book.title)}|${normalize(book.author ?? "")}`, book]));
+      const resolvedCovers = new Map<string, string | null>();
+      for (const book of selected) {
+        const key = `${normalize(book.title)}|${normalize(book.author)}`;
+        const existing = bookMap.get(key);
+        let cover = book.imageLink || existing?.cover_url || null;
+        if (!cover) cover = await findPublicCover(book.title, book.author, book.isbn10 ?? "", book.isbn13 ?? "");
+        resolvedCovers.set(key, cover);
+        if (existing && !existing.cover_url && cover) {
+          const { error } = await supabase.from("books").update({ cover_url: cover }).eq("id", existing.id);
+          if (error) console.warn("Não foi possível salvar a capa Goodreads:", error);
+          else existing.cover_url = cover;
+        }
+      }
       const pending: Array<{ title: string; author: string; cover_url: string | null; created_by: string }> = [];
       const pendingKeys = new Set<string>();
       for (const book of selected) {
         const key = `${normalize(book.title)}|${normalize(book.author)}`;
         if (!bookMap.has(key) && !pendingKeys.has(key)) {
-          pending.push({ title: book.title.slice(0, 200), author: book.author.slice(0, 120), cover_url: book.imageLink || null, created_by: userId });
+          pending.push({ title: book.title.slice(0, 200), author: book.author.slice(0, 120), cover_url: resolvedCovers.get(key) ?? null, created_by: userId });
           pendingKeys.add(key);
         }
       }
