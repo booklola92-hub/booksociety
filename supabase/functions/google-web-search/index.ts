@@ -40,8 +40,7 @@ Deno.serve(async (req: Request) => {
     const limit = Math.max(1, Math.min(8, Number.parseInt(String(body.limit ?? "5"), 10) || 5));
     if (query.length < 2) return json({ error: "Digite pelo menos 2 caracteres." }, 400);
 
-    // A busca é feita no servidor para evitar expor a página do Google ao navegador.
-    const searchQuery = `${query} livro autor book`;
+    const searchQuery = query + " livro autor book";
     const response = await fetch("https://www.google.com/search?" + new URLSearchParams({
       q: searchQuery,
       num: String(limit),
@@ -54,16 +53,16 @@ Deno.serve(async (req: Request) => {
       signal: AbortSignal.timeout(12000),
     });
 
-    if (!response.ok) return json({ results: [], warning: `Google respondeu HTTP ${response.status}.` });
+    if (!response.ok) return json({ results: [], warning: "Google respondeu HTTP " + response.status + "." });
     const html = await response.text();
     const results: { title: string; url: string; description: string }[] = [];
-    const pattern = /<a[^>]+href="(https?:\\/\\/[^"]+)"[^>]*>([\\s\\S]*?)<h3[^>]*>([\\s\\S]*?)<\\/h3>([\\s\\S]*?)<\\/a>/gi;
+    const pattern = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<h3[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)<\/a>/gi;
 
     for (const match of html.matchAll(pattern)) {
       const url = decodeHtml(match[1]);
       let hostname = "";
       try { hostname = new URL(url).hostname.toLowerCase(); } catch { continue; }
-      if (!url.startsWith("https://") || /(^|\\.)(google|youtube|webcache)\\./.test(hostname)) continue;
+      if (!url.startsWith("https://") || /(^|\.)((google)|(youtube)|(webcache))\./.test(hostname)) continue;
       const title = cleanText(match[3]);
       const description = cleanText(match[4]).slice(0, 500);
       if (!title || results.some((item) => item.url === url)) continue;
