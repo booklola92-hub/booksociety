@@ -61,8 +61,8 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
     try {
       const params = new URLSearchParams({
         q,
-        maxResults: String(Math.min(Math.max(limit, 1), 40)),
-        startIndex: String(Math.max(offset, 0)),
+        maxResults: String(Math.min(Math.max(Math.ceil(limit / 2), 1), 40)),
+        startIndex: String(Math.max(Math.floor(offset / 2), 0)),
         printType: "books",
         orderBy: "relevance",
         projection: "full",
@@ -140,7 +140,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
 
 async function searchCatalog(q: string, category: CatalogCategory, limit: number, offset: number) {
   const [internal, external] = await Promise.all([
-    searchInternalCatalog(q, category, offset === 0 ? Math.min(limit, 12) : limit, offset),
+    searchInternalCatalog(q, category, Math.ceil(limit / 2), Math.floor(offset / 2)),
     searchExternalCatalog(q, category, limit, offset),
   ]);
   const seen = new Set(internal.map((item) => item.title.toLowerCase()));
