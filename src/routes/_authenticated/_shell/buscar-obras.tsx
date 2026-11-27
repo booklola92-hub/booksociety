@@ -297,7 +297,8 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
   const normalized = (title: string) => title.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
   const merged = new Map<string, CatalogItem>();
   for (const item of [...internal, ...external]) {
-    const languageKey = (item.language ?? "").toLocaleLowerCase("pt-BR");\n    const key = normalized(item.title) + "|" + languageKey;
+    const languageKey = (item.language ?? "").toLocaleLowerCase("pt-BR");
+    const key = normalized(item.title) + "|" + languageKey;
     const previous = merged.get(key);
     if (!previous) {
       merged.set(key, item);
@@ -321,12 +322,16 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
   const externalItems = allItems.filter((item) => item.origin === "external");
   const portuguese = externalItems.filter((item) => item.language === "Português");
   const english = externalItems.filter((item) => item.language === "Inglês");
-  const other = externalItems.filter((item) => item.language !== "Português" && item.language !== "Inglês");
+  const korean = externalItems.filter((item) => item.language === "Coreano");
+  const spanish = externalItems.filter((item) => item.language === "Espanhol");
+  const other = externalItems.filter((item) => !["Português", "Inglês", "Coreano", "Espanhol"].includes(item.language ?? ""));
   const balancedExternal: CatalogItem[] = [];
-  const max = Math.max(portuguese.length, english.length, other.length);
+  const max = Math.max(portuguese.length, english.length, korean.length, spanish.length, other.length);
   for (let index = 0; index < max; index++) {
     if (portuguese[index]) balancedExternal.push(portuguese[index]);
     if (english[index]) balancedExternal.push(english[index]);
+    if (korean[index]) balancedExternal.push(korean[index]);
+    if (spanish[index]) balancedExternal.push(spanish[index]);
     if (other[index]) balancedExternal.push(other[index]);
   }
   return [...internalItems, ...balancedExternal].slice(0, limit);
