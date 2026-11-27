@@ -136,7 +136,52 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
         return [];
       }
     }));
+
     results.push(...openLibrarySearches.flat());
+
+    // Internet Archive: amplia a busca para livros e textos catalogados, por título e autor.
+    try {
+      const escapedQuery = q.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const archiveQuery = `mediatype:text AND (title:("${escapedQuery}") OR creator:("${escapedQuery}"))`;
+      const params = new URLSearchParams({
+        q: archiveQuery,
+        "fl[]": "identifier,title,creator,description,year,language",
+        rows: String(Math.min(Math.max(limit, 1), 200)),
+        page: String(Math.floor(Math.max(offset, 0) / Math.min(Math.max(limit, 1), 200)) + 1),
+        output: "json",
+        "sort[]": "downloads desc",
+      });
+      const response = await fetch("https://archive.org/advancedsearch.php?" + params.toString());
+      if (response.ok) {
+        const payload = await response.json();
+        for (const doc of payload.response?.docs ?? []) {
+          const title = String(doc.title ?? "").trim();
+          if (!title) continue;
+          const identifier = String(doc.identifier ?? "");
+          const authors = Array.isArray(doc.creator) ? doc.creator : doc.creator ? [String(doc.creator)] : [];
+          const description = Array.isArray(doc.description) ? doc.description.join(" ") : String(doc.description ?? "");
+          const rawLanguage = Array.isArray(doc.language) ? doc.language[0] : doc.language;
+          const language = typeof rawLanguage === "string"
+            ? (/^(por|pt|pt-br|portuguese)/i.test(rawLanguage) ? "Português" : /^(eng|en|english)/i.test(rawLanguage) ? "Inglês" : rawLanguage)
+            : null;
+          results.push({
+            id: "archive-" + (identifier || title),
+            origin: "external",
+            title,
+            authors: authors.slice(0, 5),
+            cover_url: identifier ? `https://archive.org/services/img/${encodeURIComponent(identifier)}` : null,
+            synopsis: description.slice(0, 1000) || null,
+            kind: "livro",
+            is_bl: false,
+            alt_titles: [],
+            genres: [],
+            language,
+          });
+        }
+      }
+    } catch (error) {
+      console.warn("Internet Archive indisponível:", error);
+    }
 
     // Busca complementar na web: os títulos encontrados são enriquecidos pela capa automática do BookCover.
     try {
