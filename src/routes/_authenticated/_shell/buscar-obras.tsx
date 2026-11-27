@@ -59,7 +59,14 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
   const results: CatalogItem[] = [];
   if (["todos", "livros"].includes(category)) {
     try {
-      const params = new URLSearchParams({\n        q,\n        maxResults: String(Math.min(Math.max(limit, 1), 40)),\n        startIndex: String(Math.max(offset, 0)),\n        printType: "books",\n        orderBy: "relevance",\n        projection: "full",\n      });
+      const params = new URLSearchParams({
+        q,
+        maxResults: String(Math.min(Math.max(limit, 1), 40)),
+        startIndex: String(Math.max(offset, 0)),
+        printType: "books",
+        orderBy: "relevance",
+        projection: "full",
+      });
       const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
       if (response.ok) {
         const payload = await response.json();
@@ -70,7 +77,9 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
             id: "google-" + volume.id, origin: "external", title: info.title,
             authors: Array.isArray(info.authors) ? info.authors : [],
             cover_url: info.imageLinks?.thumbnail?.replace("http://", "https://") ?? null,
-            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [], genres: Array.isArray(info.categories) ? info.categories : [],\n            rating: typeof info.averageRating === "number" ? info.averageRating : null,\n            ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
+            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [], genres: Array.isArray(info.categories) ? info.categories : [],
+            rating: typeof info.averageRating === "number" ? info.averageRating : null,
+            ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
             language: ({ pt: "Português", en: "Inglês", es: "Espanhol", ko: "Coreano" } as Record<string, string>)[info.language] ?? info.language ?? null,
           });
         }
@@ -132,7 +141,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
 async function searchCatalog(q: string, category: CatalogCategory, limit: number, offset: number) {
   const [internal, external] = await Promise.all([
     searchInternalCatalog(q, category, offset === 0 ? Math.min(limit, 12) : limit, offset),
-    offset === 0 ? searchExternalCatalog(q, category) : Promise.resolve([]),
+    searchExternalCatalog(q, category, limit, offset),
   ]);
   const seen = new Set(internal.map((item) => item.title.toLowerCase()));
   const unique = external.filter((item) => {
