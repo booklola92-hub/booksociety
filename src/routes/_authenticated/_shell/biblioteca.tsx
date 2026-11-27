@@ -1064,14 +1064,6 @@ function MyLibrary() {
                   <span className="absolute top-2 left-2 rounded-full bg-background/90 px-2 py-0.5 text-[11px] font-medium">{SHELF_LABEL[item.status as ShelfStatus] ?? item.status}</span>
                   {isFavorite(item) ? <Heart className="absolute top-2 right-2 h-5 w-5 fill-primary text-primary" /> : null}
                 </div>
-                {!item.book.cover_url ? (
-                  <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] leading-tight">
-                    <a className="text-primary underline underline-offset-2" href={`https://www.barnesandnoble.com/s/${encodeURIComponent(item.book.title + (item.book.author ? " " + item.book.author : ""))}`} target="_blank" rel="noreferrer">Barnes &amp; Noble</a>
-                    <a className="text-primary underline underline-offset-2" href={`https://www.kobo.com/search?query=${encodeURIComponent(item.book.title + (item.book.author ? " " + item.book.author : ""))}`} target="_blank" rel="noreferrer">Kobo</a>
-                    <a className="text-primary underline underline-offset-2" href="https://z-library.sk/" target="_blank" rel="noreferrer">Z-Library</a>
-                    <a className="text-primary underline underline-offset-2" href="https://www.ebookhunter.net/" target="_blank" rel="noreferrer">EbookHunter</a>
-                  </div>
-                ) : null}
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="line-clamp-2 text-sm font-medium leading-snug">{item.book.title}</h3>
