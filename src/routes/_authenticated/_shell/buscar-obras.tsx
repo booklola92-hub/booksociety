@@ -68,6 +68,9 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
           authors: Array.isArray(book.authors) ? book.authors : [],
           cover_url: book.image ?? null, synopsis: null, kind: "livro", is_bl: false,
           alt_titles: book.series ? [book.series] : [], genres: [], language: null,
+          rating: typeof book.rating === "number" ? book.rating : null,
+          ratings_count: typeof book.ratings_count === "number" ? book.ratings_count : null,
+          reviews_count: typeof book.reviews_count === "number" ? book.reviews_count : null,
         });
       }
     } catch (error) { console.warn("Piloterr indisponível:", error); }
@@ -371,6 +374,7 @@ function CatalogCard({ item, onAdded }: { item: CatalogItem; onAdded: () => void
         </p>
         {item.alt_titles.length > 0 && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">Também conhecido como: {item.alt_titles.join(", ")}</p>}
         {item.synopsis && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{item.synopsis}</p>}
+        {typeof item.rating === "number" && <p className="mt-1 text-xs font-medium text-amber-700">★ {item.rating.toFixed(2)}{typeof item.ratings_count === "number" ? ` · ${item.ratings_count.toLocaleString("pt-BR")} avaliações` : ""}</p>}
         <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
           <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{catalogKindLabel(item.kind)}</span>
           {item.is_bl && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">BL</span>}
