@@ -86,6 +86,37 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
       }
     } catch (error) { console.warn("Google Books indisponível:", error); }
 
+    // Open Library: segunda fonte aberta para edições, ISBNs, assuntos e capas.
+    try {
+      const params = new URLSearchParams({
+        q,
+        limit: String(Math.min(Math.max(limit, 1), 40)),
+        offset: String(Math.max(offset, 0)),
+        fields: "key,title,author_name,cover_i,first_publish_year,edition_count,subject,isbn,language",
+      });
+      const response = await fetch("https://openlibrary.org/search.json?" + params.toString());
+      if (response.ok) {
+        const payload = await response.json();
+        for (const doc of payload.docs ?? []) {
+          const title = String(doc.title ?? "").trim();
+          if (!title) continue;
+          results.push({
+            id: "openlibrary-" + String(doc.key ?? title),
+            origin: "external",
+            title,
+            authors: Array.isArray(doc.author_name) ? doc.author_name.slice(0, 5) : [],
+            cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
+            synopsis: null,
+            kind: "livro",
+            is_bl: false,
+            alt_titles: [],
+            genres: Array.isArray(doc.subject) ? doc.subject.slice(0, 12) : [],
+            language: Array.isArray(doc.language) ? doc.language[0] ?? null : null,
+          });
+        }
+      }
+    } catch (error) { console.warn("Open Library indisponível:", error); }
+
     // Busca complementar na web: os títulos encontrados são enriquecidos pela capa automática do BookCover.
     try {
       const { data, error } = await supabase.functions.invoke("google-web-search", {
@@ -143,14 +174,29 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
     searchInternalCatalog(q, category, Math.ceil(limit / 2), Math.floor(offset / 2)),
     searchExternalCatalog(q, category, limit, offset),
   ]);
-  const seen = new Set(internal.map((item) => item.title.toLowerCase()));
-  const unique = external.filter((item) => {
-    const key = item.title.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  return [...internal, ...unique];
+  const normalized = (title: string) => title.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
+  const merged = new Map<string, CatalogItem>();
+  for (const item of [...internal, ...external]) {
+    const key = normalized(item.title);
+    const previous = merged.get(key);
+    if (!previous) {
+      merged.set(key, item);
+      continue;
+    }
+    // Combina fontes: mantém a capa, sinopse, autores e gêneros disponíveis.
+    merged.set(key, {
+      ...previous,
+      authors: previous.authors.length ? previous.authors : item.authors,
+      cover_url: previous.cover_url || item.cover_url,
+      synopsis: previous.synopsis || item.synopsis,
+      genres: [...new Set([...(previous.genres ?? []), ...(item.genres ?? [])])],
+      alt_titles: [...new Set([...(previous.alt_titles ?? []), ...(item.alt_titles ?? [])])],
+      language: previous.language || item.language,
+      rating: previous.rating ?? item.rating ?? null,
+      ratings_count: previous.ratings_count ?? item.ratings_count ?? null,
+    });
+  }
+  return [...merged.values()];
 }
 
 function BuscarObras() {
