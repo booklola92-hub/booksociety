@@ -25,6 +25,9 @@ export interface CatalogItem {
   alt_titles: string[];
   language?: string | null;
   genres?: string[];
+  rating?: number | null;
+  ratings_count?: number | null;
+  reviews_count?: number | null;
 }
 
 export function catalogKindLabel(kind: string): string {
