@@ -54,12 +54,12 @@ async function searchInternalCatalog(q: string, category: CatalogCategory, limit
   });
 }
 
-async function searchExternalCatalog(q: string, category: CatalogCategory): Promise<CatalogItem[]> {
+async function searchExternalCatalog(q: string, category: CatalogCategory, limit: number, offset: number): Promise<CatalogItem[]> {
   if (!q.trim()) return [];
   const results: CatalogItem[] = [];
   if (["todos", "livros"].includes(category)) {
     try {
-      const params = new URLSearchParams({ q, maxResults: "20", printType: "books" });
+      const params = new URLSearchParams({\n        q,\n        maxResults: String(Math.min(Math.max(limit, 1), 40)),\n        startIndex: String(Math.max(offset, 0)),\n        printType: "books",\n        orderBy: "relevance",\n        projection: "full",\n      });
       const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
       if (response.ok) {
         const payload = await response.json();
@@ -70,7 +70,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
             id: "google-" + volume.id, origin: "external", title: info.title,
             authors: Array.isArray(info.authors) ? info.authors : [],
             cover_url: info.imageLinks?.thumbnail?.replace("http://", "https://") ?? null,
-            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [], genres: Array.isArray(info.categories) ? info.categories : [],
+            synopsis: info.description ?? null, kind: "livro", is_bl: false, alt_titles: [], genres: Array.isArray(info.categories) ? info.categories : [],\n            rating: typeof info.averageRating === "number" ? info.averageRating : null,\n            ratings_count: typeof info.ratingsCount === "number" ? info.ratingsCount : null,
             language: ({ pt: "Português", en: "Inglês", es: "Espanhol", ko: "Coreano" } as Record<string, string>)[info.language] ?? info.language ?? null,
           });
         }
@@ -97,7 +97,7 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
       }
     } catch (error) { console.warn("Busca complementar na web indisponível:", error); }
   }
-  if (["todos", "novels", "mangas", "manhwas", "bl"].includes(category)) {
+  if (offset === 0 && ["todos", "novels", "mangas", "manhwas", "bl"].includes(category)) {
     try {
       const query = "query ($search: String) { Page(page: 1, perPage: 25) { media(search: $search, type: MANGA, sort: SEARCH_MATCH) { id format countryOfOrigin description title { romaji english native } synonyms coverImage { large medium } staff { edges { role node { name { full } } } } genres tags { name } } } }";
       const response = await fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify({ query, variables: { search: q } }) });
@@ -141,7 +141,7 @@ async function searchCatalog(q: string, category: CatalogCategory, limit: number
     seen.add(key);
     return true;
   });
-  return [...internal, ...unique].slice(offset, offset + limit);
+  return [...internal, ...unique];
 }
 
 function BuscarObras() {
