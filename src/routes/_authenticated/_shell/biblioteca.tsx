@@ -196,6 +196,39 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
   return fetch(input, { ...init, signal: AbortSignal.timeout(5000) });
 }
 
+async function findGoodreadsCover(title: string, author: string): Promise<string | null> {
+  try {
+    const query = [title, author].filter(Boolean).join(" ");
+    const { data, error } = await supabase.functions.invoke("piloterr-goodreads-search", {
+      body: { query, page: 1 },
+    });
+    if (error || data?.error) {
+      console.warn("Goodreads/Piloterr não encontrou capas:", data?.error ?? error);
+      return null;
+    }
+    const results = Array.isArray(data?.results) ? data.results : [];
+    const expectedTitle = normalize(title);
+    const expectedAuthor = normalize(author);
+    const candidates = results.map((book: any) => {
+      const candidateTitle = normalize(String(book.title ?? ""));
+      const candidateAuthors = Array.isArray(book.authors) ? book.authors.map((name: unknown) => normalize(String(name))) : [];
+      const exactTitle = candidateTitle === expectedTitle;
+      const titleMatch = exactTitle || (expectedTitle.length > 3 && candidateTitle.includes(expectedTitle)) ||
+        (candidateTitle.length > 3 && expectedTitle.includes(candidateTitle));
+      const authorMatch = !expectedAuthor || !candidateAuthors.length || candidateAuthors.some((name: string) =>
+        name.includes(expectedAuthor) || expectedAuthor.includes(name));
+      return { image: typeof book.image === "string" ? book.image : null, titleMatch, authorMatch, exactTitle };
+    }).filter((book: any) => book.image && book.titleMatch && book.authorMatch)
+      .sort((a: any, b: any) => Number(b.exactTitle) - Number(a.exactTitle));
+    const imageUrl = candidates[0]?.image;
+    if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) return null;
+    return await canLoadPublicCover(imageUrl) ? imageUrl.replace(/^http:\/\//i, "https:") : null;
+  } catch (error) {
+    console.warn("Busca de capa no Goodreads falhou:", error);
+    return null;
+  }
+}
+
 async function findPublicCover(title: string, author: string, isbn10: string, isbn13: string): Promise<string | null> {
   const cleanIsbn = (value: string) => value.replace(/[^0-9Xx]/g, "");
   const isbn = cleanIsbn(isbn13) || cleanIsbn(isbn10);
@@ -232,7 +265,11 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     return await canLoadPublicCover(normalizedUrl) ? normalizedUrl : null;
   };
 
-  // 1. Internet Archive e Google Books são consultados simultaneamente.
+  // 1. Prioriza a capa original do Goodreads via Piloterr.
+  const goodreadsCover = await findGoodreadsCover(title, author);
+  if (goodreadsCover) return goodreadsCover;
+
+  // 2. Fontes públicas alternativas caso o Goodreads não tenha uma capa disponível.
   const [archiveResult, googleResult] = await Promise.allSettled([
     (async () => {
       const query = isbn ? "isbn:" + isbn + " AND mediatype:texts" :
@@ -277,7 +314,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
   if (archiveResult.status === "fulfilled" && archiveResult.value) return archiveResult.value;
   if (googleResult.status === "fulfilled" && googleResult.value) return googleResult.value;
 
-  // 2. Open Library é consultada depois das duas fontes prioritárias.
+  // 3. Open Library é consultada depois das fontes prioritárias.
   try {
     const query = isbn ? "isbn=" + encodeURIComponent(isbn) :
       "title=" + encodeURIComponent(queryTitle) + (author ? "&author=" + encodeURIComponent(author) : "");
@@ -291,7 +328,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     }
   } catch (error) { console.warn("Open Library não respondeu:", error); }
 
-  // 3. AniList como alternativa especializada para mangás e manhwas.
+  // 4. AniList como alternativa especializada para mangás e manhwas.
   try {
     const response = await fetchWithTimeout("https://graphql.anilist.co", {
       method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -309,7 +346,7 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     }
   } catch (error) { console.warn("AniList não respondeu:", error); }
 
-  // 4. Bookcover API: fallback individual para capas Goodreads por ISBN ou título/autor.
+  // 5. Bookcover API como último fallback para ISBN ou título/autor.
   try {
     const params = new URLSearchParams({ image_size: "large" });
     if (isbn) params.set("isbn", isbn);
