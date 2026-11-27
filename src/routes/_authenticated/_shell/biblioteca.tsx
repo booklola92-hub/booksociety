@@ -309,8 +309,30 @@ async function findPublicCover(title: string, author: string, isbn10: string, is
     }
   } catch (error) { console.warn("AniList não respondeu:", error); }
 
-  // Barnes & Noble e Kobo não oferecem aqui uma API pública de capas documentada.
-  // Não fazemos scraping nem contornamos proteções desses catálogos.
+  // 4. Goodreads Bookcover API como último fallback para livros sem capa.
+  // A API recebe ISBN-13 ou título + autor e retorna uma URL direta da imagem.
+  try {
+    const params = new URLSearchParams();
+    if (isbn && /^\\d{13}$/.test(isbn)) {
+      params.set("isbn", isbn);
+    } else if (queryTitle && author) {
+      params.set("book_title", queryTitle);
+      params.set("author_name", author);
+    }
+    if ([...params.keys()].length) {
+      params.set("image_size", "large");
+      const response = await fetchWithTimeout("https://bookcover.longitood.com/bookcover?" + params.toString());
+      if (response.ok) {
+        const payload = await response.json();
+        const cover = await usable(typeof payload?.url === "string" ? payload.url : null);
+        if (cover) return cover;
+      }
+    }
+  } catch (error) {
+    // A API é opcional: indisponibilidade ou limite de uso não interrompe a busca.
+    console.warn("Goodreads Bookcover API não respondeu:", error);
+  }
+
   return null;
 }
 function GoodreadsTransfer() {
