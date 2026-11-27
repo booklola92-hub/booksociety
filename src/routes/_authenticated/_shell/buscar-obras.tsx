@@ -59,6 +59,19 @@ async function searchExternalCatalog(q: string, category: CatalogCategory): Prom
   const results: CatalogItem[] = [];
   if (["todos", "livros"].includes(category)) {
     try {
+      const { data, error } = await supabase.functions.invoke("piloterr-goodreads-search", { body: { query: q, page: 1 } });
+      if (error) throw error;
+      for (const book of data?.results ?? []) {
+        if (!book.title) continue;
+        results.push({
+          id: "piloterr-" + String(book.id ?? book.title), origin: "external", title: book.title,
+          authors: Array.isArray(book.authors) ? book.authors : [],
+          cover_url: book.image ?? null, synopsis: null, kind: "livro", is_bl: false,
+          alt_titles: book.series ? [book.series] : [], genres: [], language: null,
+        });
+      }
+    } catch (error) { console.warn("Piloterr indisponível:", error); }
+    try {
       const params = new URLSearchParams({ q, maxResults: "20", printType: "books" });
       const response = await fetch("https://www.googleapis.com/books/v1/volumes?" + params.toString());
       if (response.ok) {
