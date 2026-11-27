@@ -111,6 +111,42 @@ async function searchExternalCatalog(q: string, category: CatalogCategory, limit
     }));
     results.push(...googleSearches.flat());
 
+    // Skoob: fonte complementar para edições brasileiras, com autenticação mantida no servidor.
+    if (category !== "novels") {
+      try {
+        const { data, error } = await supabase.functions.invoke("skoob-catalog", {
+          body: { query: q, limit: 100 },
+        });
+        if (error) throw error;
+        for (const [index, book] of (data?.results ?? []).entries()) {
+          const title = String(book.title ?? book.titulo ?? "").trim();
+          if (!title) continue;
+          const author = String(book.author ?? book.autor ?? "").trim();
+          const isbn = String(book.isbn_13 ?? book.isbn13 ?? book.isbn_10 ?? book.isbn ?? "").trim();
+          const skoobUrl = String(book.skoob_url ?? book.url ?? "").trim();
+          results.push({
+            id: "skoob-" + String(book.id ?? book.book_id ?? index),
+            origin: "external",
+            title,
+            authors: author ? [author] : [],
+            cover_url: String(book.cover ?? book.capa_grande ?? book.capa_media ?? "").trim() || null,
+            synopsis: String(book.synopsis ?? book.sinopse ?? "").trim() || null,
+            kind: "livro",
+            is_bl: false,
+            alt_titles: [],
+            genres: [],
+            language: "Português",
+            publisher: String(book.publisher ?? book.editora ?? "").trim() || null,
+            isbn: isbn || null,
+            published_date: book.year || book.ano ? String(book.year ?? book.ano) : null,
+            source_url: skoobUrl || null,
+          });
+        }
+      } catch (error) {
+        console.warn("Skoob indisponível:", error);
+      }
+    }
+
     // Open Library: duas páginas de até 100 resultados por idioma.
     if (category !== "novels") {
       const openLibrarySearches = await Promise.all([
