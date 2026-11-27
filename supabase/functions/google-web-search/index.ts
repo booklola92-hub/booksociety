@@ -32,10 +32,10 @@ function cleanText(value: string): string {
 
 function metaContent(html: string, keys: string[]): string | null {
   for (const key of keys) {
-    const escaped = key.replace(/[.*+?^\x24{}()|[\]\\]/g, "\\$&");
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const patterns = [
-      new RegExp('<meta[^>]+(?:property|name)=["\\']' + escaped + '["\\'][^>]+content=["\\']([^"\\']+)["\\']', "i"),
-      new RegExp('<meta[^>]+content=["\\']([^"\\']+)["\\'][^>]+(?:property|name)=["\\']' + escaped + '["\\']', "i"),
+      new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, "i"),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`, "i"),
     ];
     for (const pattern of patterns) {
       const match = html.match(pattern);
